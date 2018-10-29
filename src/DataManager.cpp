@@ -1,13 +1,16 @@
 #include "DataManager.h"
 
 DataManager::DataManager(ros::NodeHandle &nh )
+//: out_stream(ofstream("/dev/pts/0",ios::out) )
 {
     this->nh = nh;
 }
 
 
 
-DataManager::DataManager(const DataManager &obj) {
+DataManager::DataManager(const DataManager &obj)
+//: out_stream(ofstream("/dev/pts/0",ios::out) )
+{
    cout << "Copy constructor allocating ptr." << endl;
 }
 
@@ -177,103 +180,107 @@ void DataManager::tracked_feat_callback( const sensor_msgs::PointCloud::ConstPtr
 }
 
 
-void DataManager::print_queue_size( int verbose=1 )
+string DataManager::print_queue_size( int verbose=1 )
 {
+    std::stringstream buffer;
+
     if( verbose == 1)
     {
-        cout << "img_buf=" << img_buf.size() << "\t";
-        cout << "pose_buf=" << pose_buf.size() << "\t";
-        cout << "kf_pose_buf=" << kf_pose_buf.size() << "\t";
-        cout << "ptcld_buf=" << ptcld_buf.size() << "\t";
-        cout << "trackedfeat_buf=" << trackedfeat_buf.size() << "\t";
-        cout << "extrinsic_cam_imu_buf=" << extrinsic_cam_imu_buf.size() << "\t";
-        cout << endl;
+        buffer << "img_buf=" << img_buf.size() << "\t";
+        buffer << "pose_buf=" << pose_buf.size() << "\t";
+        buffer << "kf_pose_buf=" << kf_pose_buf.size() << "\t";
+        buffer << "ptcld_buf=" << ptcld_buf.size() << "\t";
+        buffer << "trackedfeat_buf=" << trackedfeat_buf.size() << "\t";
+        buffer << "extrinsic_cam_imu_buf=" << extrinsic_cam_imu_buf.size() << "\t";
+        buffer << endl;
     }
 
     if( verbose == 2 )
     {
-        cout << "img_buf=" << img_buf.size() << " (";
+        buffer << "img_buf=" << img_buf.size() << " (";
         if( img_buf.size()  > 0 ) {
-            cout << std::fixed << std::setprecision(4) << img_buf.front()->header.stamp-pose_0 << "-->";
-            cout << std::fixed << std::setprecision(4) << img_buf.back()->header.stamp-pose_0 << ";";
+            buffer << std::fixed << std::setprecision(4) << img_buf.front()->header.stamp-pose_0 << "-->";
+            buffer << std::fixed << std::setprecision(4) << img_buf.back()->header.stamp-pose_0 << ";";
         }
-        cout << ")\t";
+        buffer << ")\t";
 
-        cout << "pose_buf=" << pose_buf.size() << " (";
+        buffer << "pose_buf=" << pose_buf.size() << " (";
         if( pose_buf.size()  > 0 ) {
-            cout << std::fixed << std::setprecision(4) << pose_buf.front()->header.stamp-pose_0 << "-->";
-            cout << std::fixed << std::setprecision(4) << pose_buf.back()->header.stamp-pose_0 << ";";
+            buffer << std::fixed << std::setprecision(4) << pose_buf.front()->header.stamp-pose_0 << "-->";
+            buffer << std::fixed << std::setprecision(4) << pose_buf.back()->header.stamp-pose_0 << ";";
         }
-        cout << ")\t";
+        buffer << ")\t";
 
-        cout << "kf_pose_buf=" << kf_pose_buf.size() << " (";
+        buffer << "kf_pose_buf=" << kf_pose_buf.size() << " (";
         if( kf_pose_buf.size()  > 0 ) {
-            cout << std::fixed << std::setprecision(4) << kf_pose_buf.front()->header.stamp-pose_0 << "-->";
-            cout << std::fixed << std::setprecision(4) << kf_pose_buf.back()->header.stamp-pose_0 << ";";
+            buffer << std::fixed << std::setprecision(4) << kf_pose_buf.front()->header.stamp-pose_0 << "-->";
+            buffer << std::fixed << std::setprecision(4) << kf_pose_buf.back()->header.stamp-pose_0 << ";";
         }
-        cout << ")\t";
+        buffer << ")\t";
 
-        cout << "ptcld_buf=" << ptcld_buf.size() << " (";
+        buffer << "ptcld_buf=" << ptcld_buf.size() << " (";
         if( ptcld_buf.size()  > 0 ) {
-            cout << std::fixed << std::setprecision(4) << ptcld_buf.front()->header.stamp-pose_0 << "-->";
-            cout << std::fixed << std::setprecision(4) << ptcld_buf.back()->header.stamp-pose_0 << ";";
+            buffer << std::fixed << std::setprecision(4) << ptcld_buf.front()->header.stamp-pose_0 << "-->";
+            buffer << std::fixed << std::setprecision(4) << ptcld_buf.back()->header.stamp-pose_0 << ";";
         }
-        cout << ")\t";
+        buffer << ")\t";
 
-        cout << "trackedfeat_buf=" << trackedfeat_buf.size() << " (";
+        buffer << "trackedfeat_buf=" << trackedfeat_buf.size() << " (";
         if( trackedfeat_buf.size()  > 0 ) {
-            cout << std::fixed << std::setprecision(4) << trackedfeat_buf.front()->header.stamp-pose_0 << "-->";
-            cout << std::fixed << std::setprecision(4) << trackedfeat_buf.back()->header.stamp-pose_0 << ";";
+            buffer << std::fixed << std::setprecision(4) << trackedfeat_buf.front()->header.stamp-pose_0 << "-->";
+            buffer << std::fixed << std::setprecision(4) << trackedfeat_buf.back()->header.stamp-pose_0 << ";";
         }
-        cout << ")\t";
+        buffer << ")\t";
 
-        cout << "extrinsic_cam_imu_buf=" << extrinsic_cam_imu_buf.size() << " (";
+        buffer << "extrinsic_cam_imu_buf=" << extrinsic_cam_imu_buf.size() << " (";
         if( extrinsic_cam_imu_buf.size()  > 0 ) {
-            cout << std::fixed << std::setprecision(4) << extrinsic_cam_imu_buf.front()->header.stamp-pose_0 << "-->";
-            cout << std::fixed << std::setprecision(4) << extrinsic_cam_imu_buf.back()->header.stamp-pose_0 << ";";
+            buffer << std::fixed << std::setprecision(4) << extrinsic_cam_imu_buf.front()->header.stamp-pose_0 << "-->";
+            buffer << std::fixed << std::setprecision(4) << extrinsic_cam_imu_buf.back()->header.stamp-pose_0 << ";";
         }
-        cout << ")\t";
-        cout << "\n";
+        buffer << ")\t";
+        buffer << "\n";
     }
 
     if( verbose == 3 )
     {
-        cout << "img_buf.len=" << img_buf.size() << "\t";
-        cout << "pose_buf.len=" << pose_buf.size() << "\t";
-        cout << "kf_pose_buf.len=" << kf_pose_buf.size() << "\t";
-        cout << "ptcld_buf.len=" << ptcld_buf.size() << "\t";
-        cout << "trackedfeat_buf.len=" << trackedfeat_buf.size() << "\t";
-        cout << "extrinsic_cam_imu_buf.len=" << extrinsic_cam_imu_buf.size() << "\t";
-        cout << endl;
+        buffer << "img_buf.len=" << img_buf.size() << "\t";
+        buffer << "pose_buf.len=" << pose_buf.size() << "\t";
+        buffer << "kf_pose_buf.len=" << kf_pose_buf.size() << "\t";
+        buffer << "ptcld_buf.len=" << ptcld_buf.size() << "\t";
+        buffer << "trackedfeat_buf.len=" << trackedfeat_buf.size() << "\t";
+        buffer << "extrinsic_cam_imu_buf.len=" << extrinsic_cam_imu_buf.size() << "\t";
+        buffer << endl;
 
         if( img_buf.size() > 0 )
-            cout << "img_buf.back.t=" << img_buf.back()->header.stamp-pose_0 << "\t";
+            buffer << "img_buf.back.t=" << img_buf.back()->header.stamp-pose_0 << "\t";
         if( pose_buf.size() > 0 )
-            cout << "pose_buf.back.t=" << pose_buf.back()->header.stamp-pose_0 << "\t";
+            buffer << "pose_buf.back.t=" << pose_buf.back()->header.stamp-pose_0 << "\t";
         if( kf_pose_buf.size() > 0 )
-            cout << "kf_pose_buf.back.t=" << kf_pose_buf.back()->header.stamp-pose_0 << "\t";
+            buffer << "kf_pose_buf.back.t=" << kf_pose_buf.back()->header.stamp-pose_0 << "\t";
         if( ptcld_buf.size() > 0 )
-            cout << "ptcld_buf.back.t=" << ptcld_buf.back()->header.stamp-pose_0 << "\t";
+            buffer << "ptcld_buf.back.t=" << ptcld_buf.back()->header.stamp-pose_0 << "\t";
         if( trackedfeat_buf.size() > 0 )
-            cout << "trackedfeat_buf.back.t=" << trackedfeat_buf.back()->header.stamp-pose_0 << "\t";
+            buffer << "trackedfeat_buf.back.t=" << trackedfeat_buf.back()->header.stamp-pose_0 << "\t";
         if( extrinsic_cam_imu_buf.size() > 0 )
-            cout << "extrinsic_cam_imu_buf.back.t=" << extrinsic_cam_imu_buf.back()->header.stamp-pose_0 << "\t";
-        cout << endl;
+            buffer << "extrinsic_cam_imu_buf.back.t=" << extrinsic_cam_imu_buf.back()->header.stamp-pose_0 << "\t";
+        buffer << endl;
 
         if( img_buf.size() > 0 )
-            cout << "img_buf.front.t=" << img_buf.front()->header.stamp-pose_0 << "\t";
+            buffer << "img_buf.front.t=" << img_buf.front()->header.stamp-pose_0 << "\t";
         if( pose_buf.size() > 0 )
-            cout << "pose_buf.front.t=" << pose_buf.front()->header.stamp-pose_0 << "\t";
+            buffer << "pose_buf.front.t=" << pose_buf.front()->header.stamp-pose_0 << "\t";
         if( kf_pose_buf.size() > 0 )
-            cout << "kf_pose_buf.front.t=" << kf_pose_buf.front()->header.stamp-pose_0 << "\t";
+            buffer << "kf_pose_buf.front.t=" << kf_pose_buf.front()->header.stamp-pose_0 << "\t";
         if( ptcld_buf.size() > 0 )
-            cout << "ptcld_buf.front.t=" << ptcld_buf.front()->header.stamp-pose_0 << "\t";
+            buffer << "ptcld_buf.front.t=" << ptcld_buf.front()->header.stamp-pose_0 << "\t";
         if( trackedfeat_buf.size() > 0 )
-            cout << "trackedfeat_buf.front.t=" << trackedfeat_buf.front()->header.stamp-pose_0 << "\t";
+            buffer << "trackedfeat_buf.front.t=" << trackedfeat_buf.front()->header.stamp-pose_0 << "\t";
         if( extrinsic_cam_imu_buf.size() > 0 )
-            cout << "extrinsic_cam_imu_buf.front.t=" << extrinsic_cam_imu_buf.front()->header.stamp-pose_0 << "\t";
-        cout << endl;
+            buffer << "extrinsic_cam_imu_buf.front.t=" << extrinsic_cam_imu_buf.front()->header.stamp-pose_0 << "\t";
+        buffer << endl;
     }
+
+    return buffer.str();
 }
 
 
@@ -286,8 +293,8 @@ void DataManager::print_queue_size( int verbose=1 )
 /////////////////////////// Thread mains /////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 
-#define _12335_print( x ) cout << "[data_association_thread]" << x;
-
+// #define _12335_print( str ) cout << "[data_association_thread]" << str;
+#define _12335_print( str ) ;
 void DataManager::data_association_thread( int max_loop_rate_in_hz )
 {
     assert( max_loop_rate_in_hz > 0 && max_loop_rate_in_hz < 200 && "[DataManager::data_association_thread] I am expecting the loop rate to be between 1-50" );
@@ -301,15 +308,15 @@ void DataManager::data_association_thread( int max_loop_rate_in_hz )
 
         //------------------------ Process here--------------------------------
         // std::this_thread::sleep_for( std::chrono::milliseconds(2000) );
-        cout << "---\n";
-        print_queue_size(2); //< sizes of buffer queues
-        cout << "\t\tSize_of_data_map = " << data_map.size() << endl;
+        _12335_print( "---\n" );
+        _12335_print( print_queue_size(2 ) ); //< sizes of buffer queues
+        _12335_print( "\t\tSize_of_data_map = "+ to_string( data_map.size() ) + "\n" );
 
 
         // deqeue all raw images and make DataNodes of each of them, s
         while( img_buf.size() > 0 ) {
             sensor_msgs::ImageConstPtr img_msg = img_buf.pop();
-            cout << "Added a DataNode in data_map with poped() rawimage t=" << img_msg->header.stamp - pose_0 << endl;
+            // cout << "Added a DataNode in data_map with poped() rawimage t=" << img_msg->header.stamp - pose_0 << endl;
             DataNode * n = new DataNode( img_msg->header.stamp );
             n->setImageFromMsg( img_msg );
 
@@ -320,7 +327,7 @@ void DataManager::data_association_thread( int max_loop_rate_in_hz )
         while( pose_buf.size() > 0 ) {
              nav_msgs::Odometry::ConstPtr pose_msg = pose_buf.pop();
              ros::Time t = pose_msg->header.stamp;
-             cout << "Attempt adding poped() pose in data_map with t=" << pose_msg->header.stamp -pose_0 << endl;
+            //  cout << "Attempt adding poped() pose in data_map with t=" << pose_msg->header.stamp -pose_0 << endl;
 
              // find the DataNode with this timestamp
              if( data_map.count( t ) > 0 ) {
@@ -337,7 +344,7 @@ void DataManager::data_association_thread( int max_loop_rate_in_hz )
         while( ptcld_buf.size() > 0 ) {
             sensor_msgs::PointCloudConstPtr ptcld_msg = ptcld_buf.pop();
             ros::Time t = ptcld_msg->header.stamp;
-            cout << "Attempt adding poped() pointcloud in data_map at t=" << t - pose_0 << endl;
+            // cout << "Attempt adding poped() pointcloud in data_map at t=" << t - pose_0 << endl;
 
             // find the DataNode with this timestamp
             if( data_map.count( t ) > 0 ) {

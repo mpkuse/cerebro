@@ -10,6 +10,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  message_generation
 )
 
 
@@ -62,11 +63,12 @@ find_package(OpenCV 3 REQUIRED)
 # )
 
 ## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
+add_service_files(
+   FILES
+   WholeImageDescriptorCompute.srv
 #   Service1.srv
 #   Service2.srv
-# )
+ )
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -76,10 +78,11 @@ find_package(OpenCV 3 REQUIRED)
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   std_msgs
-# )
+ generate_messages(
+   DEPENDENCIES
+   std_msgs
+   sensor_msgs
+ )
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -148,6 +151,8 @@ add_executable(
         src/PinholeCamera.cpp
         src/DataManager.cpp
         src/DataNode.cpp
+        src/Cerebro.cpp
+        src/Visualization.cpp
         src/utils/PoseManipUtils.cpp
         src/utils/RosMarkerUtils.cpp
         src/utils/RawFileIO.cpp

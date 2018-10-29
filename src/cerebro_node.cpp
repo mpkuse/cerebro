@@ -14,6 +14,8 @@
 
 #include "PinholeCamera.h"
 #include "DataManager.h"
+#include "Cerebro.h"
+#include "Visualization.h"
 
 
 int main( int argc, char ** argv )
@@ -110,37 +112,73 @@ int main( int argc, char ** argv )
     // [A]
     // Data associate thread: looks at the callback buffers and sets the data in the std::map
     dataManager.data_association_thread_enable();
-    std::thread t1( &DataManager::data_association_thread, &dataManager, 1 );
+    std::thread t1( &DataManager::data_association_thread, &dataManager, 50 );
+    // TODO Another thread in class dataManager which will deallocate images in nonkeyframes.
 
 
+    // [B]
+    // Cerebro threads
+    Cerebro cer;
+    cer.setDataManager( &dataManager );
+    cer.run_thread_enable();
+    // std::thread t2( &Cerebro::run, &cer );
 
+    cer.descriptor_computer_thread_enable();
+    std::thread desc_th( &Cerebro::descriptor_computer_thread, &cer );
+
+    // [C]
+    // Visualization
+    // Visualization viz(nh);
+    // viz.setDataManager( &dataManager );
+    // viz.setVizPublishers( "/cerebro_node/viz/" );
+    // viz.run_thread_enable();
+    // std::thread t3( &Visualization::run, &viz ); //TODO something wrong with the logic in publish. another solution could be we keep #seq in DataNode.
 
 
     fs.release();
     ros::spin();
+
     dataManager.data_association_thread_disable();
+    cer.run_thread_disable();
+    cer.descriptor_computer_thread_disable();
+    // viz.run_thread_disable();
 
     t1.join();
+    // t2.join();
+    desc_th.join();
+    // t3.join();
 
 
-    std::map< ros::Time, DataNode* > data_map = dataManager.getDataMapRef();
-    for( auto it = data_map.begin() ; it!= data_map.end() ; it++ )
+    #if 0
     {
-        cout << "Map-Key: " << it->first << "\t" << it->first - dataManager.getPose0Stamp() << endl;
-        cout << "Map-Value:\n";
-        it->second->prettyPrint(  );
+        // A demo of how to look inside dataManager.
+        std::map< ros::Time, DataNode* > data_map = dataManager.getDataMapRef();
+        for( auto it = data_map.begin() ; it!= data_map.end() ; it++ )
+        {
+            cout << "Map-Key: " << it->first << "\t" << it->first - dataManager.getPose0Stamp() << endl;
+            cout << "Map-Value:\n";
+            it->second->prettyPrint(  );
+
+            if( it->second->isImageAvailable() ) {
+                cv::imshow( "win", it->second->getImage() );
+                cv::waitKey(30);
+            }
+        }
+
+        // Printing Global Variables
+        cout << "Pose0 : isAvailable=" << dataManager.isPose0Available() << "\t";
+        cout << "stamp=" << dataManager.getPose0Stamp() ;
+        cout << endl;
+
+        cout << "Camera:\n" ;
+        dataManager.getCameraRef().printCameraInfo(2);
+
+        cout << "IMUCamExtrinsic : isAvailable=" << dataManager.isIMUCamExtrinsicAvailable() << "\t";
+        cout << "last updated : " << dataManager.getIMUCamExtrinsicLastUpdated() << "\t" << dataManager.getIMUCamExtrinsicLastUpdated() -dataManager.getPose0Stamp() ;
+        cout << "\nimu_T_cam : \n" << PoseManipUtils::prettyprintMatrix4d( dataManager.getIMUCamExtrinsic() ) << endl;
     }
+    #endif
 
-    // Printing Global Variables
-    cout << "Pose0 : " << dataManager.isPose0Available() << "\t";
-    cout << "stamp=" << dataManager.getPose0Stamp() ;
-    cout << endl;
-
-    cout << "Camera:\n" ;
-    dataManager.getCameraRef().printCameraInfo(2);
-
-    cout << "IMUCamExtrinsic : " << dataManager.isIMUCamExtrinsicAvailable() << "\t";
-    cout << "last updated : " << dataManager.getIMUCamExtrinsicLastUpdated() << "\t";
-    cout << "\nimu_T_cam : \n" << PoseManipUtils::prettyprintMatrix4d( dataManager.getIMUCamExtrinsic() ) << endl;
+    return 0 ;
 
 }

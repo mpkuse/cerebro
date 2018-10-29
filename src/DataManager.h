@@ -95,13 +95,14 @@ private:
     /////////
     PinholeCamera camera; //< Camera Intrinsics. See corresponding class
     ros::NodeHandle nh; //< Node Handle, TODO Not sure why this will be needed here. consider removing it from here.
+    // const std::ofstream &out_stream;
 
     std::map< ros::Time, DataNode* > data_map;
 
     bool pose_0_available = false;
     ros::Time pose_0; // time of 1st pose
 
-    Matrix4d imu_T_cam;
+    Matrix4d imu_T_cam = Matrix4d::Identity();
     bool imu_T_cam_available = false;
     ros::Time imu_T_cam_stamp;
 
@@ -138,7 +139,7 @@ private:
     SafeQueue<nav_msgs::OdometryConstPtr> extrinsic_cam_imu_buf;
 
 
-    void print_queue_size(int verbose);
+    string print_queue_size(int verbose );
 
 
     /////////

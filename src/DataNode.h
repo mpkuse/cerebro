@@ -96,7 +96,7 @@ private:
     // Raw Image
     cv::Mat image;
     ros::Time t_image;
-    bool m_image=false;
+    bool m_image=false; // TODO better make this atomic<bool>
 
 
     // Pose (odometry pose from vins estimator)
