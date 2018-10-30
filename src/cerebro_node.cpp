@@ -118,35 +118,35 @@ int main( int argc, char ** argv )
 
     // [B]
     // Cerebro threads
-    Cerebro cer;
-    cer.setDataManager( &dataManager );
-    cer.run_thread_enable();
+    // Cerebro cer;
+    // cer.setDataManager( &dataManager );
+    // cer.run_thread_enable();
     // std::thread t2( &Cerebro::run, &cer );
 
-    cer.descriptor_computer_thread_enable();
-    std::thread desc_th( &Cerebro::descriptor_computer_thread, &cer );
+    // cer.descriptor_computer_thread_enable();
+    // std::thread desc_th( &Cerebro::descriptor_computer_thread, &cer );
 
     // [C]
     // Visualization
-    // Visualization viz(nh);
-    // viz.setDataManager( &dataManager );
-    // viz.setVizPublishers( "/cerebro_node/viz/" );
-    // viz.run_thread_enable();
-    // std::thread t3( &Visualization::run, &viz ); //TODO something wrong with the logic in publish. another solution could be we keep #seq in DataNode.
+    Visualization viz(nh);
+    viz.setDataManager( &dataManager );
+    viz.setVizPublishers( "/cerebro_node/viz/" );
+    viz.run_thread_enable();
+    std::thread t3( &Visualization::run, &viz, 25 ); //TODO something wrong with the logic in publish. another solution could be we keep #seq in DataNode.
 
 
     fs.release();
     ros::spin();
 
     dataManager.data_association_thread_disable();
-    cer.run_thread_disable();
-    cer.descriptor_computer_thread_disable();
-    // viz.run_thread_disable();
+    // cer.run_thread_disable();
+    // cer.descriptor_computer_thread_disable();
+    viz.run_thread_disable();
 
     t1.join();
     // t2.join();
-    desc_th.join();
-    // t3.join();
+    // desc_th.join();
+    t3.join();
 
 
     #if 0
@@ -155,11 +155,11 @@ int main( int argc, char ** argv )
         std::map< ros::Time, DataNode* > data_map = dataManager.getDataMapRef();
         for( auto it = data_map.begin() ; it!= data_map.end() ; it++ )
         {
-            cout << "Map-Key: " << it->first << "\t" << it->first - dataManager.getPose0Stamp() << endl;
+            cout << "Map-Key: " << it->first << "\tseq=" << std::distance( data_map.begin(), it ) << "\t" << it->first - dataManager.getPose0Stamp() << endl;
             cout << "Map-Value:\n";
             it->second->prettyPrint(  );
 
-            if( it->second->isImageAvailable() ) {
+            if( false && it->second->isImageAvailable() ) {
                 cv::imshow( "win", it->second->getImage() );
                 cv::waitKey(30);
             }
@@ -177,6 +177,131 @@ int main( int argc, char ** argv )
         cout << "last updated : " << dataManager.getIMUCamExtrinsicLastUpdated() << "\t" << dataManager.getIMUCamExtrinsicLastUpdated() -dataManager.getPose0Stamp() ;
         cout << "\nimu_T_cam : \n" << PoseManipUtils::prettyprintMatrix4d( dataManager.getIMUCamExtrinsic() ) << endl;
     }
+    #endif
+
+
+    #if 0
+    {
+        string save_dir = "/Bulk_Data/_tmp/";
+
+        // Loops through all images and cv::waitKey press s will write the image and other data to dump dir
+        std::map< ros::Time, DataNode* > data_map = dataManager.getDataMapRef();
+        for( auto it = data_map.begin() ; it!= data_map.end() ; it++ )
+        {
+            if( !it->second->isKeyFrame() )
+                continue;
+
+            int seq_id = std::distance( data_map.begin() , it );
+
+            cout << "Map-Key: " << it->first - dataManager.getPose0Stamp() << "\tseq=" << seq_id << "\t" << it->first << endl;
+            cout << "Map-Value:\n";
+            it->second->prettyPrint(  );
+
+            assert( it->second->isImageAvailable() );
+            cv::imshow( "win", it->second->getImage() );
+
+            if( it->second->isUVAvailable() && dataManager.getCameraRef().isValid() && it->second->isPoseAvailable() && it->second->isPtCldAvailable() )
+            {
+                // Plot observed uv on image
+                assert( it->second->isUVAvailable() );
+                cv::Mat dst;
+                const cv::Mat image = it->second->getImage();
+
+                const MatrixXd uv = it->second->getUV();
+                cout << "uv.rows=" << uv.rows() << "\tuv.cols=" << uv.cols() << endl;
+
+                MiscUtils::plot_point_sets( image, uv, dst, cv::Scalar(0,0,255) );
+                cv::imshow( "dst_uv", dst );
+
+                // Project 3d points
+                MatrixXd reprojected_pts;
+                assert( dataManager.getCameraRef().isValid()  && it->second->isPoseAvailable() && it->second->isPtCldAvailable() );
+
+                MatrixXd cX;
+                cX = it->second->getPose().inverse() * it->second->getPointCloud();
+
+                dataManager.getCameraRef().perspectiveProject3DPoints( cX, reprojected_pts );
+                cv::Mat dst2;
+                MiscUtils::plot_point_sets( dst, reprojected_pts, dst2, cv::Scalar(255,0,0) );
+                cv::imshow( "dst_PI( wX )", dst2 );
+
+            }
+
+            char key = cv::waitKey(0);
+            cout << "<s> to save; <q> to quit; any key to continue\n";
+            if( key == 'q')
+                break;
+            if( key == 's' )
+            {
+                string fname = save_dir+"/"+to_string( it->first.toSec() );
+                // Save Image
+                RawFileIO::write_image( fname+".jpg", it->second->getImage()  );
+
+                // Save VINS pose
+                // RawFileIO::write_EigenMatrix( fname+".wTc", it->second->getPose() );
+
+                // Save Point Cloud
+                // RawFileIO::write_EigenMatrix( fname+".wX.pointcloud", it->second->getPointCloud() );
+                RawFileIO::write_EigenMatrix( fname+".cX.pointcloud", it->second->getPose().inverse() *  it->second->getPointCloud() );
+
+                // Save Tracked Points
+                // RawFileIO::write_EigenMatrix( fname+".unvn", it->second->getUnVn() );
+                // RawFileIO::write_EigenMatrix( fname+".uv", it->second->getUV() );
+                // RawFileIO::write_EigenMatrix( fname+".id", it->second->getFeatIds() );
+            }
+        }
+
+        // Printing Global Variables
+        cout << "Pose0 : isAvailable=" << dataManager.isPose0Available() << "\t";
+        cout << "stamp=" << dataManager.getPose0Stamp() ;
+        cout << endl;
+
+        cout << "Camera:\n" ;
+        dataManager.getCameraRef().printCameraInfo(2);
+
+        cout << "IMUCamExtrinsic : isAvailable=" << dataManager.isIMUCamExtrinsicAvailable() << "\t";
+        cout << "last updated : " << dataManager.getIMUCamExtrinsicLastUpdated() << "\t" << dataManager.getIMUCamExtrinsicLastUpdated() -dataManager.getPose0Stamp() ;
+        cout << "\nimu_T_cam : \n" << PoseManipUtils::prettyprintMatrix4d( dataManager.getIMUCamExtrinsic() ) << endl;
+
+
+    }
+    #endif
+
+    #if 1
+        // Write json log
+        string save_dir = "/Bulk_Data/_tmp/";
+        RawFileIO::write_string( save_dir+"/log.json", dataManager.metaDataAsJson() );
+
+
+        std::map< ros::Time, DataNode* > data_map = dataManager.getDataMapRef();
+        for( auto it = data_map.begin() ; it!= data_map.end() ; it++ )
+        {
+            int seq_id = std::distance( data_map.begin() , it );
+
+            string fname = save_dir+"/"+to_string(seq_id );
+            if( it->second->isImageAvailable() )
+                RawFileIO::write_image( fname+".jpg", it->second->getImage()  );
+
+            // Save VINS pose
+            if( it->second->isPoseAvailable() ) {
+                RawFileIO::write_EigenMatrix( fname+".wTc", it->second->getPose() );
+            }
+
+            // Save Point Cloud
+            if( it->second->isPtCldAvailable() ) {
+                RawFileIO::write_EigenMatrix( fname+".wX.pointcloud", it->second->getPointCloud() );
+                RawFileIO::write_EigenMatrix( fname+".cX.pointcloud", it->second->getPose().inverse() *  it->second->getPointCloud() );
+            }
+
+
+            // Save Tracked Points
+            if( it->second->isUVAvailable() ) {
+                RawFileIO::write_EigenMatrix( fname+".unvn", it->second->getUnVn() );
+                RawFileIO::write_EigenMatrix( fname+".uv", it->second->getUV() );
+                RawFileIO::write_EigenMatrix( fname+".id", it->second->getFeatIds() );
+            }
+        }
+
     #endif
 
     return 0 ;

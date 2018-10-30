@@ -1,0 +1,37 @@
+<launch>
+
+
+<!-- Bag -->
+<arg name="bag_path" default="/Bulk_Data/ros_bags/euroc/" />
+<arg name="bag_file" default="MH_01_easy.bag" doc="euroc easy"/>
+
+
+<node pkg="rosbag" type="play" name="rosbag" args="$(arg bag_path)/$(arg bag_file)" output="log"/>
+
+
+
+<arg name="config_path" default="$(find cerebro)/config/euroc/euroc_config.yaml" />
+<arg name="vins_path" default="$(find feature_tracker)/../config/../" />
+
+
+
+
+<!-- VINS -->
+    <node name="feature_tracker" pkg="feature_tracker" type="feature_tracker" output="log">
+        <param name="config_file" type="string" value="$(arg config_path)" />
+        <param name="vins_folder" type="string" value="$(arg vins_path)" />
+    </node>
+
+    <node name="vins_estimator" pkg="vins_estimator" type="vins_estimator" output="log">
+       <param name="config_file" type="string" value="$(arg config_path)" />
+       <param name="vins_folder" type="string" value="$(arg vins_path)" />
+    </node>
+
+
+<!-- Cerebro -->
+    <node name="cerebro_node" pkg="cerebro" type="cerebro_node" output="screen">
+       <param name="config_file" type="string" value="$(arg config_path)" />
+    </node>
+
+
+</launch>

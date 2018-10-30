@@ -28,6 +28,7 @@ class RawFileIO
 {
 public:
     static void write_image( string fname, const cv::Mat& img);
+    static void write_string( string fname, const string& my_string);
 
     // templated static function canot only exist in header files.
     template <typename Derived>
@@ -39,7 +40,7 @@ public:
       {
         // file << a.format(CSVFormat) << endl;
         file << a << endl;
-        __RawFileIO__write_image_debug_dm(std::cout << "\033[1;32m" <<"Written to file: "<< filename  << "\033[0m\n";)
+        __RawFileIO__write_image_debug_dm(std::cout << "\033[1;32m" <<"write_EigenMatrix: "<< filename  << "\033[0m\n";)
       }
       else
       {

@@ -107,8 +107,9 @@ void RosMarkerUtils::init_text_marker( visualization_msgs::Marker &marker )
     marker.color.a = .8; // Don't forget to set the alpha!
     marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
 
-    marker.scale.x = 1.;
-    marker.scale.y = 1.;
+    marker.scale.x = 1.; //not in use
+    marker.scale.y = 1.; //not in use
+    marker.scale.z = 1.;
 
     //// Done . no need to edit firther
     marker.pose.position.x = 0.;

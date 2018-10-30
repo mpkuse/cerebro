@@ -77,7 +77,7 @@ public:
     DataManager(const DataManager &obj);
 
     void setCamera( const PinholeCamera& camera );
-    const PinholeCamera& getCameraRef() { return camera;}
+    PinholeCamera& getCameraRef() { return camera;}
 
     std::map< ros::Time, DataNode* >& getDataMapRef() { return data_map; }
 
@@ -87,6 +87,13 @@ public:
     const Matrix4d& getIMUCamExtrinsic();
     bool isIMUCamExtrinsicAvailable();
     const ros::Time getIMUCamExtrinsicLastUpdated();
+
+
+public:
+    ////////
+    //////// Write Data
+    ////////
+    string metaDataAsJson();
 
 
 private:

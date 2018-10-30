@@ -180,6 +180,171 @@ void DataManager::tracked_feat_callback( const sensor_msgs::PointCloud::ConstPtr
 }
 
 
+std::string DataManager::metaDataAsJson()
+{
+    std::stringstream buffer;
+    buffer << "{\n\"DataNodes\": [\n";
+    std::map< ros::Time, DataNode* > __data_map = this->getDataMapRef();
+    IOFormat CSVFormat(StreamPrecision, DontAlignCols, ", ", ",\t\n");
+
+    for( auto it = __data_map.begin() ; it!= __data_map.end() ; it++ )
+    {
+        if( it != __data_map.begin() )
+            buffer << ",";
+
+        int seq_id = std::distance( __data_map.begin() , it );
+        buffer << "{\n";
+        buffer << "\"stamp\": " << it->first << ",\n";
+        buffer << "\"stamp_relative\": " << ( it->first -  this->getPose0Stamp() ).toSec() << ",\n";
+        buffer << "\"seq\": " << seq_id << ",\n";
+
+        buffer << "\"isKeyFrame\":" << it->second->isKeyFrame() << ",\n";
+        buffer << "\"isImageAvailable\":" << it->second->isImageAvailable() << ",\n";
+        buffer << "\"isPoseAvailable\":" << it->second->isPoseAvailable() << ",\n";
+        buffer << "\"isPtCldAvailable\":" << it->second->isPtCldAvailable() << ",\n";
+        buffer << "\"isUnVnAvailable\":" << it->second->isUnVnAvailable() << ",\n";
+        buffer << "\"isUVAvailable\":" << it->second->isUVAvailable() << ",\n";
+        buffer << "\"isFeatIdsAvailable\":" << it->second->isFeatIdsAvailable() << ",\n";
+
+        // image
+        if(  it->second->isImageAvailable() ) {
+            const cv::Mat im = it->second->getImage();
+            buffer << "\"image\": {";
+                buffer << "\"rows\":" << im.rows << ", \n";
+                buffer << "\"cols\":" << im.cols << ",\n";
+                buffer << "\"channels\":" << im.channels() << ",\n";
+                buffer << "\"type\": \"" << MiscUtils::type2str( im.type() ) << "\",\n";
+                buffer << "\"stamp\":" << it->second->getT_image() << "\n";
+            buffer << "},\n";
+        }
+
+
+
+        // pose
+        if( it->second->isPoseAvailable() ) {
+            const Matrix4d wTc = it->second->getPose();
+            buffer << "\"w_T_c\": {";
+                buffer << "\"data\": [" << wTc.format(CSVFormat) << "],\n";
+                buffer << "\"rows\":" << wTc.rows() << ", \n";
+                buffer << "\"cols\":" << wTc.cols() << ", \n";
+                buffer << "\"stamp\":" << it->second->getT_pose() << "\n";
+            buffer << "},\n";
+        }
+
+
+        // ptcld, unvn, uv , id
+        if( it->second->isPtCldAvailable() ) {
+            const MatrixXd wX = it->second->getPointCloud();
+            buffer << "\"wX\": {";
+                buffer << "\"data\": [" << wX.format(CSVFormat) << "],\n";
+                buffer << "\"rows\":" << wX.rows() << ", \n";
+                buffer << "\"cols\":" << wX.cols() << ", \n";
+                buffer << "\"stamp\":" << it->second->getT_ptcld() << "\n";
+            buffer << "},\n";
+
+        }
+
+        if( it->second->isPoseAvailable()  && it->second->isPtCldAvailable() )
+        {
+
+            MatrixXd cX = it->second->getPose().inverse() * it->second->getPointCloud();
+            buffer << "\"cX\": {";
+                buffer << "\"data\": [" << cX.format(CSVFormat) << "],\n";
+                buffer << "\"rows\":" << cX.rows() << ", \n";
+                buffer << "\"cols\":" << cX.cols() << ", \n";
+                buffer << "\"stamp\":" << it->second->getT_ptcld() << "\n";
+            buffer << "},\n";
+
+        }
+
+        if( it->second->isUnVnAvailable() ) {
+            const MatrixXd unvn = it->second->getUnVn();
+            buffer << "\"unvn\": {";
+                buffer << "\"data\": [" << unvn.format(CSVFormat) << "],\n";
+                buffer << "\"rows\":" << unvn.rows() << ", \n";
+                buffer << "\"cols\":" << unvn.cols() << ", \n";
+                buffer << "\"stamp\":" << it->second->getT_unvn() << "\n";
+            buffer << "},\n";
+        }
+
+        if( it->second->isUVAvailable() ) {
+            const MatrixXd uv = it->second->getUV();
+            buffer << "\"uv\": {";
+                buffer << "\"data\": [" << uv.format(CSVFormat) << "],\n";
+                buffer << "\"rows\":" << uv.rows() << ", \n";
+                buffer << "\"cols\":" << uv.cols() << ", \n";
+                buffer << "\"stamp\":" << it->second->getT_uv() << "\n";
+            buffer << "},\n";
+        }
+
+        if( it->second->isFeatIdsAvailable() ) {
+            const VectorXi fids = it->second->getFeatIds();
+            buffer << "\"fids\": {";
+                buffer << "\"data\": [" << fids.format(CSVFormat) << "],\n";
+                buffer << "\"rows\":" << fids.rows() << ", \n";
+                buffer << "\"cols\":" << fids.cols() << ", \n";
+                buffer << "\"stamp\":" << it->second->getT_uv() << "\n";
+            buffer << "},\n";
+        }
+
+        // buffer << "\"getT\": " << "1\n";
+        buffer << "\"getT\":" << it->second->getT() << "\n";
+
+
+        buffer << "}\n";
+    }
+    buffer << "\n]\n";
+
+    // global data
+    buffer << ", \"global\": ";
+    buffer << "{";
+    buffer << "\"isPose0Available\": " << this->isPose0Available() << ", \n";
+    buffer << "\"Pose0Stamp\": " << this->getPose0Stamp() << ", \n";
+    // // imu_T_cam
+    if( this->isIMUCamExtrinsicAvailable() ) {
+        Matrix4d __imu_T_cam = this->getIMUCamExtrinsic();
+        buffer << "\"imu_T_cam\": {";
+            buffer << "\"data\": [" << __imu_T_cam.format(CSVFormat) << "],\n";
+            buffer << "\"rows\":" << __imu_T_cam.rows() << ", \n";
+            buffer << "\"cols\":" << __imu_T_cam.cols() << ", \n";
+            buffer << "\"stamp\":" << this->getIMUCamExtrinsicLastUpdated() << "\n";
+        buffer << "},\n";
+    }
+
+
+
+    const PinholeCamera _cam = this->getCameraRef();
+    const Matrix3d eK = _cam.get_eK();
+    const Vector4d eD = _cam.get_eD();
+
+    if( _cam.isValid() )
+    {
+        buffer << "\"eK\": {";
+            buffer << "\"data\": [" << eK.format(CSVFormat) << "],\n";
+            buffer << "\"rows\":" << eK.rows() << ", \n";
+            buffer << "\"cols\":" << eK.cols() << "\n";
+        buffer << "},\n";
+
+        buffer << "\"eD\": {";
+            buffer << "\"data\": [" << eD.format(CSVFormat) << "],\n";
+            buffer << "\"rows\":" << eD.rows() << ", \n";
+            buffer << "\"cols\":" << eD.cols() << "\n";
+        buffer << "},\n";
+    }
+
+    buffer << "\"isIMUCamExtrinsicAvailable\": " << this->isIMUCamExtrinsicAvailable() << "\n";
+
+
+    buffer << "}";
+
+
+
+    buffer << " }";
+    return buffer.str();
+
+}
+
+
 string DataManager::print_queue_size( int verbose=1 )
 {
     std::stringstream buffer;

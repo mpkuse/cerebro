@@ -29,20 +29,114 @@ void Visualization::setVizPublishers( const string base_topic_name )
 
 }
 
-void Visualization::run()
+void Visualization::run( const int looprate )
 {
     assert( m_dataManager_available && "You need to set the DataManager in class Visualization before execution of the run() thread can begin. You can set the dataManager by call to Visualization::setDataManager()\n");
     assert( b_run_thread && "you need to call run_thread_enable() before run() can start executing\n" );
+    assert( looprate > 0  && "[ Visualization::run] looprate need to be postive\n");
 
+    ros::Rate rate( looprate );
     while( b_run_thread )
     {
-        cout << "Visualization::run() " << dataManager->getDataMapRef().size() <<endl;
+        // cout << "Visualization::run() " << dataManager->getDataMapRef().size() <<endl;
         this->publish_frames();
         this->publish_test_string();
-        std::this_thread::sleep_for( std::chrono::milliseconds( 100 )  );
+
+        rate.sleep();
     }
 }
 
+void Visualization::publish_frames()
+{
+    assert( m_dataManager_available && "You need to set the DataManager in class Visualization before execution of the run() thread can begin. You can set the dataManager by call to Visualization::setDataManager()\n");
+
+    // Adjust these manually to change behaviour
+    bool publish_camera_visual = false;
+    bool publish_camera_as_point = true;
+    bool publish_txt = true;
+    bool publish_verbose_txt = false;
+
+
+    static std::map< ros::Time, int > XC;
+
+    cout << TermColor::RED() << "---" << TermColor::RESET() << endl;
+    cout << "start... sizeof(XC)=" << XC.size() << endl;
+    auto data_map = dataManager->getDataMapRef();
+    auto pose0 = dataManager->getPose0Stamp();
+
+
+    visualization_msgs::Marker cam_vis; //visualize every pose as a cam-visual
+    RosMarkerUtils::init_camera_marker( cam_vis , .5 );
+    cam_vis.ns = "cam_pose_vis";
+
+
+    visualization_msgs::Marker pt_vis; //visualize every pose as a point.
+    RosMarkerUtils::init_points_marker( pt_vis );
+    geometry_msgs::Point zer; zer.x =0.; zer.y=0.; zer.z = 0;
+    pt_vis.points.push_back( zer );
+    pt_vis.ns = "cam_pose_pt";
+    pt_vis.scale.x = 0.015;
+    pt_vis.scale.y = 0.015;
+
+
+    visualization_msgs::Marker txt_vis;
+    RosMarkerUtils::init_text_marker( txt_vis );
+    txt_vis.ns = "cam_pose_txt";
+    txt_vis.scale.z = 0.03;
+
+
+    for( auto it = data_map.begin() ; it != data_map.end() ; it++ )
+    {
+        if( XC[ it->first ] < 10 ) { // publish only if not already published 10 times
+            int seq_id = std::distance( data_map.begin() , it );
+            cam_vis.id = seq_id;
+            pt_vis.id = seq_id;
+            txt_vis.id = seq_id;
+
+            if( it->second->isKeyFrame() ) {
+                RosMarkerUtils::setcolor_to_marker( 0., 1., 0. , cam_vis );
+                RosMarkerUtils::setcolor_to_marker( 0., 1., 0. , pt_vis );
+                RosMarkerUtils::setcolor_to_marker( 1., 1., 1. , txt_vis );
+            }
+            else {
+                RosMarkerUtils::setcolor_to_marker( 1., 0., 0. , cam_vis );
+                RosMarkerUtils::setcolor_to_marker( 1., 0., 0. , pt_vis );
+                RosMarkerUtils::setcolor_to_marker( 1., 1., 1. , txt_vis );
+            }
+
+
+            if( it->second->isPoseAvailable() ) {
+                auto wTc = it->second->getPose();
+                RosMarkerUtils::setpose_to_marker( wTc , cam_vis );
+                RosMarkerUtils::setpose_to_marker( wTc , pt_vis );
+
+                RosMarkerUtils::setpose_to_marker( wTc , txt_vis );
+                txt_vis.text = "";
+                txt_vis.text += std::to_string(seq_id) + ";";
+                if( publish_verbose_txt )  {
+                    txt_vis.text += std::to_string( (it->first - pose0).toSec() ) +";";
+                    txt_vis.text += std::to_string( (it->first).toSec() ) +";";
+                }
+
+                if( publish_camera_visual )
+                    framedata_pub.publish( cam_vis );
+                if( publish_camera_as_point )
+                    framedata_pub.publish( pt_vis );
+                if( publish_txt || publish_verbose_txt )
+                    framedata_pub.publish( txt_vis );
+            }
+
+
+            if( it->second->isKeyFrame() )
+                cout << TermColor::GREEN() ;
+            cout << "Publish seq_id=" << seq_id << "\t xc=" << XC[ it->first ] << "\t t="<< it->first - pose0 << "\t" << it->first << TermColor::RESET() << endl;
+
+            XC[ it->first ]++;
+        }
+    }
+    cout << "Done... sizeof(XC)=" << XC.size() << endl;
+}
+/*
 void Visualization::publish_frames()
 {
     assert( m_dataManager_available && "You need to set the DataManager in class Visualization before execution of the run() thread can begin. You can set the dataManager by call to Visualization::setDataManager()\n");
@@ -83,51 +177,6 @@ void Visualization::publish_frames()
     }
     return ;
 
-}
-
-/*
-
-void Visualization::publish_frames()
-{
-    assert( m_dataManager_available && "You need to set the DataManager in class Visualization before execution of the run() thread can begin. You can set the dataManager by call to Visualization::setDataManager()\n");
-
-    static std::map< ros::Time, bool > pub_status;
-
-    int SHOW_MAX = 10;
-    visualization_msgs::Marker m;
-    RosMarkerUtils::init_camera_marker( m, 1.0f );
-    m.ns = "cam";
-
-    static visualization_msgs::Marker line_marker;
-    RosMarkerUtils::init_line_strip_marker( line_marker );
-    line_marker.ns = "cam_line_strip";
-    line_marker.id = 0;
-
-    int sze = dataManager->getDataMapRef().size();
-    for( auto it = dataManager->getDataMapRef().rbegin() ; SHOW_MAX > 0 && it != dataManager->getDataMapRef().rend()   ; it++ , SHOW_MAX-- )
-    {
-        bool pose_available = it->second->isPoseAvailable();
-        cout << "\tMap-key : " << it->first << "\t" << (pose_available?"Pose N/A":"Pose Available") <<  endl;
-
-        if( false && pose_available ) {
-            m.id = sze - SHOW_MAX;
-            auto w_T_c = it->second->getPose();
-            RosMarkerUtils::setpose_to_marker( w_T_c, m );
-            framedata_pub.publish( m );
-        }
-
-        if( pose_available && pub_status.count( it->first ) == 0 ) {
-            auto w_T_c = it->second->getPose();
-            geometry_msgs::Point pt;
-            pt.x = w_T_c(0,3);
-            pt.y = w_T_c(1,3);
-            pt.z = w_T_c(2,3);
-            line_marker.points.push_back( pt );
-            framedata_pub.publish( line_marker );
-        }
-
-        pub_status[it->first] = true;
-    }
 }
 */
 

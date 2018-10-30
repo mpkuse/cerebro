@@ -68,6 +68,10 @@ public:
   int getImageCols() const  { return this->getImageWidth(); }
 
 
+  // Projection
+  // Input 3d points in homogeneous co-ordinates 4xN matrix. Eigen I/O.
+  // uses the camera matrix and D from this class 
+  void perspectiveProject3DPoints( const MatrixXd& c_X, MatrixXd& out_pts );
 
 private:
   string config_model_type, config_camera_name;

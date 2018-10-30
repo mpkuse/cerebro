@@ -25,6 +25,13 @@ using namespace std;
 class MiscUtils
 {
 public:
-    static string type2str(int type); 
+    static string type2str(int type);
+    static std::vector<std::string>
+    split( std::string const& original, char separator );
+
+    static void plot_point_sets( const cv::Mat& im, const MatrixXd& pts_set, cv::Mat& dst,
+                                            const cv::Scalar& color, bool enable_keypoint_annotation=true,const string& msg=string("") );
+    static void plot_point_sets( const cv::Mat& im, const cv::Mat& pts_set, cv::Mat& dst,
+                                            const cv::Scalar& color, bool enable_keypoint_annotation=true, const string& msg=string("") );
 
 };

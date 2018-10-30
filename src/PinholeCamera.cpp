@@ -121,3 +121,46 @@ string PinholeCamera::type2str(int type) {
 
   return r;
 }
+
+
+// Input 3d points in homogeneous co-ordinates 4xN matrix. Eigen I/O
+void PinholeCamera::perspectiveProject3DPoints( const MatrixXd& c_X,
+                              MatrixXd& out_pts )
+{
+
+    // DIY - Do It Yourself Projection
+    // c_X.row(0).array() /= c_X.row(3).array();
+    // c_X.row(1).array() /= c_X.row(3).array();
+    // c_X.row(2).array() /= c_X.row(3).array();
+    // c_X.row(3).array() /= c_X.row(3).array();
+
+
+
+    // K [ I | 0 ]
+    MatrixXd I_0;
+    I_0 = Matrix4d::Identity().topLeftCorner<3,4>();
+    // MatrixXf P1;
+    // P1 = cam_intrin * I_0; //3x4
+
+    // Project and Perspective Divide
+    MatrixXd im_pts;
+    im_pts = I_0 * c_X; //in normalized image co-ordinate. Beware that distortion need to be applied in normalized co-ordinates
+    im_pts.row(0).array() /= im_pts.row(2).array();
+    im_pts.row(1).array() /= im_pts.row(2).array();
+    im_pts.row(2).array() /= im_pts.row(2).array();
+
+    // Apply Distortion
+    MatrixXd Xdd = MatrixXd( im_pts.rows(), im_pts.cols() );
+    for( int i=0 ; i<im_pts.cols() ; i++)
+    {
+      double r2 = im_pts(0,i)*im_pts(0,i) + im_pts(1,i)*im_pts(1,i);
+      double c = 1.0f + (double)k1()*r2 + (double)k2()*r2*r2;
+      Xdd(0,i) = im_pts(0,i) * c + 2.0f*(double)p1()*im_pts(0,i)*im_pts(1,i) + (double)p2()*(r2 + 2.0*im_pts(0,i)*im_pts(0,i));
+      Xdd(1,i) = im_pts(1,i) * c + 2.0f*(double)p2()*im_pts(0,i)*im_pts(1,i) + (double)p1()*(r2 + 2.0*im_pts(1,i)*im_pts(1,i));
+      Xdd(2,i) = 1.0f;
+    }
+
+    out_pts = e_K * Xdd;
+
+
+}

@@ -63,16 +63,16 @@ public:
     void unsetAsKeyFrame() { is_key_frame = false; }
 
     // TODO : Make the getters and setters thread-safe.
-    bool isKeyFrame() { return (bool)is_key_frame; }
-    bool isImageAvailable() { return m_image; }
-    bool isPoseAvailable() { return m_wTc; }
-    bool isPtCldAvailable() { return m_ptcld; }
-    bool isUnVnAvailable() { return m_unvn; }
-    bool isUVAvailable() { return m_uv; }
-    bool isFeatIdsAvailable() { return m_tracked_feat_ids; }
+    bool isKeyFrame()  const{ return (bool)is_key_frame; }
+    bool isImageAvailable() const { return m_image; }
+    bool isPoseAvailable() const { return m_wTc; }
+    bool isPtCldAvailable() const { return m_ptcld; }
+    bool isUnVnAvailable()  const{ return m_unvn; }
+    bool isUVAvailable() const { return m_uv; }
+    bool isFeatIdsAvailable() const { return m_tracked_feat_ids; }
 
 
-    const cv::Mat& getImage();
+    const cv::Mat& getImage() ;
     const Matrix4d& getPose();
     const MatrixXd& getPoseCovariance(); //6x6 matrix
     const MatrixXd& getPointCloud(); // returns a 4xN matrix
@@ -80,7 +80,13 @@ public:
     const MatrixXd& getUV(); // returns a 3xN matrix
     const VectorXi& getFeatIds(); // return a N-vector
     int nPts();
+
     const ros::Time getT();
+    const ros::Time getT_image();
+    const ros::Time getT_pose();
+    const ros::Time getT_ptcld();
+    const ros::Time getT_unvn();
+    const ros::Time getT_uv();
 
 
     void prettyPrint();

@@ -3,8 +3,17 @@
 
 void RawFileIO::write_image( string fname, const cv::Mat& img)
 {
-    __RawFileIO__write_image_debug_dm( std::cout << "Writing file: "<< fname << endl );
+    __RawFileIO__write_image_debug_dm( std::cout << "write_image: "<< fname << endl );
     cv::imwrite( (fname).c_str(), img );
+}
+
+
+void RawFileIO::write_string( string fname, const string& my_string)
+{
+    __RawFileIO__write_image_debug_dm( std::cout << "write_string: "<< fname << endl );
+    std::ofstream outfile( fname );
+    outfile << my_string << endl;
+    outfile.close();
 }
 
 // templated static function canot only exist in header files.
@@ -46,7 +55,7 @@ void RawFileIO::write_Matrix2d( const string& filename, const double * D, int nR
       }
       file << "\n";
     }
-    __RawFileIO__write_image_debug_dm( std::cout << "\033[1;32m" <<"Written to file: "<< filename  << "\033[0m\n" );
+    __RawFileIO__write_image_debug_dm( std::cout << "\033[1;32m" <<"write_Matrix2d to file: "<< filename  << "\033[0m\n" );
   }
   else
   {
@@ -65,7 +74,7 @@ void RawFileIO::write_Matrix1d( const string& filename, const double * D, int n 
     for( int i=1 ; i<n ; i++ )
       file << ", " << D[i] ;
     file << "\n";
-    __RawFileIO__write_image_debug_dm(std::cout << "\033[1;32m" <<"Written to file: "<< filename  << "\033[0m\n");
+    __RawFileIO__write_image_debug_dm(std::cout << "\033[1;32m" <<"write_Matrix1d: "<< filename  << "\033[0m\n");
   }
   else
   {

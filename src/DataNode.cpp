@@ -165,6 +165,28 @@ const VectorXi& DataNode::getFeatIds() {
      return stamp;
  }
 
+
+ const ros::Time DataNode::getT_image() {
+     std::lock_guard<std::mutex> lk(m);
+     return t_image;
+ }
+ const ros::Time DataNode::getT_pose() {
+     std::lock_guard<std::mutex> lk(m);
+     return t_wTc;
+ }
+ const ros::Time DataNode::getT_ptcld() {
+     std::lock_guard<std::mutex> lk(m);
+     return t_ptcld;
+ }
+ const ros::Time DataNode::getT_unvn() {
+     std::lock_guard<std::mutex> lk(m);
+     return t_unvn;
+ }
+ const ros::Time DataNode::getT_uv() {
+     std::lock_guard<std::mutex> lk(m);
+     return t_uv;
+ }
+
 void DataNode::prettyPrint()
 {
     if( this->isKeyFrame() )

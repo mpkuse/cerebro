@@ -159,6 +159,13 @@ add_executable(
         src/utils/MiscUtils.cpp
 )
 
+
+## Unit Tests
+add_executable (
+    unittest_termcolor
+        src/unittest/unittest_termcolor.cpp
+)
+
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 # add_dependencies(cerebro_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
