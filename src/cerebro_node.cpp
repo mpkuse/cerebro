@@ -267,10 +267,15 @@ int main( int argc, char ** argv )
     }
     #endif
 
+
+    ///////////////////////
+    // Actual Logging.  //
+    //////////////////////
     #if 1
         // Write json log
         string save_dir = "/Bulk_Data/_tmp/";
         RawFileIO::write_string( save_dir+"/log.json", dataManager.metaDataAsJson() );
+        RawFileIO::write_string( save_dir+"/log.txt", dataManager.metaDataAsFlatFile() );
 
 
         std::map< ros::Time, DataNode* > data_map = dataManager.getDataMapRef();
@@ -290,7 +295,11 @@ int main( int argc, char ** argv )
             // Save Point Cloud
             if( it->second->isPtCldAvailable() ) {
                 RawFileIO::write_EigenMatrix( fname+".wX.pointcloud", it->second->getPointCloud() );
-                RawFileIO::write_EigenMatrix( fname+".cX.pointcloud", it->second->getPose().inverse() *  it->second->getPointCloud() );
+                if( it->second->isPoseAvailable() ) {
+                    RawFileIO::write_EigenMatrix( fname+".cX.pointcloud", it->second->getPose().inverse() *  it->second->getPointCloud() );
+                }
+                else
+                    ROS_WARN( "ptclod is available but pose is not available at seq_id=%d", seq_id );
             }
 
 
@@ -300,6 +309,18 @@ int main( int argc, char ** argv )
                 RawFileIO::write_EigenMatrix( fname+".uv", it->second->getUV() );
                 RawFileIO::write_EigenMatrix( fname+".id", it->second->getFeatIds() );
             }
+        }
+
+
+        // Save Camera Matrix and IMUCamExtrinsic
+        PinholeCamera _cam = dataManager.getCameraRef();
+        if( _cam.isValid() ) {
+            RawFileIO::write_EigenMatrix( save_dir+"/cameraIntrinsic.K", _cam.get_eK() );
+            RawFileIO::write_EigenMatrix( save_dir+"/cameraIntrinsic.D", _cam.get_eD() );
+            RawFileIO::write_string( save_dir+"/cameraIntrinsic.info", _cam.getCameraInfoAsJson() );
+        }
+        else {
+            ROS_ERROR( "[cerebro_node.cpp] cam appear to be not set...something is seem wrong\n" );
         }
 
     #endif

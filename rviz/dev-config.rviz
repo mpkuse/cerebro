@@ -6,6 +6,8 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
+        - /Ref1
+        - /Ref1/Grid1
         - /VIO1/Odom In Cam-frame-of-ref1/Cam Odometry1
         - /Cerebro1
         - /Cerebro1/Marker1
@@ -37,12 +39,12 @@ Visualization Manager:
     - Class: rviz/Group
       Displays:
         - Class: rviz/Axes
-          Enabled: true
+          Enabled: false
           Length: 1
           Name: Axes
           Radius: 0.200000003
           Reference Frame: <Fixed Frame>
-          Value: true
+          Value: false
         - Alpha: 0.5
           Cell Size: 1
           Class: rviz/Grid
@@ -58,7 +60,7 @@ Visualization Manager:
             Y: 0
             Z: 0
           Plane: XY
-          Plane Cell Count: 10
+          Plane Cell Count: 20
           Reference Frame: <Fixed Frame>
           Value: true
       Enabled: true
@@ -120,7 +122,7 @@ Visualization Manager:
           Marker Topic: /vins_estimator/camera_pose_visual
           Name: Visual
           Namespaces:
-            CameraPoseVisualization: true
+            {}
           Queue Size: 100
           Value: true
         - Alpha: 1
@@ -241,7 +243,7 @@ Visualization Manager:
               Value: true
           Enabled: false
           Name: Odom In IMU-Frame-of-ref
-      Enabled: true
+      Enabled: false
       Name: VIO
     - Class: rviz/Group
       Displays:
@@ -250,7 +252,8 @@ Visualization Manager:
           Marker Topic: /cerebro_node/viz/framedata
           Name: Marker
           Namespaces:
-            cam: true
+            cam_pose_pt: true
+            cam_pose_txt: true
           Queue Size: 100
           Value: true
       Enabled: true
@@ -279,24 +282,24 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 4.75198555
+      Distance: 10.2230711
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.0599999987
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -0.207323343
-        Y: 0.233932272
-        Z: -3.19237137
+        X: -3.22579026
+        Y: -4.00122833
+        Z: -1.66493678
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.0500000007
       Name: Current View
       Near Clip Distance: 0.00999999978
-      Pitch: 1.27479661
+      Pitch: 0.694796443
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 3.39864588
+      Yaw: 0.980486989
     Saved:
       - Class: rviz/Orbit
         Distance: 49.6446877

@@ -64,6 +64,44 @@ PinholeCamera::PinholeCamera( string config_file )
 }
 
 
+PinholeCamera::PinholeCamera( double __fx, double __fy, double __cx, double __cy,
+                  int __im_rows, int __im_cols,
+                  double __k1, double __k2, double __p1, double __p2
+              ): _fx( __fx ), _fy( __fy ), _cx( __cx ), _cy( __cy ),
+                 config_image_width( __im_cols ), config_image_height( __im_rows ),
+                 _k1( __k1 ), _k2( __k2 ), _p1( __p1 ), _p2( __p2 )
+{
+    ROS_WARN( "[PinholeCamera::PinholeCamera] Setting camera intrinsics explicitly.....\n");
+
+    // Define the 3x3 Projection matrix eigen and/or cv::Mat.
+    m_K = cv::Mat::zeros( 3,3,CV_32F );
+    m_K.at<float>(0,0) = _fx;
+    m_K.at<float>(1,1) = _fy;
+    m_K.at<float>(0,2) = _cx;
+    m_K.at<float>(1,2) = _cy;
+    m_K.at<float>(2,2) = 1.0;
+
+    m_D = cv::Mat::zeros( 4, 1, CV_32F );
+    m_D.at<float>(0,0) = _k1;
+    m_D.at<float>(1,0) = _k2;
+    m_D.at<float>(2,0) = _p1;
+    m_D.at<float>(3,0) = _p2;
+    cout << "m_K" << m_K << endl;
+    cout << "m_D" << m_D << endl;
+
+    // Define 4x1 vector of distortion params eigen and/or cv::Mat.
+    e_K << _fx, 0.0, _cx,
+          0.0,  _fy, _cy,
+          0.0, 0.0, 1.0;
+
+    e_D << _k1 , _k2, _p1 , _p2;
+    cout << "e_K:\n" << e_K << endl;
+    cout << "e_D:\n" << e_D << endl;
+    mValid = true;
+
+
+}
+
 
 void PinholeCamera::printCameraInfo( int verbosity ) const
 {
@@ -90,7 +128,25 @@ void PinholeCamera::printCameraInfo( int verbosity ) const
 
   cout << "================================================\n";
 
+}
 
+string PinholeCamera::getCameraInfoAsJson() const
+{
+    if( !isValid() )
+        return string("{\"isValid\": 1}\n");
+    std::stringstream buffer;
+    buffer << "{\n";
+    buffer << "\"config_file\": \"" << this->config_file_name << "\""<< endl;
+    buffer << ",\"image_rows\": " << getImageRows() << endl;
+    buffer << ",\"image_cols\": " << getImageCols() << endl;
+    buffer << ",\"fx\": " << fx() << " \n,fy: " << fy() << endl;
+    buffer << ",\"cx\": " << cx() << " \n,cy: " << cy() << endl;
+    buffer << ",\"k1\": " << k1() << endl;
+    buffer << ",\"k2\": " << k2() << endl;
+    buffer << ",\"p1\": " << p1() << endl;
+    buffer << ",\"p2\": " << p2() << endl;
+    buffer << "}\n" ;
+    return buffer.str();
 }
 
 

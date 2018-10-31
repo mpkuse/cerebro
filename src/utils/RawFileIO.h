@@ -12,7 +12,7 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/calib3d.hpp>
-#include <cv_bridge/cv_bridge.h>
+#include <opencv2/imgproc/imgproc.hpp>
 
 #include <Eigen/Core>
 #include <Eigen/Dense>
@@ -21,6 +21,7 @@ using namespace Eigen;
 #include <opencv2/core/eigen.hpp>
 
 using namespace std;
+
 
 #define __RawFileIO__write_image_debug_dm( msg ) msg;
 
@@ -52,5 +53,13 @@ public:
 
     static void write_Matrix2d( const string& filename, const double * D, int nRows, int nCols );
     static void write_Matrix1d( const string& filename, const double * D, int n  );
+
+
+
+    static bool read_eigen_matrix( string filename, MatrixXd& result );
+    static bool read_eigen_matrix( string filename, Matrix4d& result );
+    static bool read_eigen_matrix( string filename, Matrix3d& result );
+
+
 
 };

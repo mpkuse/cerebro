@@ -93,7 +93,8 @@ public:
     ////////
     //////// Write Data
     ////////
-    string metaDataAsJson();
+    string metaDataAsJson(); // returns string as a json. contains everything including wTc, wX, uv, K, D etc.
+    string metaDataAsFlatFile(); // a simple list of timestamps and what data is available.
 
 
 private:

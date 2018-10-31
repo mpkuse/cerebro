@@ -83,3 +83,153 @@ void RawFileIO::write_Matrix1d( const string& filename, const double * D, int n 
   }
 
 }
+
+
+
+bool RawFileIO::read_eigen_matrix( string filename, MatrixXd& result )
+    {
+    int cols = 0, rows = 0;
+    const int MAXBUFSIZE = ((int) 1e6);
+    double buff[MAXBUFSIZE];
+
+    // Read numbers from file into buffer.
+    ifstream infile;
+    __RawFileIO__write_image_debug_dm( std::cout << "\033[1;32m" <<"read_eigen_matrixXd: "<< filename  << "\033[0m\n" );
+    infile.open(filename);
+    if( !infile ) {
+        cout << "failed to open file " << filename << endl;
+        return false;
+    }
+    while (! infile.eof())
+        {
+        string line;
+        getline(infile, line);
+
+        int temp_cols = 0;
+        stringstream stream(line);
+        while(! stream.eof())
+            stream >> buff[cols*rows+temp_cols++];
+
+        if (temp_cols == 0)
+            continue;
+
+        if (cols == 0)
+            cols = temp_cols;
+
+        rows++;
+        }
+
+    infile.close();
+
+    rows--;
+
+    // Populate matrix with numbers.
+    result = MatrixXd::Zero(rows,cols);
+    for (int i = 0; i < rows; i++)
+        for (int j = 0; j < cols; j++)
+            result(i,j) = buff[ cols*i+j ];
+
+    // return result;
+    return true;
+    };
+
+
+bool RawFileIO::read_eigen_matrix( string filename, Matrix4d& result )
+    {
+    int cols = 0, rows = 0;
+    const int MAXBUFSIZE = ((int) 1e6);
+    double buff[MAXBUFSIZE];
+
+    // Read numbers from file into buffer.
+    __RawFileIO__write_image_debug_dm( std::cout << "\033[1;32m" <<"read_eigen_matrix4d: "<< filename  << "\033[0m\n" );
+    ifstream infile;
+    infile.open(filename);
+    if( !infile ) {
+        cout << "Failed to open file " << filename << endl;
+        return false;
+    }
+    while (! infile.eof())
+        {
+        string line;
+        getline(infile, line);
+
+        int temp_cols = 0;
+        stringstream stream(line);
+        while(! stream.eof())
+            stream >> buff[cols*rows+temp_cols++];
+
+        if (temp_cols == 0)
+            continue;
+
+        if (cols == 0)
+            cols = temp_cols;
+
+        rows++;
+        }
+
+    infile.close();
+
+    rows--;
+
+    assert( rows==4 && cols==4 && "\n[RawFileIO::read_eigen_matrix( string filename, Matrix4d& result )] The input file is not 4x4" );
+
+    // Populate matrix with numbers.
+    result = Matrix4d::Zero();
+    for (int i = 0; i < rows; i++)
+        for (int j = 0; j < cols; j++)
+            result(i,j) = buff[ cols*i+j ];
+
+    // return result;
+    return true;
+    };
+
+
+
+bool RawFileIO::read_eigen_matrix( string filename, Matrix3d& result )
+    {
+    int cols = 0, rows = 0;
+    const int MAXBUFSIZE = ((int) 1e6);
+    double buff[MAXBUFSIZE];
+
+    // Read numbers from file into buffer.
+    __RawFileIO__write_image_debug_dm( std::cout << "\033[1;32m" <<"read_eigen_matrix3d: "<< filename  << "\033[0m\n" );
+    ifstream infile;
+    infile.open(filename);
+    if( !infile ) {
+        cout << "Failed to open file " << filename << endl;
+        return false;
+    }
+    while (! infile.eof())
+        {
+        string line;
+        getline(infile, line);
+
+        int temp_cols = 0;
+        stringstream stream(line);
+        while(! stream.eof())
+            stream >> buff[cols*rows+temp_cols++];
+
+        if (temp_cols == 0)
+            continue;
+
+        if (cols == 0)
+            cols = temp_cols;
+
+        rows++;
+        }
+
+    infile.close();
+
+    rows--;
+
+    assert( rows==3 && cols==3 && "\n[RawFileIO::read_eigen_matrix( string filename, Matrix3d& result )] The input file is not 3x3" );
+
+    // Populate matrix with numbers.
+    result = Matrix3d::Zero();
+    for (int i = 0; i < rows; i++)
+        for (int j = 0; j < cols; j++)
+            result(i,j) = buff[ cols*i+j ];
+
+    // return result;
+    return true;
+    };

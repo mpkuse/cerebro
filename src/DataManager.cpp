@@ -75,7 +75,7 @@ void DataManager::camera_pose_callback( const nav_msgs::Odometry::ConstPtr msg )
 void DataManager::keyframe_pose_callback( const nav_msgs::Odometry::ConstPtr msg )
 {
     //__DATAMANAGER_CALLBACK_PRINT( cout << "[cerebro/camera_pose_callback]" << msg->header.stamp << endl; )
-    __DATAMANAGER_CALLBACK_PRINT( cout << "[cerebro/camera_pose_callback]" << msg->header.stamp-pose_0 << endl; )
+    __DATAMANAGER_CALLBACK_PRINT( cout << "[cerebro/keyframe_pose_callback]" << msg->header.stamp-pose_0 << endl; )
     // push this to queue. Another thread will associate the data
     kf_pose_buf.push( msg );
 }
@@ -179,6 +179,28 @@ void DataManager::tracked_feat_callback( const sensor_msgs::PointCloud::ConstPtr
     trackedfeat_buf.push( msg );
 }
 
+
+std::string DataManager::metaDataAsFlatFile()
+{
+    std::stringstream buffer;
+    buffer << "#seq,rel_stamp,stamp,isKeyFrame,isImageAvailable,isPoseAvailable,isPtCldAvailable,isUVAvailable\n";
+    std::map< ros::Time, DataNode* > __data_map = this->getDataMapRef();
+    for( auto it = __data_map.begin() ; it!= __data_map.end() ; it++ )
+    {
+        int seq_id = std::distance( __data_map.begin() , it );
+        buffer << seq_id << ",";
+        buffer << it->first -  this->getPose0Stamp() << ",";
+        buffer <<  it->first << ",";
+        buffer << it->second->isKeyFrame() << ",";
+        buffer << it->second->isImageAvailable() << ",";
+        buffer << it->second->isPoseAvailable() << ",";
+        buffer << it->second->isPtCldAvailable() << ",";
+        buffer << it->second->isUVAvailable();
+        buffer << "\n";
+    }
+    return buffer.str();
+
+}
 
 std::string DataManager::metaDataAsJson()
 {

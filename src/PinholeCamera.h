@@ -16,7 +16,7 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/calib3d.hpp>
-#include <cv_bridge/cv_bridge.h>
+#include <opencv2/imgproc/imgproc.hpp>
 
 //ros
 #include <ros/ros.h>
@@ -38,8 +38,14 @@ class PinholeCamera {
 public:
   PinholeCamera() { mValid = false; }
   PinholeCamera( string config_file );
+  PinholeCamera( double __fx, double __fy, double __cx, double __cy,
+                    int __im_rows, int __im_cols,
+                    double __k1, double __k2, double __p1, double __p2
+                );
 
   void printCameraInfo( int verbosity=2 ) const;
+  string getCameraInfoAsJson() const;
+
 
   const cv::Mat get_mK() const {return m_K; }
   const cv::Mat get_mD() const {return m_D; }
@@ -70,7 +76,7 @@ public:
 
   // Projection
   // Input 3d points in homogeneous co-ordinates 4xN matrix. Eigen I/O.
-  // uses the camera matrix and D from this class 
+  // uses the camera matrix and D from this class
   void perspectiveProject3DPoints( const MatrixXd& c_X, MatrixXd& out_pts );
 
 private:
