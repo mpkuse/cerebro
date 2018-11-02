@@ -51,8 +51,8 @@ void Visualization::publish_frames()
     assert( m_dataManager_available && "You need to set the DataManager in class Visualization before execution of the run() thread can begin. You can set the dataManager by call to Visualization::setDataManager()\n");
 
     // Adjust these manually to change behaviour
-    bool publish_camera_visual = false;
-    bool publish_camera_as_point = true;
+    bool publish_camera_visual = true;
+    bool publish_camera_as_point = false;
     bool publish_txt = true;
     bool publish_verbose_txt = false;
 

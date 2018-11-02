@@ -1,0 +1,6 @@
+*.data
+*.pyc
+*.npy
+*.npz
+*.keras
+*.pth
