@@ -7,6 +7,7 @@ from cv_bridge import CvBridge, CvBridgeError
 import cv2
 import numpy as np
 import code
+import time
 
 
 import keras
@@ -52,7 +53,19 @@ class NetVLADImageDescriptor:
     def __init__(self):
         ## Build net
         #TODO Read from config file the shape of the images
-        input_img = keras.layers.Input( shape=(512, 640, 3) )
+
+        # Blackbox 4
+        self.im_rows = 512
+        self.im_cols = 640
+        self.im_chnls = 3
+
+        # EuroC
+        # self.im_rows = 480
+        # self.im_cols = 752
+        # self.im_chnls = 3
+
+
+        input_img = keras.layers.Input( shape=(self.im_rows, self.im_cols, self.im_chnls) )
         cnn = make_from_mobilenet( input_img )
         out, out_amap = NetVLADLayer(num_clusters = 16)( cnn )
         model = keras.models.Model( inputs=input_img, outputs=out )
@@ -69,7 +82,7 @@ class NetVLADImageDescriptor:
         model.load_weights( model_file )
 
         self.model = model
-        self.model.predict( np.zeros( (1,512,640,3), dtype='float32' ) )
+        self.model.predict( np.zeros( (1,self.im_rows,self.im_cols,self.im_chnls), dtype='float32' ) )
 
 
     def handle_req( self, req ):
@@ -78,10 +91,14 @@ class NetVLADImageDescriptor:
         print '[Handle Request] cv_image.shape', cv_image.shape
 
         ## Compute Descriptor
+        start_time = time.time()
         u = self.model.predict( np.expand_dims( cv_image.astype('float32'), 0 ) )
-        print 'u.shape=', u.shape, '\tu.norm=', np.linalg.norm( u )
+        print 'Descriptor Computed in %4.4fms' %( 1000. *(time.time() - start_time) ), '\tdesc.shape=', u.shape, '\tinput_image.shape=', cv_image.shape, '\tdtype=', cv_image.dtype
 
 
+        assert (cv_image.shape[0] == self.im_rows and
+                cv_image.shape[1] == self.im_cols and
+                cv_image.shape[2] == self.im_chnls), "Input shape of the image does not match with the allocated GPU memory. Expecting an input image of size %dx%dx%d" %(self.im_rows, self.im_cols, self.im_chnls)
 
         ## Populate output message
         result = WholeImageDescriptorComputeResponse()

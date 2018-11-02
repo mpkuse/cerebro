@@ -81,6 +81,27 @@ void RosMarkerUtils::setpose_to_marker( const Matrix4d& w_T_c, visualization_msg
     marker.pose.orientation.w = quat.w();
 }
 
+void RosMarkerUtils::setposition_to_marker( const Vector3d& w_t_c, visualization_msgs::Marker& marker )
+{
+    marker.pose.position.x = w_t_c(0);
+    marker.pose.position.y = w_t_c(1);
+    marker.pose.position.z = w_t_c(2);
+}
+
+void RosMarkerUtils::setposition_to_marker( const Vector4d& w_t_c, visualization_msgs::Marker& marker )
+{
+    marker.pose.position.x = w_t_c(0) / w_t_c(3); ;
+    marker.pose.position.y = w_t_c(1) / w_t_c(3); ;
+    marker.pose.position.z = w_t_c(2) / w_t_c(3); ;
+}
+
+void RosMarkerUtils::setposition_to_marker( float x, float y, float z, visualization_msgs::Marker& marker )
+{
+    marker.pose.position.x = x;
+    marker.pose.position.y = y;
+    marker.pose.position.z = z;
+}
+
 void RosMarkerUtils::setcolor_to_marker( float r, float g, float b, visualization_msgs::Marker& marker  )
 {
     assert( r>=0. && r<=1.0 && g>=0. && g<=1.0 && b>=0 && b<=1.0 );
@@ -238,4 +259,47 @@ void RosMarkerUtils::init_points_marker( visualization_msgs::Marker &marker )
     // marker.ns = "camerapose_visual";
     marker.color.r = 0.2;marker.color.b = 0.;marker.color.g = 0.;
 
+}
+
+
+
+
+void RosMarkerUtils::add_point_to_marker( float x, float y, float z, visualization_msgs::Marker& marker, bool clear_prev_points )
+{
+    if( clear_prev_points )
+        marker.points.clear();
+
+    geometry_msgs::Point pt;
+    pt.x = x; pt.y = y; pt.z = z;
+    marker.points.push_back( pt );
+}
+
+void RosMarkerUtils::add_point_to_marker( const Vector3d& X, visualization_msgs::Marker& marker, bool clear_prev_points )
+{
+    if( clear_prev_points )
+        marker.points.clear();
+
+    geometry_msgs::Point pt;
+    pt.x = X(0); pt.y = X(1); pt.z = X(2);
+    marker.points.push_back( pt );
+}
+
+void RosMarkerUtils::add_points_to_marker( const MatrixXd& X, visualization_msgs::Marker& marker, bool clear_prev_points ) //X : 3xN or 4xN.
+{
+    assert( (X.rows() == 3 || X.rows() == 4) && "[RosMarkerUtils::add_points_to_marker] X need to of size 3xN or 4xN\n" );
+    geometry_msgs::Point pt;
+
+    if( clear_prev_points )
+        marker.points.clear();
+
+
+    for( int i=0 ; i<X.cols() ; i++ ) {
+        if( X.rows() == 3 ) {
+            pt.x = X(0,i); pt.y = X(1,i); pt.z = X(2,i);
+        }
+        else {
+            pt.x = X(0,i) / X(3,i); pt.y = X(1,i) / X(3,i); pt.z = X(2,i) / X(3,i);
+        }
+        marker.points.push_back( pt );
+    }
 }
