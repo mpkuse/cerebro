@@ -166,12 +166,24 @@ add_executable (
         src/unittest/unittest_termcolor.cpp
 )
 
+add_executable (
+    unittest_rosservice_client
+        src/unittest/unittest_rosservice_client.cpp
+)
+
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 # add_dependencies(cerebro_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(cerebro_node
+  ${catkin_LIBRARIES}
+  ${OpenCV_LIBRARIES}
+  ${CMAKE_THREAD_LIBS_INIT}
+  ${CERES_LIBRARIES}
+)
+
+target_link_libraries(unittest_rosservice_client
   ${catkin_LIBRARIES}
   ${OpenCV_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}

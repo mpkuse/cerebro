@@ -88,7 +88,16 @@ class NetVLADImageDescriptor:
     def handle_req( self, req ):
         ## Get Image out of req
         cv_image = CvBridge().imgmsg_to_cv2( req.ima )
-        print '[Handle Request] cv_image.shape', cv_image.shape
+        print '[Handle Request] cv_image.shape', cv_image.shape, '\ta=', req.a
+
+
+        assert (cv_image.shape[0] == self.im_rows and
+                cv_image.shape[1] == self.im_cols and
+                cv_image.shape[2] == self.im_chnls),\
+                "\n[whole_image_descriptor_compute_server] Input shape of the image \
+                does not match with the allocated GPU memory. Expecting an input image of \
+                size %dx%dx%d, but received : %s" %(self.im_rows, self.im_cols, self.im_chnls, str(cv_image.shape) )
+
 
         ## Compute Descriptor
         start_time = time.time()
@@ -96,9 +105,6 @@ class NetVLADImageDescriptor:
         print 'Descriptor Computed in %4.4fms' %( 1000. *(time.time() - start_time) ), '\tdesc.shape=', u.shape, '\tinput_image.shape=', cv_image.shape, '\tdtype=', cv_image.dtype
 
 
-        assert (cv_image.shape[0] == self.im_rows and
-                cv_image.shape[1] == self.im_cols and
-                cv_image.shape[2] == self.im_chnls), "Input shape of the image does not match with the allocated GPU memory. Expecting an input image of size %dx%dx%d" %(self.im_rows, self.im_cols, self.im_chnls)
 
         ## Populate output message
         result = WholeImageDescriptorComputeResponse()

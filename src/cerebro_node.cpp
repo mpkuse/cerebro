@@ -271,7 +271,8 @@ int main( int argc, char ** argv )
     ///////////////////////
     // Actual Logging.  //
     //////////////////////
-    #if 1
+    #define __LOGGING__ 1
+    #ifdef __LOGGING__
         // Write json log
         string save_dir = "/Bulk_Data/_tmp/";
         RawFileIO::write_string( save_dir+"/log.json", dataManager.metaDataAsJson() );
@@ -320,8 +321,27 @@ int main( int argc, char ** argv )
             RawFileIO::write_string( save_dir+"/cameraIntrinsic.info", _cam.getCameraInfoAsJson() );
         }
         else {
-            ROS_ERROR( "[cerebro_node.cpp] cam appear to be not set...something is seem wrong\n" );
+            ROS_ERROR( "[cerebro_node.cpp] cam appear to be not set...something seem wrong\n" );
         }
+
+
+        // Save Camera-IMU Extrinsics
+        cout << "IMUCamExtrinsic : isAvailable=" << dataManager.isIMUCamExtrinsicAvailable() << "\t";
+        cout << "last updated : " << dataManager.getIMUCamExtrinsicLastUpdated() << "\t" << dataManager.getIMUCamExtrinsicLastUpdated() -dataManager.getPose0Stamp() ;
+        cout << "\nimu_T_cam : \n" << PoseManipUtils::prettyprintMatrix4d( dataManager.getIMUCamExtrinsic() ) << endl;
+        if( dataManager.isIMUCamExtrinsicAvailable() ) {
+            RawFileIO::write_EigenMatrix( save_dir+"/IMUCamExtrinsic.imu_T_cam", dataManager.getIMUCamExtrinsic() );
+
+            std::stringstream buffer;
+            buffer << "IMUCamExtrinsicLastUpdated: "<< dataManager.getIMUCamExtrinsicLastUpdated() << endl;
+            buffer << "IMUCamExtrinsicLastUpdated Rel: "<< dataManager.getIMUCamExtrinsicLastUpdated() -dataManager.getPose0Stamp()  << endl;
+            RawFileIO::write_string( save_dir+"/IMUCamExtrinsic.info", buffer.str() );
+        }
+        else {
+            ROS_ERROR( "[cerebro_node.cpp] IMUCamExtrinsic appear to be not set...something seem wrong\n" );
+        }
+
+
 
     #endif
 
