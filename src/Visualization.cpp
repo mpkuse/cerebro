@@ -85,13 +85,14 @@ void Visualization::publish_loopcandidates()
         int idx_1 = std::distance( data_map.begin(), data_map.find( t_curr )  );
         int idx_2 = std::distance( data_map.begin(), data_map.find( t_prev )  );
 
-        Vector4d w_T_curr = data_map[t_curr]->getPose().col(3);
-        Vector4d w_T_prev = data_map[t_prev]->getPose().col(3);
+        Vector4d w_t_curr = data_map[t_curr]->getPose().col(3);
+        Vector4d w_t_prev = data_map[t_prev]->getPose().col(3);
 
-        // TODO
+        // TODO - need to test. looks like alright. 
         // add_point_to_marker with w_t_curr
         // add_point_to_marker with w_t_prev
-        // RosMarkerUtils::add_point_to_marker( w_T_curr.col(3), marker )
+        RosMarkerUtils::add_point_to_marker( w_t_curr, marker, true );
+        RosMarkerUtils::add_point_to_marker( w_t_prev, marker, false );
 
 
 

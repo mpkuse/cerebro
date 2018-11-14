@@ -54,6 +54,7 @@ public:
     //////////////// Add Points ////////////////////
     static void add_point_to_marker( float x, float y, float z, visualization_msgs::Marker& marker, bool clear_prev_points=true );
     static void add_point_to_marker( const Vector3d& X, visualization_msgs::Marker& marker, bool clear_prev_points=true );
+    static void add_point_to_marker( const Vector4d& X, visualization_msgs::Marker& marker, bool clear_prev_points=true );
     static void add_points_to_marker( const MatrixXd& X, visualization_msgs::Marker& marker, bool clear_prev_points=true ); //X : 3xN or 4xN.
 
 };

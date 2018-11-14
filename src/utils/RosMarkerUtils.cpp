@@ -284,6 +284,17 @@ void RosMarkerUtils::add_point_to_marker( const Vector3d& X, visualization_msgs:
     marker.points.push_back( pt );
 }
 
+void RosMarkerUtils::add_point_to_marker( const Vector4d& X, visualization_msgs::Marker& marker, bool clear_prev_points )
+{
+    if( clear_prev_points )
+        marker.points.clear();
+
+    geometry_msgs::Point pt;
+    assert( abs(X(3)) > 1E-5 );
+    pt.x = X(0)/X(3); pt.y = X(1)/X(3); pt.z = X(2)/X(3);
+    marker.points.push_back( pt );
+}
+
 void RosMarkerUtils::add_points_to_marker( const MatrixXd& X, visualization_msgs::Marker& marker, bool clear_prev_points ) //X : 3xN or 4xN.
 {
     assert( (X.rows() == 3 || X.rows() == 4) && "[RosMarkerUtils::add_points_to_marker] X need to of size 3xN or 4xN\n" );
