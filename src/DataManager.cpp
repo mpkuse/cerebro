@@ -202,6 +202,7 @@ std::string DataManager::metaDataAsFlatFile()
 
 }
 
+// TODO: another function which returns the nlohmann/json.hpp object. 
 std::string DataManager::metaDataAsJson()
 {
     std::stringstream buffer;

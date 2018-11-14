@@ -15,6 +15,14 @@ void Cerebro::setDataManager( DataManager* dataManager )
 }
 
 
+///
+/// This implements a simple loopclosure detection scheme based on dot-product of descriptor-vectors.
+///
+/// TODO: In the future more intelligent schemes can be experimented with. Besure to run those in new threads and disable this thread.
+/// wholeImageComputedList is a list for which descriptors are computed. Similarly other threads can compute
+/// scene-object labels, text etc etc in addition to currently computed whole-image-descriptor
+#define __Cerebro__run__( msg ) msg ;
+// #define __Cerebro__run__( msg ) ;
 void Cerebro::run()
 {
     assert( m_dataManager_available && "You need to set the DataManager in class Cerebro before execution of the run() thread can begin. You can set the dataManager by call to Cerebro::setDataManager()\n");
@@ -25,12 +33,12 @@ void Cerebro::run()
 
     int l=0, last_l=0;
     int last_processed=0;
-    MatrixXd M = MatrixXd::Zero( 8192, 5000 );
+    MatrixXd M = MatrixXd::Zero( 8192, 5000 ); // TODO: Need dynamic allocation here.
     while( b_run_thread )
     {
-        rate.sleep();
-        continue; 
-        auto data_map = dataManager->getDataMapRef();
+        // rate.sleep();
+        // continue;
+        auto data_map = dataManager->getDataMapRef(); // this needs to be get every iteration else i dont get the ubdated values which are constantly being updated by other threads.
         {
             std::lock_guard<std::mutex> lk(m_wholeImageComputedList);
             l = wholeImageComputedList.size();
@@ -45,19 +53,18 @@ void Cerebro::run()
         cout << TermColor::RED() << "---" << TermColor::RESET() << endl;
         cout << "l=" << l << endl;
 
-        assert(  data_map.count( wholeImageComputedList[l-1] ) > 0  &&
-                 data_map.count( wholeImageComputedList[l-2] ) > 0  &&
-                 data_map.count( wholeImageComputedList[l-3] ) > 0 &&
-                 "either of l, l-1, l-2 is not available in the datamap"
-             );
-
-        // auto f = data_map.find( wholeImageComputedList[l-1] );
-        // auto fm = data_map.find( wholeImageComputedList[l-2] );
-        // auto fmm = data_map.find( wholeImageComputedList[l-3] );
-
-        VectorXd v   = data_map[ wholeImageComputedList[l-1] ]->getWholeImageDescriptor();
-        VectorXd vm  = data_map[ wholeImageComputedList[l-2] ]->getWholeImageDescriptor();
-        VectorXd vmm = data_map[ wholeImageComputedList[l-3] ]->getWholeImageDescriptor();
+        VectorXd v, vm, vmm;
+        {
+            std::lock_guard<std::mutex> lk(m_wholeImageComputedList);
+            assert(  data_map.count( wholeImageComputedList[l-1] ) > 0  &&
+                     data_map.count( wholeImageComputedList[l-2] ) > 0  &&
+                     data_map.count( wholeImageComputedList[l-3] ) > 0 &&
+                     "either of l, l-1, l-2 is not available in the datamap"
+                 );
+            v   = data_map[ wholeImageComputedList[l-1] ]->getWholeImageDescriptor();
+            vm  = data_map[ wholeImageComputedList[l-2] ]->getWholeImageDescriptor();
+            vmm = data_map[ wholeImageComputedList[l-3] ]->getWholeImageDescriptor();
+        }
 
 
 
@@ -68,16 +75,16 @@ void Cerebro::run()
         M.col( l-2 ) = vm;
         M.col( l-3 ) = vmm;
 
-        int k = l - 50; // given a stamp, l, get another stamp k
+        int k = l - 50; // given a stamp, l, get another stamp k. better make this to 200.
 
         //usable size of M is 8192xl, let k (k<l) be the length until which dot is needed by time.
         if( k > 5 ) {
-            ElapsedTime s;
-            s.tic();
+            ElapsedTime timer;
+            timer.tic();
             VectorXd u   = v.transpose() * M.leftCols( k );
             VectorXd um  = vm.transpose() * M.leftCols( k );
             VectorXd umm = vmm.transpose() * M.leftCols( k );
-            cout << "Done in ms=" << s.toc_milli() << endl;
+            cout << "Done in ms=" << timer.toc_milli() << endl;
             cout << "<v , M[0 to "<< k << "]\n";
 
             double u_max = u.maxCoeff();
@@ -92,7 +99,21 @@ void Cerebro::run()
             assert( u_argmax > 0 && um_argmax > 0 && umm_argmax > 0 );
 
             if( abs(u_argmax - um_argmax) < 8 && abs(u_argmax-umm_argmax) < 8 && u_max > 0.92  )
-                cout << TermColor::RED() <<  u_argmax << "\t" << um_argmax << "\t" << umm_argmax << TermColor::RESET() << endl;
+            {
+                std::lock_guard<std::mutex> lk(m_wholeImageComputedList);
+
+                cout << TermColor::RED() << "Loop FOUND!!" <<  u_argmax << "\t" << um_argmax << "\t" << umm_argmax << TermColor::RESET() << endl;
+                cout << TermColor::RED() << "loop FOUND!! "
+                                         <<  wholeImageComputedList[l-1]
+                                         << "<" << u_max << ">"
+                                         << wholeImageComputedList[u_argmax]
+                                         << TermColor::RESET() << endl;
+
+                {
+                std::lock_guard<std::mutex> lk_foundloops(m_foundLoops);
+                foundLoops.push_back( std::make_tuple( wholeImageComputedList[l-1], wholeImageComputedList[u_argmax], u_max ) );
+                }
+            }
 
         }
         else {
@@ -100,12 +121,64 @@ void Cerebro::run()
         }
 
 
-
-
-
         last_l = l;
         rate.sleep();
     }
+
+
+}
+
+const int Cerebro::foundLoops_count() const
+{
+    std::lock_guard<std::mutex> lk(m_foundLoops);
+    return foundLoops.size();
+}
+
+const std::tuple<ros::Time, ros::Time, double> Cerebro::foundLoops_i( int i) const
+{
+    std::lock_guard<std::mutex> lk(m_foundLoops);
+    assert( i >= 0 && i<foundLoops.size() );
+    return foundLoops[i];
+}
+
+
+json Cerebro::foundLoops_as_JSON()
+{
+    std::lock_guard<std::mutex> lk(m_foundLoops);
+
+    json jsonout_obj;
+    std::map< ros::Time, DataNode* > data_map = dataManager->getDataMapRef();
+
+    int n_foundloops = foundLoops.size();
+    for( int i=0 ; i<n_foundloops ; i++ ) {
+        auto u = foundLoops[ i ];
+        ros::Time t_curr = std::get<0>(u);
+        ros::Time t_prev = std::get<1>(u);
+        double score = std::get<2>(u);
+
+
+        assert( data_map.count( t_curr ) > 0 && data_map.count( t_prev ) > 0  && "One or both of the timestamps in foundloops where not in the data_map. This cannot be happening...fatal...\n" );
+        int idx_1 = std::distance( data_map.begin(), data_map.find( t_curr )  );
+        int idx_2 = std::distance( data_map.begin(), data_map.find( t_prev )  );
+        // cout << "loop#" << i << " of " << n_foundloops << ": ";
+        // cout << t_curr << "(" << score << ")" << t_prev << endl;
+        // cout << idx_1 << "<--->" << idx_2 << endl;
+
+        json _cur_json_obj;
+        _cur_json_obj["time_sec_a"] = t_curr.sec;
+        _cur_json_obj["time_nsec_a"] = t_curr.nsec;
+        _cur_json_obj["time_sec_b"] = t_prev.sec;
+        _cur_json_obj["time_nsec_b"] = t_prev.nsec;
+        _cur_json_obj["time_double_a"] = t_curr.toSec();
+        _cur_json_obj["time_double_b"] = t_prev.toSec();
+        _cur_json_obj["global_a"] = idx_1;
+        _cur_json_obj["global_b"] = idx_2;
+        _cur_json_obj["score"] = score; 
+        jsonout_obj.push_back( _cur_json_obj );
+    }
+
+    return jsonout_obj;
+
 }
 
 
@@ -119,7 +192,7 @@ void Cerebro::descriptor_computer_thread()
 
     // Service Call
     // Sample Code : https://github.com/mpkuse/cerebro/blob/master/src/unittest/unittest_rosservice_client.cpp
-    cout << "Attempt connecting to ros-service for 10sec\n";
+    cout << "Attempt connecting to ros-service for 10sec (will give up after that)\n";
     ros::ServiceClient client = nh.serviceClient<cerebro::WholeImageDescriptorCompute>( "/whole_image_descriptor_compute" );
     client.waitForExistence( ros::Duration(10, 0) ); //wait maximum 10 sec
     if( !client.exists() ) {

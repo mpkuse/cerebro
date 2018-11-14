@@ -8,6 +8,7 @@ import cv2
 import numpy as np
 import code
 import time
+import os
 
 
 import keras
@@ -50,9 +51,8 @@ class SampleGPUComputer:
 
 from keras_helpers import *
 class NetVLADImageDescriptor:
-    def __init__(self):
+    def __init__(self, im_rows=600, im_cols=960, im_chnls=3):
         ## Build net
-        #TODO Read from config file the shape of the images
 
         # Blackbox 4
         # self.im_rows = 512
@@ -60,14 +60,18 @@ class NetVLADImageDescriptor:
         # self.im_chnls = 3
 
         # point grey
-        self.im_rows = 600
-        self.im_cols = 960
-        self.im_chnls = 3
+        # self.im_rows = 600
+        # self.im_cols = 960
+        # self.im_chnls = 3
 
         # EuroC
         # self.im_rows = 480
         # self.im_cols = 752
         # self.im_chnls = 3
+
+        self.im_rows = int(im_rows)
+        self.im_cols = int(im_cols)
+        self.im_chnls = int(im_chnls)
 
 
         input_img = keras.layers.Input( shape=(self.im_rows, self.im_cols, self.im_chnls) )
@@ -87,7 +91,12 @@ class NetVLADImageDescriptor:
         model.load_weights( model_file )
 
         self.model = model
-        self.model.predict( np.zeros( (1,self.im_rows,self.im_cols,self.im_chnls), dtype='float32' ) )
+
+        # Doing this is a hack to force keras to allocate GPU memory. Don't comment this,
+        tmp_zer = np.zeros( (1,self.im_rows,self.im_cols,self.im_chnls), dtype='float32' )
+        tmp_zer_out = self.model.predict( tmp_zer )
+        print 'model input.shape=', tmp_zer.shape, '\toutput.shape=', tmp_zer_out.shape
+
 
 
     def handle_req( self, req ):
@@ -123,8 +132,37 @@ class NetVLADImageDescriptor:
 
 
 rospy.init_node( 'whole_image_descriptor_compute_server' )
+
+##
+## Load the config file and read image row, col
+##
+if not rospy.has_param( '~config_file'):
+    print 'FATAL...cannot find param ~config_file. This is needed to determine size of the input image to allocate GPU memory'
+    rospy.logerr( 'FATAL...cannot find param ~config_file. This is needed to determine size of the input image to allocate GPU memory' )
+    quit()
+
+
+config_file = rospy.get_param('~config_file')
+print 'config_file: ', config_file
+if not os.path.isfile(config_file):
+    print 'FATAL...cannot find config_file: ', config_file
+    rospy.logerr( 'FATAL...cannot find config_file: '+ config_file )
+    quit()
+
+
+print 'READ opencv-yaml file: ', config_file
+fs = cv2.FileStorage(config_file, cv2.FILE_STORAGE_READ)
+fs_image_width = int(  fs.getNode( "image_width" ).real() )
+fs_image_height = int( fs.getNode( "image_height" ).real() )
+print 'opencv-yaml:: image_width=', fs_image_width, '   image_height=', fs_image_height
+
+
+
+##
+## Start Server
+##
 #gpu_s = SampleGPUComputer()
-gpu_netvlad = NetVLADImageDescriptor()
+gpu_netvlad = NetVLADImageDescriptor( im_rows=fs_image_height, im_cols=fs_image_width )
 s = rospy.Service( 'whole_image_descriptor_compute', WholeImageDescriptorCompute, gpu_netvlad.handle_req  )
 print 'whole_image_descriptor_compute_server is running'
 

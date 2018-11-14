@@ -93,7 +93,8 @@ public:
     ////////
     //////// Write Data
     ////////
-    string metaDataAsJson(); // returns string as a json. contains everything including wTc, wX, uv, K, D etc.
+    // returns string as a json. contains everything including wTc, wX, uv, K, D etc.
+    string metaDataAsJson(); // TODO: rewrite this function using the nlohmann/json.hpp.
     string metaDataAsFlatFile(); // a simple list of timestamps and what data is available.
 
 

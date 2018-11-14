@@ -3,11 +3,12 @@
 
 <!-- Bag -->
 <arg name="bag_path" default="/Bulk_Data/other_seqs/blackbox4_bags/" />
+<arg name="bag_file" default="2018-02-19-17-52-36.bag" doc="single loop in lab"/>
 <!-- <arg name="bag_file" default="2018-03-20-10-40-43.bag" doc="multiple loops in lab"/> -->
 <!-- <arg name="bag_file" default="2018-04-13-17-59-15.bag" doc="loopy in drone flying area of lab"/> -->
 <!-- <arg name="bag_file" default="2018-04-16-12-03-50.bag" doc="long trajectory in lab"/> -->
 <!-- <arg name="bag_file" default="2018-04-26-15-28-15.bag" doc="floor2 cyt"/> -->
-<arg name="bag_file" default="2018-04-15-14-13-17.bag" doc=""/>
+<!-- <arg name="bag_file" default="2018-04-15-14-13-17.bag" doc=""/> -->
 
 <node pkg="rosbag" type="play" name="rosbag" args="$(arg bag_path)/$(arg bag_file)" output="log"/>
 

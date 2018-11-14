@@ -17,6 +17,9 @@
 #include "Cerebro.h"
 #include "Visualization.h"
 
+#include "utils/nlohmann/json.hpp"
+using json = nlohmann::json;
+
 
 int main( int argc, char ** argv )
 {
@@ -42,7 +45,6 @@ int main( int argc, char ** argv )
     ROS_WARN( "Config File Name : %s", config_file.c_str() );
     PinholeCamera camera = PinholeCamera( config_file );
     camera.printCameraInfo(2);
-
 
     //--- DataManager ---//
     DataManager dataManager = DataManager(nh);
@@ -106,7 +108,7 @@ int main( int argc, char ** argv )
 
 
 
-    //--- Start Threads ---// TODO: start data_association_thread in dataManager class?
+    //--- Start Threads ---//
 
     // [A]
     // Data associate thread: looks at the callback buffers and sets the data in the std::map
@@ -131,6 +133,7 @@ int main( int argc, char ** argv )
     // Visualization
     Visualization viz(nh);
     viz.setDataManager( &dataManager );
+    viz.setCerebro( &cer );
     viz.setVizPublishers( "/cerebro_node/viz/" );
     viz.run_thread_enable();
     std::thread t3( &Visualization::run, &viz, 25 ); //TODO something wrong with the logic in publish. another solution could be we keep #seq in DataNode.
@@ -144,10 +147,10 @@ int main( int argc, char ** argv )
     cer.descriptor_computer_thread_disable();
     viz.run_thread_disable();
 
-    t1.join();
-    t2.join();
-    desc_th.join();
-    t3.join();
+    t1.join(); cout << "t1.join()\n";
+    t2.join(); cout << "t2.join()\n";
+    desc_th.join(); cout << "desc_th.join()\n";
+    t3.join(); cout << "t3.join()\n";
 
 
     #if 0
@@ -188,10 +191,37 @@ int main( int argc, char ** argv )
     ///////////////////////
     // Actual Logging.  //
     //////////////////////
-    #define __LOGGING__ 1
-    #ifdef __LOGGING__
+    #define __LOGGING__ 1 // make this 1 to enable logging. 0 to disable logging. rememeber to catkin_make after this change
+    #if __LOGGING__
         // Write json log
         string save_dir = "/Bulk_Data/_tmp/";
+
+        //
+        // $ rm -rf ${save_dir}
+        // $ mkdir ${save_dir}
+        #include <cstdlib>
+        string system_cmd;
+
+        system_cmd = string("rm -rf "+save_dir).c_str();
+        cout << TermColor::YELLOW() << system_cmd << TermColor::RESET() << endl;
+        const int rm_dir_err = system( system_cmd.c_str() );
+        if ( rm_dir_err == -1 )
+        {
+            cout << TermColor::RED() << "[cerebro_node] Error removing directory!\n" << TermColor::RESET() << endl;
+            exit(1);
+        }
+
+        system_cmd = string("mkdir -p "+save_dir).c_str();
+        cout << TermColor::YELLOW() << system_cmd << TermColor::RESET() << endl;
+        const int dir_err = system( system_cmd.c_str() );
+        if ( dir_err == -1 )
+        {
+            cout << TermColor::RED() << "[cerebro_node] Error creating directory!\n" << TermColor::RESET() << endl;
+            exit(1);
+        }
+        // done emptying the directory.
+
+
         RawFileIO::write_string( save_dir+"/log.json", dataManager.metaDataAsJson() );
         RawFileIO::write_string( save_dir+"/log.txt", dataManager.metaDataAsFlatFile() );
 
@@ -264,8 +294,15 @@ int main( int argc, char ** argv )
         }
 
 
+        // Save foundLoops from Cerebro class
+        json jsonout_obj = cer.foundLoops_as_JSON();
+        RawFileIO::write_string( save_dir+"/loopcandidates_liverun.json", jsonout_obj.dump(4) );
+
 
     #endif
+
+
+
 
     return 0 ;
 

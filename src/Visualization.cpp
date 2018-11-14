@@ -13,6 +13,11 @@ void Visualization::setDataManager( DataManager* dataManager )
     m_dataManager_available = true;
 }
 
+void Visualization::setCerebro( Cerebro* cerebro )
+{
+    this->cerebro = cerebro;
+    m_cerebro_available = true;
+}
 
 
 void Visualization::setVizPublishers( const string base_topic_name )
@@ -42,10 +47,57 @@ void Visualization::run( const int looprate )
     {
         // cout << "Visualization::run() " << dataManager->getDataMapRef().size() <<endl;
         this->publish_frames();
+        this->publish_loopcandidates();
         this->publish_test_string();
 
         rate.sleep();
     }
+}
+
+void Visualization::publish_loopcandidates()
+{
+    assert( m_dataManager_available && m_cerebro_available && "You need to set cerebro and DataManager in class Visualization  before execution of the run() thread can begin. You can set the cerebro by call to Visualization::setCerebro() and dataManager as setDataManager.\n");
+
+    // last 10 publish
+    int n = cerebro->foundLoops_count();
+
+    int start = max( 0, n - 10 );
+    // 5% of the time start from 0.
+    if( rand() % 100 < 5 ) start = 0;
+    cout << "[Visualization::publish_loopcandidates] start=" << start << " end=" << n << endl;
+
+    if( n <= 0 ) return;
+
+    auto data_map = dataManager->getDataMapRef();
+
+    for( int i=0 ; i<n ; i++ ) {
+        visualization_msgs::Marker marker;
+        RosMarkerUtils::init_line_marker( marker );
+        marker.ns = "loopcandidates_line";
+        marker.id = i;
+
+        auto u = cerebro->foundLoops_i( i );
+        ros::Time t_curr = std::get<0>(u);
+        ros::Time t_prev = std::get<1>(u);
+        double score = std::get<2>(u);
+
+        assert( data_map.count( t_curr ) > 0 && data_map.count( t_prev ) > 0  && "One or both of the timestamps in foundloops where not in the data_map. This cannot be happening...fatal...\n" );
+        int idx_1 = std::distance( data_map.begin(), data_map.find( t_curr )  );
+        int idx_2 = std::distance( data_map.begin(), data_map.find( t_prev )  );
+
+        Vector4d w_T_curr = data_map[t_curr]->getPose().col(3);
+        Vector4d w_T_prev = data_map[t_prev]->getPose().col(3);
+
+        // TODO
+        // add_point_to_marker with w_t_curr
+        // add_point_to_marker with w_t_prev
+        // RosMarkerUtils::add_point_to_marker( w_T_curr.col(3), marker )
+
+
+
+        framedata_pub.publish( marker );
+    }
+
 }
 
 // #define __Visualization__publish_frames( cmd ) cmd

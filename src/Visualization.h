@@ -36,6 +36,8 @@ public:
     Visualization( ros::NodeHandle &nh );
 
     void setDataManager( DataManager* dataManager );
+    void setCerebro( Cerebro* cerebro );
+
     void setVizPublishers( const string base_topic_name );
 
     // This is supposed to be run in a separate thread.
@@ -49,11 +51,15 @@ private:
     bool m_dataManager_available=false;
     DataManager * dataManager;
 
+    bool m_cerebro_available=false;
+    Cerebro * cerebro;
+
     atomic<bool> b_run_thread;
 
 
 private:
-    void publish_frames(); //< publishes last 10 frames as markers.
+    void publish_frames(); //< publishes last 10 frames as markers. (occasionally all)
+    void publish_loopcandidates(); //< publishes last 10 loop candidates. cerebro->foundLoops_count(). 
     void publish_test_string();
 
 
