@@ -199,6 +199,13 @@ void DataNode::prettyPrint()
     cout << "\tkeyFrame=" << (this->isKeyFrame()?"YES":"NO") << endl ;
 
 
+    cout << "\t\twholeImageDesc: ";
+    if( this->isWholeImageDescriptorAvailable() ) {
+        cout << " available and of size: " << this->getWholeImageDescriptor().size() << endl;
+    }
+    else { cout << "Not Available\n" ;}
+
+
     if( isImageAvailable() ) {
         cv::Mat _im = this->getImage();
         cout << "\t\tImage: " << _im.rows << "x" << _im.cols << "x" << _im.channels()
@@ -237,4 +244,25 @@ void DataNode::prettyPrint()
     }
     else { cout << "\t\tFeatIds : N/A\n"; }
     cout << "\033[0m\n";
+}
+
+
+
+void DataNode::setWholeImageDescriptor( VectorXd vec )
+{
+    std::lock_guard<std::mutex> lk(m);
+
+    assert( !m_img_desc && "[DataNode::setWholeImageDescriptor] You are trying to set image desc. The descriptor is already set and this action might overwrite the exisiting descriptor. If you think this is not an error feel free to comment this assert\n" );
+    img_desc = vec;
+    m_img_desc = true;
+}
+
+// const VectorXd& DataNode::getWholeImageDescriptor()
+const VectorXd DataNode::getWholeImageDescriptor()
+{
+    std::lock_guard<std::mutex> lk(m);
+    assert( m_img_desc && "[DataNode::getWholeImageDescriptor] You are trying to get the image descriptor before setting it." );
+
+    return img_desc;
+
 }

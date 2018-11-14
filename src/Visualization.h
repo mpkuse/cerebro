@@ -27,6 +27,7 @@
 
 #include "PinholeCamera.h"
 #include "DataManager.h"
+#include "Cerebro.h"
 
 
 class Visualization

@@ -13,6 +13,8 @@ void Visualization::setDataManager( DataManager* dataManager )
     m_dataManager_available = true;
 }
 
+
+
 void Visualization::setVizPublishers( const string base_topic_name )
 {
     //
@@ -46,6 +48,8 @@ void Visualization::run( const int looprate )
     }
 }
 
+// #define __Visualization__publish_frames( cmd ) cmd
+#define __Visualization__publish_frames( cmd ) ;
 void Visualization::publish_frames()
 {
     assert( m_dataManager_available && "You need to set the DataManager in class Visualization before execution of the run() thread can begin. You can set the dataManager by call to Visualization::setDataManager()\n");
@@ -59,8 +63,8 @@ void Visualization::publish_frames()
 
     static std::map< ros::Time, int > XC;
 
-    cout << TermColor::RED() << "---" << TermColor::RESET() << endl;
-    cout << "start... sizeof(XC)=" << XC.size() << endl;
+    __Visualization__publish_frames(cout << TermColor::RED() << "---" << TermColor::RESET() << endl;)
+    __Visualization__publish_frames(cout << "start... sizeof(XC)=" << XC.size() << endl;)
     auto data_map = dataManager->getDataMapRef();
     auto pose0 = dataManager->getPose0Stamp();
 
@@ -87,16 +91,20 @@ void Visualization::publish_frames()
 
     for( auto it = data_map.begin() ; it != data_map.end() ; it++ )
     {
-        if( XC[ it->first ] < 10 ) { // publish only if not already published 10 times
+        if( XC[ it->first ] < 10 || rand() % 100 < 10 ) { // publish only if not already published 10 times
             int seq_id = std::distance( data_map.begin() , it );
             cam_vis.id = seq_id;
             pt_vis.id = seq_id;
             txt_vis.id = seq_id;
 
+            // Set Colors
             if( it->second->isKeyFrame() ) {
                 RosMarkerUtils::setcolor_to_marker( 0., 1., 0. , cam_vis );
                 RosMarkerUtils::setcolor_to_marker( 0., 1., 0. , pt_vis );
                 RosMarkerUtils::setcolor_to_marker( 1., 1., 1. , txt_vis );
+
+                // if( it->second->isWholeImageDescriptorAvailable() )
+                    // RosMarkerUtils::setcolor_to_marker( 0., 0, 1. , cam_vis );
             }
             else {
                 RosMarkerUtils::setcolor_to_marker( 1., 0., 0. , cam_vis );
@@ -105,6 +113,7 @@ void Visualization::publish_frames()
             }
 
 
+            // Set Pose
             if( it->second->isPoseAvailable() ) {
                 auto wTc = it->second->getPose();
                 RosMarkerUtils::setpose_to_marker( wTc , cam_vis );
@@ -128,13 +137,13 @@ void Visualization::publish_frames()
 
 
             if( it->second->isKeyFrame() )
-                cout << TermColor::GREEN() ;
-            cout << "Publish seq_id=" << seq_id << "\t xc=" << XC[ it->first ] << "\t t="<< it->first - pose0 << "\t" << it->first << TermColor::RESET() << endl;
+                __Visualization__publish_frames(cout << TermColor::GREEN() );
+            __Visualization__publish_frames( cout << "Publish seq_id=" << seq_id << "\t xc=" << XC[ it->first ] << "\t t="<< it->first - pose0 << "\t" << it->first << TermColor::RESET() << endl; )
 
             XC[ it->first ]++;
         }
     }
-    cout << "Done... sizeof(XC)=" << XC.size() << endl;
+    __Visualization__publish_frames( cout << "Done... sizeof(XC)=" << XC.size() << endl; )
 }
 /*
 void Visualization::publish_frames()

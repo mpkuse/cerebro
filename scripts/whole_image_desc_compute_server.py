@@ -55,8 +55,13 @@ class NetVLADImageDescriptor:
         #TODO Read from config file the shape of the images
 
         # Blackbox 4
-        self.im_rows = 512
-        self.im_cols = 640
+        # self.im_rows = 512
+        # self.im_cols = 640
+        # self.im_chnls = 3
+
+        # point grey
+        self.im_rows = 600
+        self.im_cols = 960
         self.im_chnls = 3
 
         # EuroC
@@ -88,7 +93,7 @@ class NetVLADImageDescriptor:
     def handle_req( self, req ):
         ## Get Image out of req
         cv_image = CvBridge().imgmsg_to_cv2( req.ima )
-        print '[Handle Request] cv_image.shape', cv_image.shape, '\ta=', req.a
+        print '[Handle Request] cv_image.shape', cv_image.shape, '\ta=', req.a, '\tt=', req.ima.header.stamp
 
 
         assert (cv_image.shape[0] == self.im_rows and
@@ -98,6 +103,9 @@ class NetVLADImageDescriptor:
                 does not match with the allocated GPU memory. Expecting an input image of \
                 size %dx%dx%d, but received : %s" %(self.im_rows, self.im_cols, self.im_chnls, str(cv_image.shape) )
 
+        # cv2.imshow( 'whole_image_descriptor_compute_server:imshow', cv_image.astype('uint8') )
+        # cv2.waitKey(10)
+        # cv2.imwrite( '/app/tmp/%s.jpg' %( str(req.ima.header.stamp) ), cv_image )
 
         ## Compute Descriptor
         start_time = time.time()

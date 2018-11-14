@@ -227,6 +227,7 @@ std::string DataManager::metaDataAsJson()
         buffer << "\"isUnVnAvailable\":" << it->second->isUnVnAvailable() << ",\n";
         buffer << "\"isUVAvailable\":" << it->second->isUVAvailable() << ",\n";
         buffer << "\"isFeatIdsAvailable\":" << it->second->isFeatIdsAvailable() << ",\n";
+        buffer << "\"isWholeImageDescriptorAvailable\":" << it->second->isWholeImageDescriptorAvailable() << ",\n";
 
         // image
         if(  it->second->isImageAvailable() ) {

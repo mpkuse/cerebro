@@ -62,7 +62,7 @@ public:
     void setAsKeyFrame() { is_key_frame = true; }
     void unsetAsKeyFrame() { is_key_frame = false; }
 
-    // TODO : Make the getters and setters thread-safe.
+
     bool isKeyFrame()  const{ return (bool)is_key_frame; }
     bool isImageAvailable() const { return m_image; }
     bool isPoseAvailable() const { return m_wTc; }
@@ -87,6 +87,12 @@ public:
     const ros::Time getT_ptcld();
     const ros::Time getT_unvn();
     const ros::Time getT_uv();
+
+    // Whole Image descriptors setter and getter
+    void setWholeImageDescriptor( VectorXd vec );
+    // const VectorXd& getWholeImageDescriptor();
+    const VectorXd getWholeImageDescriptor(); //don't know which one is more suitated to me. :(
+    bool isWholeImageDescriptorAvailable() const { return m_img_desc; }
 
 
     void prettyPrint();
@@ -134,5 +140,10 @@ private:
     VectorXi tracked_feat_ids;
     ros::Time t_tracked_feat_ids;
     bool m_tracked_feat_ids = false;
+
+
+    // Whole Image Descriptor
+    VectorXd img_desc;
+    bool m_img_desc = false;
 
 };
