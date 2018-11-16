@@ -15,15 +15,40 @@ DataManager::DataManager(const DataManager &obj)
 }
 
 
-void DataManager::setCamera( const PinholeCamera& camera )
-{
-  this->camera = camera;
+// void DataManager::setCamera( const PinholeCamera& camera )
+// {
+//   this->camera = camera;
+//
+//   cout << "--- Camera Params from DataManager ---\n";
+//   this->camera.printCameraInfo();
+//   // cout << "K\n" << this->camera.e_K << endl;
+//   // cout << "D\n" << this->camera.e_D << endl;
+//   cout << "--- END\n";
+// }
 
-  cout << "--- Camera Params from DataManager ---\n";
-  this->camera.printCameraInfo();
-  // cout << "K\n" << this->camera.e_K << endl;
-  // cout << "D\n" << this->camera.e_D << endl;
-  cout << "--- END\n";
+
+void DataManager::setAbstractCamera( camodocal::CameraPtr abs_camera )
+{
+    assert(abs_camera && "[DataManager::setCamera] in datamanager you are trying to set an invalid abstract camera. You need to loadFromYAML before you can set this camera\n");
+    this->abstract_camera = abs_camera;
+
+    cout << "--- Abstract Camera Params from DataManager ---\n";
+    cout << this->abstract_camera->parametersToString() << endl;
+    cout << "--- END\n";
+}
+
+camodocal::CameraPtr DataManager::getAbstractCameraRef()
+{
+    assert( abstract_camera && "[DataManager::getAbstractCameraRef] you are requesting a camera reference before setting.\n" );
+    return abstract_camera;
+}
+
+bool DataManager::isAbstractCameraSet()
+{
+    if( abstract_camera )
+        return true;
+    else
+        return false;
 }
 
 
@@ -184,6 +209,14 @@ std::string DataManager::metaDataAsFlatFile()
 {
     std::stringstream buffer;
     buffer << "#seq,rel_stamp,stamp,isKeyFrame,isImageAvailable,isPoseAvailable,isPtCldAvailable,isUVAvailable\n";
+
+    {
+        // puttime
+        auto t = std::time(nullptr);
+        auto tm = *std::localtime(&t);
+        buffer << "#generated on " << DateAndTime::current_date_and_time() << endl;
+    }
+
     std::map< ros::Time, DataNode* > __data_map = this->getDataMapRef();
     for( auto it = __data_map.begin() ; it!= __data_map.end() ; it++ )
     {
@@ -202,7 +235,7 @@ std::string DataManager::metaDataAsFlatFile()
 
 }
 
-// TODO: another function which returns the nlohmann/json.hpp object. 
+// TODO: another function which returns the nlohmann/json.hpp object.
 std::string DataManager::metaDataAsJson()
 {
     std::stringstream buffer;
@@ -336,25 +369,32 @@ std::string DataManager::metaDataAsJson()
     }
 
 
-
-    const PinholeCamera _cam = this->getCameraRef();
-    const Matrix3d eK = _cam.get_eK();
-    const Vector4d eD = _cam.get_eD();
-
-    if( _cam.isValid() )
-    {
-        buffer << "\"eK\": {";
-            buffer << "\"data\": [" << eK.format(CSVFormat) << "],\n";
-            buffer << "\"rows\":" << eK.rows() << ", \n";
-            buffer << "\"cols\":" << eK.cols() << "\n";
-        buffer << "},\n";
-
-        buffer << "\"eD\": {";
-            buffer << "\"data\": [" << eD.format(CSVFormat) << "],\n";
-            buffer << "\"rows\":" << eD.rows() << ", \n";
-            buffer << "\"cols\":" << eD.cols() << "\n";
-        buffer << "},\n";
+    if( this->isAbstractCameraSet() ) {
+        buffer << "\"abstract_camera\": ";
+        // buffer << "\"" << this->abstract_camera->parametersToString() << "\"";
+        buffer << "\"OK. see yaml file\"";
+        buffer << ",\n";
     }
+
+    // TODO: Removal. PinholeCamera no more in use
+    // const PinholeCamera _cam = this->getCameraRef();
+    // const Matrix3d eK = _cam.get_eK();
+    // const Vector4d eD = _cam.get_eD();
+    //
+    // if( _cam.isValid() )
+    // {
+    //     buffer << "\"eK\": {";
+    //         buffer << "\"data\": [" << eK.format(CSVFormat) << "],\n";
+    //         buffer << "\"rows\":" << eK.rows() << ", \n";
+    //         buffer << "\"cols\":" << eK.cols() << "\n";
+    //     buffer << "},\n";
+    //
+    //     buffer << "\"eD\": {";
+    //         buffer << "\"data\": [" << eD.format(CSVFormat) << "],\n";
+    //         buffer << "\"rows\":" << eD.rows() << ", \n";
+    //         buffer << "\"cols\":" << eD.cols() << "\n";
+    //     buffer << "},\n";
+    // }
 
     buffer << "\"isIMUCamExtrinsicAvailable\": " << this->isIMUCamExtrinsicAvailable() << "\n";
 

@@ -54,6 +54,9 @@ void Visualization::run( const int looprate )
     }
 }
 
+
+// #define __Visualization__publish_loopcandidates(msg) msg
+#define __Visualization__publish_loopcandidates(msg) ;
 void Visualization::publish_loopcandidates()
 {
     assert( m_dataManager_available && m_cerebro_available && "You need to set cerebro and DataManager in class Visualization  before execution of the run() thread can begin. You can set the cerebro by call to Visualization::setCerebro() and dataManager as setDataManager.\n");
@@ -63,17 +66,21 @@ void Visualization::publish_loopcandidates()
 
     int start = max( 0, n - 10 );
     // 5% of the time start from 0.
-    if( rand() % 100 < 5 ) start = 0;
-    cout << "[Visualization::publish_loopcandidates] start=" << start << " end=" << n << endl;
+    if( rand() % 100 < 2 ) start = 0;
+    __Visualization__publish_loopcandidates(cout << "[Visualization::publish_loopcandidates] start=" << start << " end=" << n << endl;)
 
     if( n <= 0 ) return;
 
     auto data_map = dataManager->getDataMapRef();
+    visualization_msgs::Marker marker;
+    RosMarkerUtils::init_line_marker( marker );
+    marker.ns = "loopcandidates_line";
+    RosMarkerUtils::setcolor_to_marker( 1.0, 0.0, 0.0 , marker );
+    // TODO If need be can also publish text for each (which could be score of the edge)
+
 
     for( int i=0 ; i<n ; i++ ) {
-        visualization_msgs::Marker marker;
-        RosMarkerUtils::init_line_marker( marker );
-        marker.ns = "loopcandidates_line";
+
         marker.id = i;
 
         auto u = cerebro->foundLoops_i( i );
@@ -88,7 +95,7 @@ void Visualization::publish_loopcandidates()
         Vector4d w_t_curr = data_map[t_curr]->getPose().col(3);
         Vector4d w_t_prev = data_map[t_prev]->getPose().col(3);
 
-        // TODO - need to test. looks like alright. 
+        // TODO - need to test. looks like alright.
         // add_point_to_marker with w_t_curr
         // add_point_to_marker with w_t_prev
         RosMarkerUtils::add_point_to_marker( w_t_curr, marker, true );
@@ -108,8 +115,8 @@ void Visualization::publish_frames()
     assert( m_dataManager_available && "You need to set the DataManager in class Visualization before execution of the run() thread can begin. You can set the dataManager by call to Visualization::setDataManager()\n");
 
     // Adjust these manually to change behaviour
-    bool publish_camera_visual = true;
-    bool publish_camera_as_point = false;
+    bool publish_camera_visual = false;
+    bool publish_camera_as_point = true;
     bool publish_txt = true;
     bool publish_verbose_txt = false;
 
@@ -144,7 +151,7 @@ void Visualization::publish_frames()
 
     for( auto it = data_map.begin() ; it != data_map.end() ; it++ )
     {
-        if( XC[ it->first ] < 10 || rand() % 100 < 10 ) { // publish only if not already published 10 times
+        if( XC[ it->first ] < 10 || rand() % 100 < 2 ) { // publish only if not already published 10 times
             int seq_id = std::distance( data_map.begin() , it );
             cam_vis.id = seq_id;
             pt_vis.id = seq_id;

@@ -13,6 +13,11 @@
 
 
 #include "PinholeCamera.h"
+#include "camodocal/camera_models/Camera.h" // this is in include/camodocal. src files in src/utils/camodocal_src
+#include "camodocal/camera_models/CameraFactory.h"
+#include <boost/filesystem.hpp>
+
+
 #include "DataManager.h"
 #include "Cerebro.h"
 #include "Visualization.h"
@@ -43,12 +48,29 @@ int main( int argc, char ** argv )
         exit(1);
     }
     ROS_WARN( "Config File Name : %s", config_file.c_str() );
-    PinholeCamera camera = PinholeCamera( config_file );
-    camera.printCameraInfo(2);
+
+    // check if file exists - depends on boost
+    if ( !boost::filesystem::exists( config_file ) )
+    {
+      std::cout << "[cerebro_node] Can't find my file: " << config_file << std::endl;
+      ROS_ERROR_STREAM( "[cerebro_node] Can't find config_file:" << config_file );
+      exit(1);
+    }
+
+    camodocal::CameraPtr abstract_camera;
+    abstract_camera = camodocal::CameraFactory::instance()->generateCameraFromYamlFile(config_file);
+    assert( abstract_camera && "Even after loading yaml the camera seem invalid. Something wrong\n");
+
+
+    // PinholeCamera camera = PinholeCamera( config_file );
+    // camera.printCameraInfo(2); // Not in use, using camodocal camera instead.
+
 
     //--- DataManager ---//
     DataManager dataManager = DataManager(nh);
-    dataManager.setCamera(camera);
+    // dataManager.setCamera(camera);
+    dataManager.setAbstractCamera( abstract_camera );
+
 
 
     //--- Subscribers ---// TODO: move all subscribers this to dataManager class ?
@@ -266,14 +288,11 @@ int main( int argc, char ** argv )
 
 
         // Save Camera Matrix and IMUCamExtrinsic
-        PinholeCamera _cam = dataManager.getCameraRef();
-        if( _cam.isValid() ) {
-            RawFileIO::write_EigenMatrix( save_dir+"/cameraIntrinsic.K", _cam.get_eK() );
-            RawFileIO::write_EigenMatrix( save_dir+"/cameraIntrinsic.D", _cam.get_eD() );
-            RawFileIO::write_string( save_dir+"/cameraIntrinsic.info", _cam.getCameraInfoAsJson() );
-        }
-        else {
-            ROS_ERROR( "[cerebro_node.cpp] cam appear to be not set...something seem wrong\n" );
+
+        if( dataManager.isAbstractCameraSet() ) {
+            auto abstract_camera = dataManager.getAbstractCameraRef();
+            RawFileIO::write_string( save_dir+"/cameraIntrinsic.info", abstract_camera->parametersToString() );
+            abstract_camera->writeParametersToYamlFile( save_dir+"/cameraIntrinsic.yaml" );
         }
 
 

@@ -26,6 +26,7 @@
 #include <iomanip>
 #include <map>
 #include <iterator>
+#include <ctime>
 
 
 #include <thread>
@@ -64,11 +65,15 @@ using namespace Eigen;
 #include <opencv2/core/eigen.hpp>
 
 #include "PinholeCamera.h"
+#include "camodocal/camera_models/Camera.h" // this is in include/camodocal. src files in src/utils/camodocal_src
+#include "camodocal/camera_models/CameraFactory.h"
+
 #include "DataNode.h"
 
 #include "utils/PoseManipUtils.h"
 #include "utils/RawFileIO.h"
 #include "utils/SafeQueue.h"
+#include "utils/ElapsedTime.h"
 
 class DataManager
 {
@@ -76,8 +81,12 @@ public:
     DataManager( ros::NodeHandle &nh );
     DataManager(const DataManager &obj);
 
-    void setCamera( const PinholeCamera& camera );
-    PinholeCamera& getCameraRef() { return camera;}
+    // void setCamera( const PinholeCamera& camera );
+    // PinholeCamera& getCameraRef() { return camera;}
+
+    void setAbstractCamera( camodocal::CameraPtr abs_camera );
+    camodocal::CameraPtr getAbstractCameraRef();
+    bool isAbstractCameraSet();
 
     std::map< ros::Time, DataNode* >& getDataMapRef() { return data_map; }
 
@@ -102,7 +111,8 @@ private:
     /////////
     ///////// Global Variables
     /////////
-    PinholeCamera camera; //< Camera Intrinsics. See corresponding class
+    // PinholeCamera camera; //< Camera Intrinsics. See corresponding class
+    camodocal::CameraPtr abstract_camera;
     ros::NodeHandle nh; //< Node Handle, TODO Not sure why this will be needed here. consider removing it from here.
     // const std::ofstream &out_stream;
 

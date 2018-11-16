@@ -24,7 +24,8 @@ find_package(Ceres REQUIRED)
 find_package(OpenCV 3 REQUIRED)
 #set( CMAKE_CXX_FLAGS "-fpermissive -std=c++11 -O3" )
 
-
+find_package(Boost REQUIRED COMPONENTS filesystem program_options system)
+include_directories(${Boost_INCLUDE_DIRS})
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -126,7 +127,7 @@ catkin_package(
 
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
-# include_directories(include)
+include_directories(include)
 include_directories(
   ${catkin_INCLUDE_DIRS}
   ${CERES_INCLUDE_DIRS}
@@ -144,7 +145,32 @@ include_directories(
 ## either from message generation or dynamic reconfigure
 # add_dependencies(cerebro ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
+include_directories(src/utils/camodocal/include)
+FILE(GLOB CamodocalCameraModelSources
+        src/utils/camodocal/src/chessboard/Chessboard.cc
+        src/utils/camodocal/src/calib/CameraCalibration.cc
+        src/utils/camodocal/src/camera_models/Camera.cc
+        src/utils/camodocal/src/camera_models/CameraFactory.cc
+        src/utils/camodocal/src/camera_models/CostFunctionFactory.cc
+        src/utils/camodocal/src/camera_models/PinholeCamera.cc
+        src/utils/camodocal/src/camera_models/CataCamera.cc
+        src/utils/camodocal/src/camera_models/EquidistantCamera.cc
+        src/utils/camodocal/src/camera_models/ScaramuzzaCamera.cc
+        src/utils/camodocal/src/sparse_graph/Transform.cc
+        src/utils/camodocal/src/gpl/gpl.cc
+        src/utils/camodocal/src/gpl/EigenQuaternionParameterization.cc
+    )
+
+FILE( GLOB KuseUtilsSources
+        src/utils/PoseManipUtils.cpp
+        src/utils/RosMarkerUtils.cpp
+        src/utils/RawFileIO.cpp
+        src/utils/MiscUtils.cpp
+)
+
+
 ## Declare a C++ executable
+
 add_executable(
     cerebro_node
         src/cerebro_node.cpp
@@ -153,10 +179,8 @@ add_executable(
         src/DataNode.cpp
         src/Cerebro.cpp
         src/Visualization.cpp
-        src/utils/PoseManipUtils.cpp
-        src/utils/RosMarkerUtils.cpp
-        src/utils/RawFileIO.cpp
-        src/utils/MiscUtils.cpp
+        ${KuseUtilsSources}
+        ${CamodocalCameraModelSources}
 )
 
 
@@ -181,6 +205,7 @@ target_link_libraries(cerebro_node
   ${OpenCV_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
   ${CERES_LIBRARIES}
+  ${Boost_LIBRARIES}
 )
 
 target_link_libraries(unittest_rosservice_client

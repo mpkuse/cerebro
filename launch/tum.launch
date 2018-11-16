@@ -2,19 +2,20 @@
 
 
 <!-- Bag -->
-<arg name="bag_path" default="/Bulk_Data/other_seqs/blackbox4_bags/" />
-<!-- <arg name="bag_file" default="2018-02-19-17-52-36.bag" doc="single loop in lab"/> -->
-<arg name="bag_file" default="2018-03-20-10-40-43.bag" doc="multiple loops in lab"/>
-<!-- <arg name="bag_file" default="2018-04-13-17-59-15.bag" doc="loopy in drone flying area of lab"/> -->
-<!-- <arg name="bag_file" default="2018-04-16-12-03-50.bag" doc="long trajectory in lab"/> -->
-<!-- <arg name="bag_file" default="2018-04-26-15-28-15.bag" doc="floor2 cyt"/> -->
-<!-- <arg name="bag_file" default="2018-04-15-14-13-17.bag" doc=""/> -->
+<arg name="bag_path" default="/Bulk_Data/ros_bags/tum-vins-dataset/tumvi/calibrated/512_16/" />
+<!-- <arg name="bag_file" default="dataset-corridor4_512_16.bag" doc="corridor; smallest seq"/> -->
+<arg name="bag_file" default="dataset-magistrale1_512_16.bag" doc="magistrale1" />
+<!-- <arg name="bag_file" default="dataset-magistrale5_512_16.bag" doc="magistrale5"/> -->
+
+
 
 <node pkg="rosbag" type="play" name="rosbag" args="$(arg bag_path)/$(arg bag_file)" output="log"/>
 
 
 
-<arg name="config_path" default="$(find cerebro)/config/blackbox4/blackbox4_config.yaml" />
+<!-- for TUM VIO Dataset `PINHOLE` does not work well. KANNALA_BRANDT works OK! -->
+<!-- <arg name="config_path" default="$(find cerebro)/config/tum_vi/tum_vi_config.yaml" /> -->
+<arg name="config_path" default="$(find cerebro)/config/tum_vi/tum_jie_config.yaml" />
 <arg name="vins_path" default="$(find feature_tracker)/../config/../" />
 
 
@@ -36,6 +37,12 @@
     <node name="cerebro_node" pkg="cerebro" type="cerebro_node" output="screen">
        <param name="config_file" type="string" value="$(arg config_path)" />
     </node>
+
+
+
+    <!-- <node name="my_desc_server" pkg="cerebro" type="whole_image_desc_compute_server.py" output="screen">
+       <param name="config_file" type="string" value="$(arg config_path)" />
+    </node> -->
 
 
 </launch>

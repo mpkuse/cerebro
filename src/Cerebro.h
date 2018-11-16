@@ -45,7 +45,7 @@ public:
     void run_thread_disable() { b_run_thread = false; }
     void run();
 
-public: 
+public:
     const int foundLoops_count() const ;
     const std::tuple<ros::Time, ros::Time, double> foundLoops_i( int i) const;
     json foundLoops_as_JSON();
@@ -67,6 +67,9 @@ public:
 
 private:
     atomic<bool> b_descriptor_computer_thread;
+    atomic<bool> connected_to_descriptor_server;
+    atomic<bool> descriptor_size_available;
+    atomic<int> descriptor_size;
 
 
 // Storage for Intelligence

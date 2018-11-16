@@ -3,6 +3,8 @@
 #include <chrono>
 #include <iostream>
 #include <iomanip>
+#include <string>
+#include <sstream>
 
 class ElapsedTime
 {
@@ -37,5 +39,22 @@ public:
 
 private:
     std::chrono::steady_clock::time_point begin;
+
+};
+
+class DateAndTime
+{
+public:
+    static std::string current_date_and_time()
+    {
+        auto now = std::chrono::system_clock::now();
+        auto in_time_t = std::chrono::system_clock::to_time_t(now);
+
+        std::stringstream ss;
+        ss << std::put_time(std::localtime(&in_time_t), "%Y-%m-%d %X");
+        return ss.str();
+    }
+
+    // TODO Can make more functions later to get hr, min, date etc. Not priority.
 
 };
