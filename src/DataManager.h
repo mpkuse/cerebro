@@ -84,9 +84,10 @@ public:
     // void setCamera( const PinholeCamera& camera );
     // PinholeCamera& getCameraRef() { return camera;}
 
-    void setAbstractCamera( camodocal::CameraPtr abs_camera );
-    camodocal::CameraPtr getAbstractCameraRef();
-    bool isAbstractCameraSet();
+    void setAbstractCamera( camodocal::CameraPtr abs_camera, short cam_id=0 );
+    camodocal::CameraPtr getAbstractCameraRef(short cam_id=0);
+    bool isAbstractCameraSet(short cam_id=0);
+    vector<short> getAbstractCameraKeys();
 
     std::map< ros::Time, DataNode* >& getDataMapRef() { return data_map; }
 
@@ -112,7 +113,8 @@ private:
     ///////// Global Variables
     /////////
     // PinholeCamera camera; //< Camera Intrinsics. See corresponding class
-    camodocal::CameraPtr abstract_camera;
+    // camodocal::CameraPtr abstract_camera; // removal. now all points in the map.
+    std::map< int, camodocal::CameraPtr > all_abstract_cameras;
     ros::NodeHandle nh; //< Node Handle, TODO Not sure why this will be needed here. consider removing it from here.
     // const std::ofstream &out_stream;
 
@@ -134,7 +136,10 @@ public:
     /////////
     void camera_pose_callback( const nav_msgs::Odometry::ConstPtr msg ); ///< w_T_c. pose of camera in the world-cordinate system. All the cameras. only a subset of this will be keyframes
     void keyframe_pose_callback( const nav_msgs::Odometry::ConstPtr msg ); //X /// pose of imu at keyframes. Use it just as a marker, dont use the poses.
+
     void raw_image_callback( const sensor_msgs::ImageConstPtr& msg );
+    void raw_image_callback_1( const sensor_msgs::ImageConstPtr& msg );
+
     void extrinsic_cam_imu_callback( const nav_msgs::Odometry::ConstPtr msg );
     void ptcld_callback( const sensor_msgs::PointCloud::ConstPtr msg );
     void tracked_feat_callback( const sensor_msgs::PointCloud::ConstPtr msg ); //X

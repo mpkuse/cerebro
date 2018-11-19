@@ -27,28 +27,48 @@ DataManager::DataManager(const DataManager &obj)
 // }
 
 
-void DataManager::setAbstractCamera( camodocal::CameraPtr abs_camera )
+void DataManager::setAbstractCamera( camodocal::CameraPtr abs_camera, short cam_id )
 {
+    assert( cam_id >= 0 && "DataManager, you requested a camera with negative id which is an error. cam_id=0 for default camera and 1,2,.. for additional cameras.\n" );
     assert(abs_camera && "[DataManager::setCamera] in datamanager you are trying to set an invalid abstract camera. You need to loadFromYAML before you can set this camera\n");
-    this->abstract_camera = abs_camera;
+    // this->abstract_camera = abs_camera;
+    this->all_abstract_cameras[cam_id] = abs_camera;
 
-    cout << "--- Abstract Camera Params from DataManager ---\n";
-    cout << this->abstract_camera->parametersToString() << endl;
+    cout << "--- Abstract CameraParams(cam_id=" << cam_id << ") from DataManager ---\n";
+    // cout << this->abstract_camera->parametersToString() << endl;
+    cout << this->all_abstract_cameras[cam_id]->parametersToString() << endl;
     cout << "--- END\n";
 }
 
-camodocal::CameraPtr DataManager::getAbstractCameraRef()
+camodocal::CameraPtr DataManager::getAbstractCameraRef(short cam_id)
 {
-    assert( abstract_camera && "[DataManager::getAbstractCameraRef] you are requesting a camera reference before setting.\n" );
-    return abstract_camera;
+    assert( cam_id >= 0 && "DataManager, you requested a camera with negative id which is an error. cam_id=0 for default camera and 1,2,.. for additional cameras.\n" );
+    // assert( abstract_camera && "[DataManager::getAbstractCameraRef] you are requesting a camera reference before setting.\n" );
+    // return abstract_camera;
+    assert( isAbstractCameraSet(cam_id) && "[DataManager::getAbstractCameraRef] you are requesting a camera reference before setting.\n");
+    return this->all_abstract_cameras[cam_id];
 }
 
-bool DataManager::isAbstractCameraSet()
+bool DataManager::isAbstractCameraSet(short cam_id)
 {
-    if( abstract_camera )
-        return true;
-    else
+    assert( cam_id >= 0 && "DataManager, you requested a camera with negative id which is an error. cam_id=0 for default camera and 1,2,.. for additional cameras.\n" );
+    if( this->all_abstract_cameras.count( cam_id ) > 0 ) {
+        if( this->all_abstract_cameras[cam_id] )
+            return true;
+        else
+            return false;
+    }
+    else {
         return false;
+    }
+}
+
+vector<short> DataManager::getAbstractCameraKeys() {
+    vector<short> keys;
+    for( auto it=this->all_abstract_cameras.begin(); it!=all_abstract_cameras.end() ; it++ ) {
+        keys.push_back( it->first );
+    }
+    return keys;
 }
 
 
@@ -126,6 +146,10 @@ void DataManager::raw_image_callback( const sensor_msgs::ImageConstPtr& msg )
     }
 }
 
+void DataManager::raw_image_callback_1( const sensor_msgs::ImageConstPtr& msg )
+{
+    ROS_ERROR( "[DataManager::raw_image_callback_1] Not implemented" );
+}
 
 void DataManager::extrinsic_cam_imu_callback( const nav_msgs::Odometry::ConstPtr msg )
 {

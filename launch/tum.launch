@@ -1,16 +1,27 @@
 <launch>
 
 
-<!-- Bag -->
+<!-- ################################## Bag ################################ -->
 <arg name="bag_path" default="/Bulk_Data/ros_bags/tum-vins-dataset/tumvi/calibrated/512_16/" />
-<!-- <arg name="bag_file" default="dataset-corridor4_512_16.bag" doc="corridor; smallest seq"/> -->
-<arg name="bag_file" default="dataset-magistrale1_512_16.bag" doc="magistrale1" />
-<!-- <arg name="bag_file" default="dataset-magistrale5_512_16.bag" doc="magistrale5"/> -->
 
+<!-- Corridor -->
+<!-- <arg name="bag_file" default="dataset-corridor4_512_16.bag" doc="corridor; smallest seq"/> -->
+
+<!-- Magistrale -->
+<!-- <arg name="bag_file" default="dataset-magistrale1_512_16.bag" doc="magistrale1, 772sec" /> -->
+<!-- <arg name="bag_file" default="dataset-magistrale2_512_16.bag" doc="magistrale2, 540sec" /> -->
+<!-- <arg name="bag_file" default="dataset-magistrale3_512_16.bag" doc="magistrale3, 485sec"/> -->
+<!-- <arg name="bag_file" default="dataset-magistrale4_512_16.bag" doc="magistrale4, 623sec"/> -->
+<!-- <arg name="bag_file" default="dataset-magistrale5_512_16.bag" doc="magistrale5, 446sec"/> -->
+<!-- <arg name="bag_file" default="dataset-magistrale6_512_16.bag" doc="magistrale6, 574sec"/> -->
+
+<!-- Outdoor -->
+<arg name="bag_file" default="dataset-outdoors1_512_16.bag" doc="outdoor1, 1281sec" />
 
 
 <node pkg="rosbag" type="play" name="rosbag" args="$(arg bag_path)/$(arg bag_file)" output="log"/>
 
+<!-- ############################# DONE BAGS #######################################  -->
 
 
 <!-- for TUM VIO Dataset `PINHOLE` does not work well. KANNALA_BRANDT works OK! -->

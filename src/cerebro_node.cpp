@@ -62,6 +62,7 @@ int main( int argc, char ** argv )
     assert( abstract_camera && "Even after loading yaml the camera seem invalid. Something wrong\n");
 
 
+
     // PinholeCamera camera = PinholeCamera( config_file );
     // camera.printCameraInfo(2); // Not in use, using camodocal camera instead.
 
@@ -107,6 +108,61 @@ int main( int argc, char ** argv )
     fs["image_topic"] >> raw_image_topic;
     ROS_INFO( "Subscribe to raw_image_topic: %s", raw_image_topic.c_str() );
     ros::Subscriber sub_image = nh.subscribe( raw_image_topic, 100, &DataManager::raw_image_callback, &dataManager );
+
+
+    // [B.1]
+    // Additional Image topic (stereo pair)
+    string raw_image_topic_1;
+    ros::Subscriber sub_image_1;
+    if( !fs["image_topic_1"].isString() )
+    {
+        ROS_WARN_STREAM( "[cerebro_node] cannot find key `image_topic_1` in config_file=" << config_file << ". This was optional so nothing to worry if you don't need the stereo pair" );
+    }
+    else {
+        fs["image_topic_1"] >> raw_image_topic_1;
+        ROS_INFO( "Subscribe to image_topic_1: %s", raw_image_topic_1.c_str() );
+        sub_image_1 = nh.subscribe( raw_image_topic_1, 100, &DataManager::raw_image_callback_1, &dataManager );
+    }
+
+
+    // [B.2]
+    // Additional Cameras (yaml)
+    string camera_yaml_1;
+    if( !fs["camera_yaml_1"].isString() )
+    {
+        ROS_WARN_STREAM( "[cerebro_node] cannot find key `camera_yaml_1` in config_file=" << config_file << ". This was optional so nothing to worry if you don't need the 2nd camera" );
+    }
+    else {
+        fs["camera_yaml_1"] >> camera_yaml_1;
+        ROS_INFO(  "camera_yaml_1 : %s", camera_yaml_1.c_str() );
+
+        vector<string> ___path = MiscUtils::split( config_file, '/' );
+        // does::> $(python) '/'.join( ___path[0:-1] )
+        string ___camera_yaml_1_path = string("");
+        for( int _i = 0 ; _i<___path.size()-1 ; _i++ ) {
+            ___camera_yaml_1_path += ___path[_i] + "/";
+        }
+        ___camera_yaml_1_path += "/"+camera_yaml_1;
+        cout << "camera_yaml_1_fullpath=" << ___camera_yaml_1_path << endl;
+
+
+        // check if file exists - depends on boost
+        if ( !boost::filesystem::exists( ___camera_yaml_1_path ) )
+        {
+          std::cout << "[cerebro_node] Can't find my file for additional camera: " << ___camera_yaml_1_path << std::endl;
+          ROS_ERROR_STREAM( "[cerebro_node] Can't find my file for additional camera" << ___camera_yaml_1_path );
+          exit(1);
+        }
+
+        // Make Abstract Camera
+        camodocal::CameraPtr abstract_camera_1;
+        cout << "Load file : " << ___camera_yaml_1_path << endl;
+        abstract_camera_1 = camodocal::CameraFactory::instance()->generateCameraFromYamlFile(___camera_yaml_1_path);
+        assert( abstract_camera_1 && "Even after loading yaml the camera_1 seem invalid. Something wrong\n");
+
+        dataManager.setAbstractCamera( abstract_camera_1, 1 );
+    }
+
 
 
     // [C]
@@ -288,11 +344,15 @@ int main( int argc, char ** argv )
 
 
         // Save Camera Matrix and IMUCamExtrinsic
-
-        if( dataManager.isAbstractCameraSet() ) {
-            auto abstract_camera = dataManager.getAbstractCameraRef();
-            RawFileIO::write_string( save_dir+"/cameraIntrinsic.info", abstract_camera->parametersToString() );
-            abstract_camera->writeParametersToYamlFile( save_dir+"/cameraIntrinsic.yaml" );
+        vector<short> cam_keys = dataManager.getAbstractCameraKeys();
+        for( short _icam=0 ; _icam < cam_keys.size() ; _icam++ )
+        {
+            short key=cam_keys[_icam];
+            if( dataManager.isAbstractCameraSet(key) ) {
+                auto abstract_camera = dataManager.getAbstractCameraRef(key);
+                RawFileIO::write_string( save_dir+"/cameraIntrinsic."+std::to_string(key)+".info", abstract_camera->parametersToString() );
+                abstract_camera->writeParametersToYamlFile( save_dir+"/cameraIntrinsic."+std::to_string(key)+".yaml" );
+            }
         }
 
 

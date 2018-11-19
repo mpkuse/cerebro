@@ -5,6 +5,10 @@ imu_topic: "/imu0"
 image_topic: "/cam0/image_raw"
 output_path: "/Bulk_Data/vins-mono-output/"
 
+# Additional camera (stereo) for cerebro - added my mpkuse
+# image_topic_1: "/cam1/image_raw"
+# camera_yaml_1: "cam1.yaml" # this yaml file will be searched in directory where this yaml file is.
+
 #camera calibration
 model_type: KANNALA_BRANDT
 camera_name: camera

@@ -34,11 +34,17 @@ void Cerebro::run()
     ros::Rate rate(10);
 
     // wait until connected_to_descriptor_server=true and descriptor_size_available=true
+    int wait_itr = 0;
     while( true ) {
         if( this->connected_to_descriptor_server && this->descriptor_size_available)
             break;
-        __Cerebro__run__(cout << "[Cerebro::run]waiting for `descriptor_size_available` to be true\n";)
+        __Cerebro__run__(cout << wait_itr << " [Cerebro::run]waiting for `descriptor_size_available` to be true\n";)
         rate.sleep();
+        wait_itr++;
+        if( wait_itr > 157 ) {
+            __Cerebro__run__( cout << TermColor::RED() << "[Cerebro::run] `this->connected_to_descriptor_server && this->descriptor_size_available` has not become true dispite waiting for about 15sec. So quiting the run thread.\n" << TermColor::RESET(); )
+            return;
+        }
     }
     __Cerebro__run__( cout << TermColor::GREEN() <<"[Cerebro::run] descriptor_size=" << this->descriptor_size << "  connected_to_descriptor_server && descriptor_size_available" << TermColor::RESET() << endl; )
     assert( this->descriptor_size> 0 );

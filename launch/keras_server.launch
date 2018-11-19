@@ -1,0 +1,13 @@
+<launch>
+
+
+<!-- <arg name="config_path" default="$(find cerebro)/config/euroc/euroc_config.yaml" /> -->
+<!-- <arg name="config_path" default="$(find cerebro)/config/blackbox4/blackbox4_config.yaml" /> -->
+<arg name="config_path" default="$(find cerebro)/config/tum_vi/tum_jie_config.yaml" />
+
+
+
+<node name="my_desc_server" pkg="cerebro" type="whole_image_desc_compute_server.py" output="screen">
+   <param name="config_file" type="string" value="$(arg config_path)" />
+</node>
+</launch>
