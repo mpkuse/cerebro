@@ -133,6 +133,8 @@ void DataManager::raw_image_callback( const sensor_msgs::ImageConstPtr& msg )
     img_buf.push( msg );
     return;
 
+
+    // TODO: Remove this code.
     try{
         char _fname[100];
         sprintf( _fname, "/Bulk_Data/_tmp/%lf.png", msg->header.stamp.toSec() );
@@ -148,7 +150,9 @@ void DataManager::raw_image_callback( const sensor_msgs::ImageConstPtr& msg )
 
 void DataManager::raw_image_callback_1( const sensor_msgs::ImageConstPtr& msg )
 {
-    ROS_ERROR( "[DataManager::raw_image_callback_1] Not implemented" );
+    __DATAMANAGER_CALLBACK_PRINT( cout << "[cerebro/raw_image_callback_1]" << msg->header.stamp-pose_0 << endl; )
+    img_1_buf.push( msg );
+    return;
 }
 
 void DataManager::extrinsic_cam_imu_callback( const nav_msgs::Odometry::ConstPtr msg )
@@ -232,7 +236,7 @@ void DataManager::tracked_feat_callback( const sensor_msgs::PointCloud::ConstPtr
 std::string DataManager::metaDataAsFlatFile()
 {
     std::stringstream buffer;
-    buffer << "#seq,rel_stamp,stamp,isKeyFrame,isImageAvailable,isPoseAvailable,isPtCldAvailable,isUVAvailable\n";
+    buffer << "#seq,rel_stamp,stamp,isKeyFrame,isImageAvailable,isImageAvailable_1,isPoseAvailable,isPtCldAvailable,isUVAvailable\n";
 
     {
         // puttime
@@ -250,6 +254,7 @@ std::string DataManager::metaDataAsFlatFile()
         buffer <<  it->first << ",";
         buffer << it->second->isKeyFrame() << ",";
         buffer << it->second->isImageAvailable() << ",";
+        buffer << it->second->isImageAvailable(1) << ",";
         buffer << it->second->isPoseAvailable() << ",";
         buffer << it->second->isPtCldAvailable() << ",";
         buffer << it->second->isUVAvailable();
@@ -280,6 +285,7 @@ std::string DataManager::metaDataAsJson()
 
         buffer << "\"isKeyFrame\":" << it->second->isKeyFrame() << ",\n";
         buffer << "\"isImageAvailable\":" << it->second->isImageAvailable() << ",\n";
+        buffer << "\"isImageAvailable_1\":" << it->second->isImageAvailable(1) << ",\n";
         buffer << "\"isPoseAvailable\":" << it->second->isPoseAvailable() << ",\n";
         buffer << "\"isPtCldAvailable\":" << it->second->isPtCldAvailable() << ",\n";
         buffer << "\"isUnVnAvailable\":" << it->second->isUnVnAvailable() << ",\n";
@@ -440,6 +446,7 @@ string DataManager::print_queue_size( int verbose=1 )
     if( verbose == 1)
     {
         buffer << "img_buf=" << img_buf.size() << "\t";
+        buffer << "img_1_buf=" << img_1_buf.size() << "\t";
         buffer << "pose_buf=" << pose_buf.size() << "\t";
         buffer << "kf_pose_buf=" << kf_pose_buf.size() << "\t";
         buffer << "ptcld_buf=" << ptcld_buf.size() << "\t";
@@ -454,6 +461,13 @@ string DataManager::print_queue_size( int verbose=1 )
         if( img_buf.size()  > 0 ) {
             buffer << std::fixed << std::setprecision(4) << img_buf.front()->header.stamp-pose_0 << "-->";
             buffer << std::fixed << std::setprecision(4) << img_buf.back()->header.stamp-pose_0 << ";";
+        }
+        buffer << ")\t";
+
+        buffer << "img_1_buf=" << img_1_buf.size() << " (";
+        if( img_1_buf.size()  > 0 ) {
+            buffer << std::fixed << std::setprecision(4) << img_1_buf.front()->header.stamp-pose_0 << "-->";
+            buffer << std::fixed << std::setprecision(4) << img_1_buf.back()->header.stamp-pose_0 << ";";
         }
         buffer << ")\t";
 
@@ -576,6 +590,20 @@ void DataManager::data_association_thread( int max_loop_rate_in_hz )
             data_map.insert( std::make_pair(img_msg->header.stamp, n) );
         }
 
+        // dequeue additional raw images
+        while( img_1_buf.size() > 0 ) {
+            sensor_msgs::ImageConstPtr img_1_msg = img_1_buf.pop();
+            ros::Time t = img_1_msg->header.stamp;
+
+            if( data_map.count(t) > 0 ) {
+                data_map.at( t )->setImageFromMsg( img_1_msg, 1 );
+            }
+            else {
+                assert( false && "[DataManager::data_association_thread] attempting to set additional image into datanode. However that datanode is not found in the map. This cannot be happening\n");
+            }
+        }
+
+
         // dequeue all poses and set them to data_map
         while( pose_buf.size() > 0 ) {
              nav_msgs::Odometry::ConstPtr pose_msg = pose_buf.pop();
@@ -588,7 +616,7 @@ void DataManager::data_association_thread( int max_loop_rate_in_hz )
                  data_map.at( t )->setPoseFromMsg( pose_msg );
              }
              else {
-                 assert( false && "data_map does not seem to contain the t of pose_msg. This cannot be happening\n");
+                 assert( false && "[DataManager::data_association_thread] data_map does not seem to contain the t of pose_msg. This cannot be happening\n");
              }
          }
 
@@ -609,7 +637,7 @@ void DataManager::data_association_thread( int max_loop_rate_in_hz )
                 data_map.at( t )->setAsKeyFrame();
             }
             else {
-                assert( false && "data_map does not seem to contain the t of ptcld_msg. This cannot be happening\n");
+                assert( false && "[DataManager::data_association_thread] data_map does not seem to contain the t of ptcld_msg. This cannot be happening\n");
             }
         }
 

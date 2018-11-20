@@ -51,7 +51,9 @@ class DataNode
 public:
     DataNode( ros::Time stamp ): stamp(stamp)  { is_key_frame = false; }
 
-    void setImageFromMsg( const sensor_msgs::ImageConstPtr msg );
+    void setImageFromMsg( const sensor_msgs::ImageConstPtr msg ); ///< this sets the primary image
+    void setImageFromMsg( const sensor_msgs::ImageConstPtr msg, short cam_id ); ///< this sets additional image. multiple additional images by Node is possible by using ids
+
     void setPoseFromMsg( const nav_msgs::OdometryConstPtr msg );
 
     void setPointCloudFromMsg( const sensor_msgs::PointCloudConstPtr msg ); // uses msg->points[ \forall i].x, .y, .z
@@ -65,6 +67,7 @@ public:
 
     bool isKeyFrame()  const{ return (bool)is_key_frame; }
     bool isImageAvailable() const { return m_image; }
+    bool isImageAvailable(short cam_id) const { return ((t_all_images.count(cam_id)>0)?true:false); }
     bool isPoseAvailable() const { return m_wTc; }
     bool isPtCldAvailable() const { return m_ptcld; }
     bool isUnVnAvailable()  const{ return m_unvn; }
@@ -73,6 +76,7 @@ public:
 
 
     const cv::Mat& getImage() ;
+    const cv::Mat& getImage(short cam_id);
     const Matrix4d& getPose();
     const MatrixXd& getPoseCovariance(); //6x6 matrix
     const MatrixXd& getPointCloud(); // returns a 4xN matrix
@@ -83,6 +87,7 @@ public:
 
     const ros::Time getT();
     const ros::Time getT_image();
+    const ros::Time getT_image(short cam_id);
     const ros::Time getT_pose();
     const ros::Time getT_ptcld();
     const ros::Time getT_unvn();
@@ -109,6 +114,10 @@ private:
     cv::Mat image;
     ros::Time t_image;
     bool m_image=false; // TODO better make this atomic<bool>
+
+    // Additional Raw Images
+    std::map<short,cv::Mat> all_images;
+    std::map<short,ros::Time> t_all_images;
 
 
     // Pose (odometry pose from vins estimator)

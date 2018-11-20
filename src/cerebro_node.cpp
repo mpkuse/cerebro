@@ -301,7 +301,7 @@ int main( int argc, char ** argv )
 
 
         RawFileIO::write_string( save_dir+"/log.json", dataManager.metaDataAsJson() );
-        RawFileIO::write_string( save_dir+"/log.txt", dataManager.metaDataAsFlatFile() );
+        RawFileIO::write_string( save_dir+"/log.txt", dataManager.metaDataAsFlatFile() ); //TODO remove. Since i can read json in python as well as c++ with ease, these is no point of storing stuff as txt
 
 
         std::map< ros::Time, DataNode* > data_map = dataManager.getDataMapRef();
@@ -312,6 +312,10 @@ int main( int argc, char ** argv )
             string fname = save_dir+"/"+to_string(seq_id );
             if( it->second->isImageAvailable() )
                 RawFileIO::write_image( fname+".jpg", it->second->getImage()  );
+
+            // additional image
+            if( it->second->isImageAvailable(1) )
+                RawFileIO::write_image( fname+"_1.jpg", it->second->getImage(1)  );
 
             // Save VINS pose
             if( it->second->isPoseAvailable() ) {

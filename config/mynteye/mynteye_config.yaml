@@ -1,28 +1,31 @@
 %YAML:1.0
 
 #common parameters
-imu_topic: "/imu0"
-image_topic: "/cam0/image_raw"
+imu_topic: "/mynteye/imu/data_raw"
+image_topic: "/mynteye/left/image_raw"
 output_path: "/Bulk_Data/vins-mono-output/"
 
 # Additional camera (stereo) for cerebro - added my mpkuse
-image_topic_1: "/cam1/image_raw"
-camera_yaml_1: "cam1.yaml" # this yaml file will be searched in directory where this yaml file is.
+image_topic_1: "/mynteye/right/image_raw"
+camera_yaml_1: "camera_right.yaml" # this yaml file will be searched in directory where this yaml file is.
 
 #camera calibration
-model_type: KANNALA_BRANDT
-camera_name: camera
-image_width: 512
-image_height: 512
+model_type: MEI
+camera_name: camera_left
+image_width: 752
+image_height: 480
+mirror_parameters:
+   xi: 9.1080215802208964e-01
+distortion_parameters:
+   k1: -4.1813210333143819e-01
+   k2: 1.7403431210939191e-01
+   p1: 9.9413203823357906e-04
+   p2: 7.3177696678596699e-04
 projection_parameters:
-   k2: 0.0034823894022493434
-   k3: 0.0007150348452162257
-   k4: -0.0020532361418706202
-   k5: 0.00020293673591811182
-   mu: 190.97847715128717
-   mv: 190.9733070521226
-   u0: 254.93170605935475
-   v0: 256.8974428996504
+   gamma1: 7.0261362770226128e+02
+   gamma2: 7.0163099053315807e+02
+   u0: 3.7079141993914720e+02
+   v0: 2.3833755987148535e+02
 
 # Extrinsic parameter between IMU and Camera.
 estimate_extrinsic: 1   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
@@ -34,17 +37,17 @@ extrinsicRotation: !!opencv-matrix
    rows: 3
    cols: 3
    dt: d
-   data: [ -9.9951465899298464e-01, 7.5842033363785165e-03,
-       -3.0214670573904204e-02, 2.9940114644659861e-02,
-       -3.4023430206013172e-02, -9.9897246995704592e-01,
-       -8.6044170750674241e-03, -9.9939225835343004e-01,
-       3.3779845322755464e-02 ]
+   data: [ 4.2739206953025244e-03, -9.9997227378122833e-01,
+       -6.0979726705474944e-03, 9.9998919890819160e-01,
+       4.2626966744552242e-03, 1.8524265207998580e-03,
+       -1.8263813521932205e-03, -6.1058239298286089e-03,
+       9.9997969141642784e-01 ]
 extrinsicTranslation: !!opencv-matrix
    rows: 3
    cols: 1
    dt: d
-   data: [ 4.4511917113940799e-02, -7.3197096234105752e-02,
-       -4.7972907300764499e-02 ]
+   data: [ 6.1040452082857912e-03, -4.8408978130397302e-02,
+       2.2594515206886469e-02 ]
 
 #feature traker paprameters
 max_cnt: 150            # max feature number in feature tracking
@@ -53,7 +56,7 @@ freq: 10                # frequence (Hz) of publish tracking result. At least 10
 F_threshold: 1.0        # ransac threshold (pixel)
 show_track: 1           # publish tracking image as topic
 equalize: 1             # if image is too dark or light, trun on equalize to find enough features
-fisheye: 1              # if using fisheye, trun on it. A circle mask will be loaded to remove edge noisy points
+fisheye: 0              # if using fisheye, trun on it. A circle mask will be loaded to remove edge noisy points
 
 #optimization parameters
 max_solver_time: 0.04  # max solver itration time (ms), to guarantee real time

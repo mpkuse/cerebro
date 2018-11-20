@@ -156,6 +156,7 @@ private:
     // std::queue<nav_msgs::OdometryConstPtr> extrinsic_cam_imu_buf;
 
     SafeQueue<sensor_msgs::ImageConstPtr> img_buf;
+    SafeQueue<sensor_msgs::ImageConstPtr> img_1_buf;
     SafeQueue<nav_msgs::OdometryConstPtr> pose_buf;
     SafeQueue<nav_msgs::OdometryConstPtr> kf_pose_buf;
     SafeQueue<sensor_msgs::PointCloudConstPtr> ptcld_buf;

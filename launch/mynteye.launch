@@ -2,31 +2,22 @@
 
 
 <!-- ################################## Bag ################################ -->
-<arg name="bag_path" default="/Bulk_Data/ros_bags/tum-vins-dataset/tumvi/calibrated/512_16/" />
-
-<!-- Corridor -->
-<!-- <arg name="bag_file" default="dataset-corridor4_512_16.bag" doc="corridor; smallest seq"/> -->
-
-<!-- Magistrale -->
-<!-- <arg name="bag_file" default="dataset-magistrale1_512_16.bag" doc="magistrale1, 772sec" /> -->
-<!-- <arg name="bag_file" default="dataset-magistrale2_512_16.bag" doc="magistrale2, 540sec" /> -->
-<!-- <arg name="bag_file" default="dataset-magistrale3_512_16.bag" doc="magistrale3, 485sec"/> -->
-<arg name="bag_file" default="dataset-magistrale4_512_16.bag" doc="magistrale4, 623sec"/>
-<!-- <arg name="bag_file" default="dataset-magistrale5_512_16.bag" doc="magistrale5, 446sec"/> -->
-<!-- <arg name="bag_file" default="dataset-magistrale6_512_16.bag" doc="magistrale6, 574sec"/> -->
-
-<!-- Outdoor -->
-<!-- <arg name="bag_file" default="dataset-outdoors1_512_16.bag" doc="outdoor1, 1281sec" /> -->
+<arg name="bag_path" default="/Bulk_Data/ros_bags/mynteye/" />
+<!-- <arg name="bag_file" default="1.bag" doc="sitting on my desk"/> -->
+<!-- <arg name="bag_file" default="2018-11-20-17-42-54.bag" doc="multiple loops in lab"/> -->
+<arg name="bag_file" default="2018-11-20-17-45-55.bag" doc="multiple loops in lab"/>
 
 
-<node pkg="rosbag" type="play" name="rosbag" args="$(arg bag_path)/$(arg bag_file)" output="log"/>
+
+
+<node pkg="rosbag" type="play" name="rosbag" args="$(arg bag_path)/$(arg bag_file) -s 3" output="log"/>
 
 <!-- ############################# DONE BAGS #######################################  -->
 
 
 <!-- for TUM VIO Dataset `PINHOLE` does not work well. KANNALA_BRANDT works OK! -->
 <!-- <arg name="config_path" default="$(find cerebro)/config/tum_vi/tum_vi_config.yaml" /> -->
-<arg name="config_path" default="$(find cerebro)/config/tum_vi/tum_jie_config.yaml" />
+<arg name="config_path" default="$(find cerebro)/config/mynteye/mynteye_config.yaml" />
 <arg name="vins_path" default="$(find feature_tracker)/../config/../" />
 
 

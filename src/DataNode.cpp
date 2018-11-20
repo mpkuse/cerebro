@@ -6,15 +6,32 @@ void DataNode::setImageFromMsg( const sensor_msgs::ImageConstPtr msg )
     std::lock_guard<std::mutex> lk(m);
 
     // image = cv_bridge::toCvShare(msg, "bgr8" )->image
-    image = cv_bridge::toCvCopy(msg, "bgr8" )->image;
+    this->image = cv_bridge::toCvCopy(msg, "bgr8" )->image;
 
     // TODO: Make sure the image is valid
     assert( image.rows > 0 && image.cols > 0 && !image.empty() && "In DataNode::setImageFromMsg image that is being set from sensor_msgs::Image is invalid.");
 
 
-    t_image = msg->header.stamp;
-    m_image = true;
+    this->t_image = msg->header.stamp;
+    this->m_image = true;
 }
+
+void DataNode::setImageFromMsg( const sensor_msgs::ImageConstPtr msg, short cam_id )
+{
+    std::lock_guard<std::mutex> lk(m);
+
+    cv::Mat __image = cv_bridge::toCvCopy(msg, "bgr8" )->image;
+    this->all_images[cam_id] = __image;
+
+
+    // TODO: Make sure the image is valid
+    assert( __image.rows > 0 && __image.cols > 0 && !image.empty() && "In DataNode::setImageFromMsg with cam_id image that is being set from sensor_msgs::Image is invalid.");
+
+
+    this->t_all_images[cam_id] = msg->header.stamp;
+
+}
+
 
 
 void DataNode::setPoseFromMsg( const nav_msgs::OdometryConstPtr msg )
@@ -110,10 +127,16 @@ void DataNode::setTrackedFeatIdsFromMsg( const sensor_msgs::PointCloudConstPtr m
 
 const cv::Mat& DataNode::getImage() {
     std::lock_guard<std::mutex> lk(m);
-    assert( m_image && "[DataNode::getImage] you requested the image before setting it");
-    return image;
+    assert( isImageAvailable() && "[DataNode::getImage] you requested the image before setting it");
+    return this->image;
 }
 
+
+const cv::Mat& DataNode::getImage(short cam_id) {
+    std::lock_guard<std::mutex> lk(m);
+    assert( isImageAvailable(cam_id) && "[DataNode::getImage with cam_id] you requested the image before setting it");
+    return this->all_images[cam_id];
+}
 
 const Matrix4d& DataNode::getPose() {
     std::lock_guard<std::mutex> lk(m);
@@ -164,12 +187,19 @@ const VectorXi& DataNode::getFeatIds() {
      std::lock_guard<std::mutex> lk(m);
      return stamp;
  }
-
-
  const ros::Time DataNode::getT_image() {
      std::lock_guard<std::mutex> lk(m);
+     assert( isImageAvailable() );
      return t_image;
  }
+ const ros::Time DataNode::getT_image(short cam_id) {
+     std::lock_guard<std::mutex> lk(m);
+     assert( isImageAvailable(cam_id) );
+     return t_all_images[cam_id];
+ }
+
+
+
  const ros::Time DataNode::getT_pose() {
      std::lock_guard<std::mutex> lk(m);
      return t_wTc;
