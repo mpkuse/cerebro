@@ -164,6 +164,9 @@ int main( int argc, char ** argv )
     }
 
 
+    // TODO : set stereobaseline transform ie. right_T_left from yaml file 
+
+
 
     // [C]
     // imu_T_cam : imu camera extrinsic calib. Will store this just in case there is a need

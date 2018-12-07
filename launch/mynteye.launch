@@ -3,10 +3,25 @@
 
 <!-- ################################## Bag ################################ -->
 <arg name="bag_path" default="/Bulk_Data/ros_bags/mynteye/" />
-<!-- <arg name="bag_file" default="1.bag" doc="sitting on my desk"/> -->
-<!-- <arg name="bag_file" default="2018-11-20-17-42-54.bag" doc="multiple loops in lab"/> -->
-<arg name="bag_file" default="2018-11-20-17-45-55.bag" doc="multiple loops in lab"/>
 
+<!-- ### IN LAB -->
+<!-- <arg name="bag_file" default="1.bag" doc="sitting on my desk"/> -->
+<!-- <arg name="bag_file" default="2018-11-20-17-45-55.bag" doc="single loop in lab"/> -->
+<!-- <arg name="bag_file" default="2018-11-20-17-42-54.bag" doc="multiple loops in lab"/> -->
+<!-- <arg name="bag_file" default="2018-11-22-12-06-47.bag" doc="drone fly area loopy"/> -->
+<!-- <arg name="bag_file" default="2018-11-22-12-09-21.bag" doc="conference room RI"/> -->
+<!-- <arg name="bag_file" default="2018-11-29-12-37-49.bag" doc="lab rotated loops"/> -->
+<!-- <arg name="bag_file" default="2018-11-29-15-10-24.bag" doc="outside RI"/> -->
+
+<!-- ### In HKUST Academic block and CYT UG -->
+<!-- <arg name="bag_file" default="2018-11-29-15-13-44.bag" doc="CYT UG floor"/> -->
+<!-- <arg name="bag_file" default="2018-11-29-15-22-50.bag" doc="academic concourse"/> -->
+<!-- <arg name="bag_file" default="2018-11-29-15-30-39.bag" doc="near coffee shop 1"/> -->
+<arg name="bag_file" default="2018-11-29-15-36-41.bag" doc="seng"/>
+<!--
+
+
+-->
 
 
 
@@ -16,8 +31,9 @@
 
 
 <!-- for TUM VIO Dataset `PINHOLE` does not work well. KANNALA_BRANDT works OK! -->
-<!-- <arg name="config_path" default="$(find cerebro)/config/tum_vi/tum_vi_config.yaml" /> -->
-<arg name="config_path" default="$(find cerebro)/config/mynteye/mynteye_config.yaml" />
+<!-- <arg name="config_path" default="$(find cerebro)/config/mynteye_pinhole/mynteye_config.yaml" /> -->
+<!-- <arg name="config_path" default="$(find cerebro)/config/mynteye/mynteye_config.yaml" /> -->
+<arg name="config_path" default="$(find cerebro)/config/mynteye_kannala_brandt/mynteye_config.yaml" />
 <arg name="vins_path" default="$(find feature_tracker)/../config/../" />
 
 

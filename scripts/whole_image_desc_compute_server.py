@@ -9,9 +9,12 @@ import numpy as np
 import code
 import time
 import os
+import scipy.io
 
 
 import keras
+from keras_helpers import *
+
 
 class SampleGPUComputer:
     def __init__(self):
@@ -48,11 +51,122 @@ class SampleGPUComputer:
         result.desc = [ cv_image.shape[0], cv_image.shape[1] ]
         return result
 
+class ReljaNetVLAD:
+    def __init__(self, im_rows=600, im_cols=960, im_chnls=3):
+        ## Build net
+        from keras.backend.tensorflow_backend import set_session
+        import tensorflow as tf
+        config = tf.ConfigProto()
+        config.gpu_options.per_process_gpu_memory_fraction = 0.1
+        # config.gpu_options.visible_device_list = "0"
+        set_session(tf.Session(config=config))
 
-from keras_helpers import *
+        self.im_rows = int(im_rows)
+        self.im_cols = int(im_cols)
+        self.im_chnls = int(im_chnls)
+
+
+        input_img = keras.layers.Input( batch_shape=(1,self.im_rows, self.im_cols, self.im_chnls ) )
+        cnn = make_from_vgg16( input_img, weights=None, layer_name='block5_pool' )
+        out, out_amap = NetVLADLayer(num_clusters = 64)( cnn )
+        model = keras.models.Model( inputs=input_img, outputs=out )
+
+        DATA_DIR = '/app_learning/cartwheel_train/relja_matlab_weight.dump/'
+        print 'Relja Data Dir: ', DATA_DIR
+        model.load_weights( DATA_DIR+'/matlab_model.keras' )
+        WPCA_M = scipy.io.loadmat( DATA_DIR+'/WPCA_1.mat' )['the_mat'] # 1x1x32768x4096
+        WPCA_b = scipy.io.loadmat( DATA_DIR+'/WPCA_2.mat' )['the_mat'] # 4096x1
+        WPCA_M = WPCA_M[0,0]          # 32768x4096
+        WPCA_b = np.transpose(WPCA_b) #1x4096
+
+
+        self.model = model
+        self.WPCA_M = WPCA_M
+        self.WPCA_b = WPCA_b
+        self.model_type = 'relja_matlab_model'
+
+
+
+        # Doing this is a hack to force keras to allocate GPU memory. Don't comment this,
+        tmp_zer = np.zeros( (1,self.im_rows,self.im_cols,self.im_chnls), dtype='float32' )
+        tmp_zer_out = self.model.predict( tmp_zer )
+        tmp_zer_out = np.matmul( tmp_zer_out, self.WPCA_M ) + self.WPCA_b
+        tmp_zer_out /= np.linalg.norm( tmp_zer_out )
+        print 'model input.shape=', tmp_zer.shape, '\toutput.shape=', tmp_zer_out.shape
+        print 'model_type=', self.model_type
+
+        print '-----'
+        print '\tinput_image.shape=', tmp_zer.shape
+        print '\toutput.shape=', tmp_zer_out.shape
+        print '\tminmax=', np.min( tmp_zer_out ), np.max( tmp_zer_out )
+        print '\tnorm=', np.linalg.norm( tmp_zer_out )
+        print '\tdtype=', tmp_zer_out.dtype
+        print '-----'
+
+
+    def handle_req( self, req ):
+        ## Get Image out of req
+        cv_image = CvBridge().imgmsg_to_cv2( req.ima )
+        print '[Handle Request] cv_image.shape', cv_image.shape, '\ta=', req.a, '\tt=', req.ima.header.stamp
+
+
+        assert (cv_image.shape[0] == self.im_rows and
+                cv_image.shape[1] == self.im_cols and
+                cv_image.shape[2] == self.im_chnls),\
+                "\n[whole_image_descriptor_compute_server] Input shape of the image \
+                does not match with the allocated GPU memory. Expecting an input image of \
+                size %dx%dx%d, but received : %s" %(self.im_rows, self.im_cols, self.im_chnls, str(cv_image.shape) )
+
+        # cv2.imshow( 'whole_image_descriptor_compute_server:imshow', cv_image.astype('uint8') )
+        # cv2.waitKey(10)
+        # cv2.imwrite( '/app/tmp/%s.jpg' %( str(req.ima.header.stamp) ), cv_image )
+
+        ## Compute Descriptor
+        start_time = time.time()
+
+        # Normalize image
+        cv_image_rgb = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
+        avg_image = [122.6778, 116.6522, 103.9997]
+        cv_image_rgb[:,:,0]= cv_image_rgb[:,:,0] - avg_image[0]
+        cv_image_rgb[:,:,1]= cv_image_rgb[:,:,1] - avg_image[1]
+        cv_image_rgb[:,:,2]= cv_image_rgb[:,:,2] - avg_image[2]
+
+
+        # predict
+        u = self.model.predict( np.expand_dims( cv_image_rgb.astype('float32'), 0 ) )
+
+        # WPCA
+        u = np.matmul( u, self.WPCA_M ) + self.WPCA_b
+        u /= np.linalg.norm( u )
+
+        print 'Descriptor Computed in %4.4fms' %( 1000. *(time.time() - start_time) ),
+        print '\tdesc.shape=', u.shape,
+        print '\tinput_image.shape=', cv_image.shape,
+        print '\tminmax=', np.min( u ), np.max( u ),
+        print '\tmodel_type=', self.model_type,
+        print '\tdtype=', cv_image.dtype
+
+
+
+        ## Populate output message
+        result = WholeImageDescriptorComputeResponse()
+        # result.desc = [ cv_image.shape[0], cv_image.shape[1] ]
+        result.desc = u[0,:]
+        result.model_type = self.model_type
+        return result
+
+
+
+
 class NetVLADImageDescriptor:
     def __init__(self, im_rows=600, im_cols=960, im_chnls=3):
         ## Build net
+        from keras.backend.tensorflow_backend import set_session
+        import tensorflow as tf
+        config = tf.ConfigProto()
+        config.gpu_options.per_process_gpu_memory_fraction = 0.1
+        # config.gpu_options.visible_device_list = "0"
+        set_session(tf.Session(config=config))
 
         # Blackbox 4
         # self.im_rows = 512
@@ -74,9 +188,24 @@ class NetVLADImageDescriptor:
         self.im_chnls = int(im_chnls)
 
 
+        #----- @ INPUT LAYER
         input_img = keras.layers.Input( shape=(self.im_rows, self.im_cols, self.im_chnls) )
-        cnn = make_from_mobilenet( input_img )
+
+        #----- @ CNN
+        cnn = make_from_vgg16( input_img, weights=None, layer_name='block5_pool' )
+        # cnn = make_from_mobilenet( input_img )
+
+        #----- @ DOWN-SAMPLE LAYER (OPTINAL)
+        if False: #Downsample last layer (Reduce nChannels of the output.)
+            cnn_dwn = keras.layers.Conv2D( 256, (1,1), padding='same', activation='relu' )( cnn )
+            cnn_dwn = keras.layers.normalization.BatchNormalization()( cnn_dwn )
+            cnn_dwn = keras.layers.Conv2D( 32, (1,1), padding='same', activation='relu' )( cnn_dwn )
+            cnn_dwn = keras.layers.normalization.BatchNormalization()( cnn_dwn )
+            cnn = cnn_dwn
+
+        #----- @ NetVLADLayer
         out, out_amap = NetVLADLayer(num_clusters = 16)( cnn )
+
         model = keras.models.Model( inputs=input_img, outputs=out )
         model.summary()
         model_visual_fname = '/app/core.png'
@@ -84,18 +213,43 @@ class NetVLADImageDescriptor:
         keras.utils.plot_model( model, to_file=model_visual_fname, show_shapes=True )
 
 
-        ## Load Model Weights
+        #----- @ Load Model Weights
         #TODO Read from config file the path of keras model
-        model_file = '/app/catkin_ws/src/cerebro/scripts/keras.models/core_model.keras'
+        # model_file = '/app/catkin_ws/src/cerebro/scripts/keras.models/core_model.keras'
+        # model_type = 'test_keras_model'
+
+        model_file = '/app_learning/cartwheel_train/models.keras/vgg16/block5_pool_k16_tripletloss2/core_model.keras'
+        model_type = 'block5_pool_k16_tripletloss2'
+
+
+        # model_file = '/app_learning/cartwheel_train/models.keras/mobilenet_conv7_quash_chnls_tripletloss2/core_model.keras'
+        # model_type = 'mobilenet_conv7_quash_chnls_tripletloss2'
+
+        # model_file = '/app_learning/cartwheel_train/models.keras/mobilenet_conv7_allpairloss/core_model.keras'
+        # model_type = 'mobilenet_conv7_allpairloss'
+
+
+
+
         print 'model_file: ', model_file
         model.load_weights( model_file )
 
         self.model = model
+        self.model_type = model_type
+        # ! Done...!
 
         # Doing this is a hack to force keras to allocate GPU memory. Don't comment this,
         tmp_zer = np.zeros( (1,self.im_rows,self.im_cols,self.im_chnls), dtype='float32' )
         tmp_zer_out = self.model.predict( tmp_zer )
         print 'model input.shape=', tmp_zer.shape, '\toutput.shape=', tmp_zer_out.shape
+        print 'model_type=', self.model_type
+
+        print '-----'
+        print '\tinput_image.shape=', tmp_zer.shape
+        print '\toutput.shape=', tmp_zer_out.shape
+        print '\tminmax=', np.min( tmp_zer_out ), np.max( tmp_zer_out )
+        print '\tdtype=', tmp_zer_out.dtype
+        print '-----'
 
 
 
@@ -119,7 +273,12 @@ class NetVLADImageDescriptor:
         ## Compute Descriptor
         start_time = time.time()
         u = self.model.predict( np.expand_dims( cv_image.astype('float32'), 0 ) )
-        print 'Descriptor Computed in %4.4fms' %( 1000. *(time.time() - start_time) ), '\tdesc.shape=', u.shape, '\tinput_image.shape=', cv_image.shape, '\tdtype=', cv_image.dtype
+        print 'Descriptor Computed in %4.4fms' %( 1000. *(time.time() - start_time) ),
+        print '\tdesc.shape=', u.shape,
+        print '\tinput_image.shape=', cv_image.shape,
+        print '\tminmax=', np.min( u ), np.max( u ),
+        print '\tmodel_type=', self.model_type,
+        print '\tdtype=', cv_image.dtype
 
 
 
@@ -127,6 +286,7 @@ class NetVLADImageDescriptor:
         result = WholeImageDescriptorComputeResponse()
         # result.desc = [ cv_image.shape[0], cv_image.shape[1] ]
         result.desc = u[0,:]
+        result.model_type = self.model_type
         return result
 
 
@@ -162,7 +322,8 @@ print 'opencv-yaml:: image_width=', fs_image_width, '   image_height=', fs_image
 ## Start Server
 ##
 #gpu_s = SampleGPUComputer()
-gpu_netvlad = NetVLADImageDescriptor( im_rows=fs_image_height, im_cols=fs_image_width )
+# gpu_netvlad = NetVLADImageDescriptor( im_rows=fs_image_height, im_cols=fs_image_width )
+gpu_netvlad = ReljaNetVLAD( im_rows=fs_image_height, im_cols=fs_image_width )
 s = rospy.Service( 'whole_image_descriptor_compute', WholeImageDescriptorCompute, gpu_netvlad.handle_req  )
 print 'whole_image_descriptor_compute_server is running'
 

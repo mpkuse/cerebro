@@ -132,6 +132,10 @@ void Cerebro::run()
                                          << TermColor::RESET() << endl;
                                 )
 
+                  //TODO :
+                  // publish the image pair based on a config_file_flag
+                  // read flags for publish image, threshold(0.92), locality threshold (8) from file.
+                  
                 {
                 std::lock_guard<std::mutex> lk_foundloops(m_foundLoops);
                 foundLoops.push_back( std::make_tuple( wholeImageComputedList[l-1], wholeImageComputedList[u_argmax], u_max ) );
