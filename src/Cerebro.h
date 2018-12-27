@@ -45,6 +45,8 @@ public:
     void run_thread_disable() { b_run_thread = false; }
     void run();
 
+    void descrip_N__dot__descrip_0_N(); 
+
 public:
     const int foundLoops_count() const ;
     const std::tuple<ros::Time, ros::Time, double> foundLoops_i( int i) const;

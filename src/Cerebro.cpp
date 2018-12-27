@@ -18,15 +18,22 @@ void Cerebro::setDataManager( DataManager* dataManager )
 }
 
 
+
+#define __Cerebro__run__( msg ) msg ;
+// #define __Cerebro__run__( msg ) ;
+void Cerebro::run()
+{
+    descrip_N__dot__descrip_0_N();
+}
+
+
 ///
 /// This implements a simple loopclosure detection scheme based on dot-product of descriptor-vectors.
 ///
 /// TODO: In the future more intelligent schemes can be experimented with. Besure to run those in new threads and disable this thread.
 /// wholeImageComputedList is a list for which descriptors are computed. Similarly other threads can compute
 /// scene-object labels, text etc etc in addition to currently computed whole-image-descriptor
-#define __Cerebro__run__( msg ) msg ;
-// #define __Cerebro__run__( msg ) ;
-void Cerebro::run()
+void Cerebro::descrip_N__dot__descrip_0_N()
 {
     assert( m_dataManager_available && "You need to set the DataManager in class Cerebro before execution of the run() thread can begin. You can set the dataManager by call to Cerebro::setDataManager()\n");
     assert( b_run_thread && "you need to call run_thread_enable() before run() can start executing\n" );
@@ -49,6 +56,8 @@ void Cerebro::run()
     __Cerebro__run__( cout << TermColor::GREEN() <<"[Cerebro::run] descriptor_size=" << this->descriptor_size << "  connected_to_descriptor_server && descriptor_size_available" << TermColor::RESET() << endl; )
     assert( this->descriptor_size> 0 );
 
+    int LOCALITY_THRESH = 8;
+    float DOT_PROD_THRESH = 0.88;
 
     int l=0, last_l=0;
     int last_processed=0;
@@ -118,7 +127,7 @@ void Cerebro::run()
             }
             assert( u_argmax > 0 && um_argmax > 0 && umm_argmax > 0 );
 
-            if( abs(u_argmax - um_argmax) < 8 && abs(u_argmax-umm_argmax) < 8 && u_max > 0.92  )
+            if( abs(u_argmax - um_argmax) < LOCALITY_THRESH && abs(u_argmax-umm_argmax) < 8 && u_max > DOT_PROD_THRESH  )
             {
                 std::lock_guard<std::mutex> lk(m_wholeImageComputedList);
 
@@ -135,7 +144,7 @@ void Cerebro::run()
                   //TODO :
                   // publish the image pair based on a config_file_flag
                   // read flags for publish image, threshold(0.92), locality threshold (8) from file.
-                  
+
                 {
                 std::lock_guard<std::mutex> lk_foundloops(m_foundLoops);
                 foundLoops.push_back( std::make_tuple( wholeImageComputedList[l-1], wholeImageComputedList[u_argmax], u_max ) );

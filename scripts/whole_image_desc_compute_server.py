@@ -192,14 +192,14 @@ class NetVLADImageDescriptor:
         input_img = keras.layers.Input( shape=(self.im_rows, self.im_cols, self.im_chnls) )
 
         #----- @ CNN
-        cnn = make_from_vgg16( input_img, weights=None, layer_name='block5_pool' )
-        # cnn = make_from_mobilenet( input_img )
+        # cnn = make_from_vgg16( input_img, weights=None, layer_name='block5_pool' )
+        cnn = make_from_mobilenet( input_img, weights=None, layer_name='conv_pw_7_relu' )
 
         #----- @ DOWN-SAMPLE LAYER (OPTINAL)
         if False: #Downsample last layer (Reduce nChannels of the output.)
             cnn_dwn = keras.layers.Conv2D( 256, (1,1), padding='same', activation='relu' )( cnn )
             cnn_dwn = keras.layers.normalization.BatchNormalization()( cnn_dwn )
-            cnn_dwn = keras.layers.Conv2D( 32, (1,1), padding='same', activation='relu' )( cnn_dwn )
+            cnn_dwn = keras.layers.Conv2D( 64, (1,1), padding='same', activation='relu' )( cnn_dwn )
             cnn_dwn = keras.layers.normalization.BatchNormalization()( cnn_dwn )
             cnn = cnn_dwn
 
@@ -218,18 +218,21 @@ class NetVLADImageDescriptor:
         # model_file = '/app/catkin_ws/src/cerebro/scripts/keras.models/core_model.keras'
         # model_type = 'test_keras_model'
 
-        model_file = '/app_learning/cartwheel_train/models.keras/vgg16/block5_pool_k16_tripletloss2/core_model.keras'
-        model_type = 'block5_pool_k16_tripletloss2'
+        # model_file = '/app_learning/cartwheel_train/models.keras/vgg16/block5_pool_k16_tripletloss2/core_model.keras'
+        # model_type = 'block5_pool_k16_tripletloss2'
 
 
-        # model_file = '/app_learning/cartwheel_train/models.keras/mobilenet_conv7_quash_chnls_tripletloss2/core_model.keras'
-        # model_type = 'mobilenet_conv7_quash_chnls_tripletloss2'
+        # model_file = '/app_learning/cartwheel_train/models.keras/mobilenet_conv7_quash_chnls_allpairloss/core_model.keras'
+        # model_type = 'mobilenet_conv7_quash_chnls_allpairloss'
 
-        # model_file = '/app_learning/cartwheel_train/models.keras/mobilenet_conv7_allpairloss/core_model.keras'
-        # model_type = 'mobilenet_conv7_allpairloss'
+        model_file = '/app_learning/cartwheel_train/models.keras/mobilenet_conv7_allpairloss/core_model.keras'
+        model_type = 'mobilenet_conv7_allpairloss'
 
+        # model_file = '/app_learning/cartwheel_train/models.keras/vgg16_new/block5_pool_k16_tripletloss2/core_model.keras'
+        # model_type = 'block5_pool_k16_tripletloss2'
 
-
+        # model_file = '/app_learning/cartwheel_train/models.keras/mobilenet_new/pw13_quash_chnls_k16_allpairloss/core_model.800.keras'
+        # model_type = 'pw13_quash_chnls_k16_allpairloss'
 
         print 'model_file: ', model_file
         model.load_weights( model_file )
@@ -277,6 +280,7 @@ class NetVLADImageDescriptor:
         print '\tdesc.shape=', u.shape,
         print '\tinput_image.shape=', cv_image.shape,
         print '\tminmax=', np.min( u ), np.max( u ),
+        print '\tnorm=', np.linalg.norm(u[0]),
         print '\tmodel_type=', self.model_type,
         print '\tdtype=', cv_image.dtype
 
@@ -296,34 +300,53 @@ rospy.init_node( 'whole_image_descriptor_compute_server' )
 ##
 ## Load the config file and read image row, col
 ##
-if not rospy.has_param( '~config_file'):
-    print 'FATAL...cannot find param ~config_file. This is needed to determine size of the input image to allocate GPU memory'
-    rospy.logerr( 'FATAL...cannot find param ~config_file. This is needed to determine size of the input image to allocate GPU memory' )
-    quit()
+fs_image_width = -1
+fs_image_height = -1
+
+if True: # read from param `config_file`
+    if not rospy.has_param( '~config_file'):
+        print 'FATAL...cannot find param ~config_file. This is needed to determine size of the input image to allocate GPU memory'
+        rospy.logerr( '[whole_image_descriptor_compute_server]FATAL...cannot find param ~config_file. This is needed to determine size of the input image to allocate GPU memory' )
+        quit()
+        # quit only if you cannot see nrows and ncols
+
+    else:
+        config_file = rospy.get_param('~config_file')
+        print 'config_file: ', config_file
+        if not os.path.isfile(config_file):
+            print 'FATAL...cannot find config_file: ', config_file
+            rospy.logerr( '[whole_image_descriptor_compute_server]FATAL...cannot find config_file: '+ config_file )
+            quit()
 
 
-config_file = rospy.get_param('~config_file')
-print 'config_file: ', config_file
-if not os.path.isfile(config_file):
-    print 'FATAL...cannot find config_file: ', config_file
-    rospy.logerr( 'FATAL...cannot find config_file: '+ config_file )
-    quit()
+        print 'READ opencv-yaml file: ', config_file
+        fs = cv2.FileStorage(config_file, cv2.FILE_STORAGE_READ)
+        fs_image_width = int(  fs.getNode( "image_width" ).real() )
+        fs_image_height = int( fs.getNode( "image_height" ).real() )
+        print 'opencv-yaml:: image_width=', fs_image_width, '   image_height=', fs_image_height
 
 
-print 'READ opencv-yaml file: ', config_file
-fs = cv2.FileStorage(config_file, cv2.FILE_STORAGE_READ)
-fs_image_width = int(  fs.getNode( "image_width" ).real() )
-fs_image_height = int( fs.getNode( "image_height" ).real() )
-print 'opencv-yaml:: image_width=', fs_image_width, '   image_height=', fs_image_height
-
+##
+## Load nrows and ncols directly as config
+##
+if True:  # read from param `nrows` and `ncols`
+    if fs_image_width < 0 :
+        if ( not rospy.has_param( '~nrows') or not rospy.has_param( '~ncols') ):
+            print 'FATAL...cannot find param ~nrows and ~ncols. This is needed to determine size of the input image to allocate GPU memory'
+            rospy.logerr( '[whole_image_descriptor_compute_server]FATAL...cannot find param ~nrows and ~ncols. This is needed to determine size of the input image to allocate GPU memory' )
+            quit()
+        else:
+            fs_image_height = rospy.get_param('~nrows')
+            fs_image_width = rospy.get_param('~ncols')
+            print '~nrows = ', fs_image_height, '\t~ncols = ', fs_image_width
 
 
 ##
 ## Start Server
 ##
 #gpu_s = SampleGPUComputer()
-# gpu_netvlad = NetVLADImageDescriptor( im_rows=fs_image_height, im_cols=fs_image_width )
-gpu_netvlad = ReljaNetVLAD( im_rows=fs_image_height, im_cols=fs_image_width )
+gpu_netvlad = NetVLADImageDescriptor( im_rows=fs_image_height, im_cols=fs_image_width )
+# gpu_netvlad = ReljaNetVLAD( im_rows=fs_image_height, im_cols=fs_image_width )
 s = rospy.Service( 'whole_image_descriptor_compute', WholeImageDescriptorCompute, gpu_netvlad.handle_req  )
 print 'whole_image_descriptor_compute_server is running'
 

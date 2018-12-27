@@ -164,7 +164,7 @@ int main( int argc, char ** argv )
     }
 
 
-    // TODO : set stereobaseline transform ie. right_T_left from yaml file 
+    // TODO : set stereobaseline transform ie. right_T_left from yaml file
 
 
 
