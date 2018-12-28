@@ -145,7 +145,10 @@ include_directories(
 ## either from message generation or dynamic reconfigure
 # add_dependencies(cerebro ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
-include_directories(src/utils/camodocal/include)
+include_directories(
+    src/utils/camodocal/include
+    src/utils/
+    )
 FILE(GLOB CamodocalCameraModelSources
         src/utils/camodocal/src/chessboard/Chessboard.cc
         src/utils/camodocal/src/calib/CameraCalibration.cc
@@ -166,6 +169,7 @@ FILE( GLOB KuseUtilsSources
         src/utils/RosMarkerUtils.cpp
         src/utils/RawFileIO.cpp
         src/utils/MiscUtils.cpp
+        src/utils/CameraGeometry.cpp
 )
 
 
@@ -195,6 +199,21 @@ add_executable (
         src/unittest/unittest_rosservice_client.cpp
 )
 
+add_executable (
+    unittest_camodocal_proj
+        src/unittest/unittest_camodocal_proj.cpp
+        ${KuseUtilsSources}
+        ${CamodocalCameraModelSources}
+)
+
+
+add_executable (
+    unittest_camera_geom_class_usage
+        src/unittest/unittest_camera_geom_class_usage.cpp
+        ${KuseUtilsSources}
+        ${CamodocalCameraModelSources}
+)
+
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 # add_dependencies(cerebro_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
@@ -214,6 +233,22 @@ target_link_libraries(unittest_rosservice_client
   ${CMAKE_THREAD_LIBS_INIT}
   ${CERES_LIBRARIES}
 )
+
+
+target_link_libraries(unittest_camodocal_proj
+  ${catkin_LIBRARIES}
+  ${OpenCV_LIBRARIES}
+  ${CMAKE_THREAD_LIBS_INIT}
+  ${CERES_LIBRARIES}
+)
+
+target_link_libraries(unittest_camera_geom_class_usage
+  ${catkin_LIBRARIES}
+  ${OpenCV_LIBRARIES}
+  ${CMAKE_THREAD_LIBS_INIT}
+  ${CERES_LIBRARIES}
+)
+
 
 #############
 ## Install ##

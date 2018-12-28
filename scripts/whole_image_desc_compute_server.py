@@ -228,6 +228,9 @@ class NetVLADImageDescriptor:
         model_file = '/app_learning/cartwheel_train/models.keras/mobilenet_conv7_allpairloss/core_model.keras'
         model_type = 'mobilenet_conv7_allpairloss'
 
+        # model_file = '/app_learning/cartwheel_train/models.keras/mobilenet_new/pw13_quash_chnls_k16_allpairloss/core_model.1800.keras'
+        # model_type = 'pw13_quash_chnls_k16_allpairloss'
+
         # model_file = '/app_learning/cartwheel_train/models.keras/vgg16_new/block5_pool_k16_tripletloss2/core_model.keras'
         # model_type = 'block5_pool_k16_tripletloss2'
 

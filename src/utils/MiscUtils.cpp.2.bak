@@ -209,58 +209,6 @@ void MiscUtils::plot_point_sets( cv::Mat& im, const MatrixXd& pts_set, cv::Mat& 
 }
 
 
-void MiscUtils::plot_point_sets( const cv::Mat& im, const MatrixXd& pts_set, cv::Mat& dst,
-                                        vector<cv::Scalar>& color_annotations, float alpha, const string& msg )
-{
-
-      assert( im.rows > 0 && im.cols > 0 && "\n[MiscUtils::plot_point_sets]Image appears to be emoty. cannot plot.\n");
-      assert( pts_set.cols() > 0 && pts_set.cols() == color_annotations.size() && "[MiscUtils::plot_point_sets] len of color vector must be equal to number of pts.\n" );
-      if( im.data == dst.data ) {
-        //   cout << "src and dst are same\n";
-          // src and dst images are same, so dont copy. just ensure it is a 3 channel image.
-          assert( im.channels() == 3 && dst.channels() == 3 && "[MiscUtils::plot_point_sets]src and dst image are same physical image in memory. They need to be 3 channel." );
-      }
-      else {
-        //   dst = cv::Mat( im.rows, im.cols, CV_8UC3 );
-          if( im.channels() == 1 )
-            cv::cvtColor( im, dst, cv::COLOR_GRAY2BGR );
-          else
-            im.copyTo(dst);
-      }
-
-      // cv::putText( dst, to_string(msg.length()), cv::Point(5,5), cv::FONT_HERSHEY_COMPLEX_SMALL, .95, cv::Scalar(0,255,255) );
-      if( msg.length() > 0 ) {
-        vector<std::string> msg_split;
-        msg_split = MiscUtils::split( msg, ';' );
-        for( int q=0 ; q<msg_split.size() ; q++ )
-          cv::putText( dst, msg_split[q], cv::Point(5,20+20*q), cv::FONT_HERSHEY_COMPLEX_SMALL, .95, cv::Scalar(0,255,255) );
-      }
-
-
-      //pts_set is 2xN
-      cv::Point2d pt;
-      int n_outside_image_domain = 0;
-      for( int i=0 ; i<pts_set.cols() ; i++ )
-      {
-          if(  pts_set(0,i) < 0 || pts_set(0,i) > im.cols  ||  pts_set(1,i) < 0 || pts_set(1,i) > im.rows   ) { // avoid points which are outside
-              n_outside_image_domain++;
-              continue;
-        }
-        pt = cv::Point( (int)pts_set(0,i), (int)pts_set(1,i) );
-
-
-        cv::Scalar _color = color_annotations[i];
-        dst.at< cv::Vec3b >( pt )[0] = (uchar) ( (1.0-alpha)*(float)dst.at< cv::Vec3b >( pt )[0] + (alpha)*(float)_color[0] );
-        dst.at< cv::Vec3b >( pt )[1] = (uchar) ( (1.0-alpha)*(float)dst.at< cv::Vec3b >( pt )[1] + (alpha)*(float)_color[1] );
-        dst.at< cv::Vec3b >( pt )[2] = (uchar) ( (1.0-alpha)*(float)dst.at< cv::Vec3b >( pt )[2] + (alpha)*(float)_color[2] );
-
-        // cv::Vec3d new_color( .5*_orgcolor[0]+.5*_color[0] + .5*_orgcolor[1]+.5*_color[1] + .5*_orgcolor[2]+.5*_color[2] )
-      }
-
-      if( float(n_outside_image_domain)/ float(pts_set.cols() ) > 0.2 ) // print only if u see too many outside the image
-          cout << "[MiscUtils::plot_point_sets] with color at every point, found " << n_outside_image_domain << " outside the image of total points to plot=" << pts_set.cols() << "\n";
-}
-
 
 
 void MiscUtils::plot_point_pair( const cv::Mat& imA, const MatrixXd& ptsA, int idxA,
@@ -281,17 +229,8 @@ void MiscUtils::plot_point_pair( const cv::Mat& imA, const MatrixXd& ptsA, int i
   assert( ptsA.cols() == ptsB.cols() && ptsA.cols() > 0 );
   // assert( mask.size() == ptsA.cols() );
 
-  cv::Mat outImg_;
-  cv::hconcat(imA, imB, outImg_);
-
-    cv::Mat outImg;
-    if( outImg_.channels() == 3 )
-        outImg = outImg_;
-    else
-        cv::cvtColor( outImg_, outImg, CV_GRAY2BGR );
-
-
-
+  cv::Mat outImg;
+  cv::hconcat(imA, imB, outImg);
 
   // loop over all points
   int count = 0;
@@ -328,9 +267,8 @@ void MiscUtils::plot_point_pair( const cv::Mat& imA, const MatrixXd& ptsA, int i
   if( msg.length() > 0 ) { // ':' separated. Each will go in new line
       std::vector<std::string> msg_tokens = split(msg, ':');
       for( int h=0 ; h<msg_tokens.size() ; h++ )
-          cv::putText( status, msg_tokens[h].c_str(), cv::Point(10,80+20*h), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(255,255,255), 1.5 );
+          cv::putText( status, msg_tokens[h].c_str(), cv::Point(10,80+20*h), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(255,255,255), 1.5 );
   }
-
 
   cv::vconcat( outImg, status, dst );
 
@@ -361,18 +299,8 @@ void MiscUtils::plot_point_pair( const cv::Mat& imA, const MatrixXd& ptsA, int i
 
 
 
-  cv::Mat outImg_;
-  cv::hconcat(imA, imB, outImg_);
-
   cv::Mat outImg;
-  if( outImg_.channels() == 3 )
-      outImg = outImg_;
-  else
-      cv::cvtColor( outImg_, outImg, CV_GRAY2BGR );
-
-
-
-
+  cv::hconcat(imA, imB, outImg);
 
   // loop over all points
   int count = 0;
@@ -420,68 +348,9 @@ void MiscUtils::plot_point_pair( const cv::Mat& imA, const MatrixXd& ptsA, int i
   if( msg.length() > 0 ) { // ':' separated. Each will go in new line
       std::vector<std::string> msg_tokens = split(msg, ':');
       for( int h=0 ; h<msg_tokens.size() ; h++ )
-          cv::putText( status, msg_tokens[h].c_str(), cv::Point(10,80+20*h), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(255,255,255), 1.5 );
+          cv::putText( status, msg_tokens[h].c_str(), cv::Point(10,80+20*h), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(255,255,255), 1.5 );
   }
-
 
   cv::vconcat( outImg, status, dst );
 
-}
-
-
-
-double MiscUtils::Slope(int x0, int y0, int x1, int y1){
-     return (double)(y1-y0)/(x1-x0);
-}
-
-void MiscUtils::draw_fullLine(cv::Mat& img, cv::Point2f a, cv::Point2f b, cv::Scalar color){
-     double slope = MiscUtils::Slope(a.x, a.y, b.x, b.y);
-
-     cv::Point2f p(0,0), q(img.cols,img.rows);
-
-     p.y = -(a.x - p.x) * slope + a.y;
-     q.y = -(b.x - q.x) * slope + b.y;
-
-     cv::line(img,p,q,color,1,8,0);
-}
-
-// draw line on the image, given a line equation in homogeneous co-ordinates. l = (a,b,c) for ax+by+c = 0
-void MiscUtils::draw_line( const Vector3d l, cv::Mat& im, cv::Scalar color )
-{
-    // C++: void line(Mat& img, Point pt1, Point pt2, const Scalar& color, int thickness=1, int lineType=8, int shift=0)
-    if( l(0) == 0 ) {
-        // plot y = -c/b
-        cv::Point2f a(0.0, -l(2)/l(1) );
-        cv::Point2f a_(10.0, -l(2)/l(1) );
-        MiscUtils::draw_fullLine( im, a, a_, color );
-        return;
-    }
-
-    if( l(1) == 0 ) {
-        // plot x = -c/a
-        cv::Point2f b(-l(2)/l(0), 0.0 );
-        cv::Point2f b_(-l(2)/l(0), 10.0 );
-        MiscUtils::draw_fullLine( im, b, b_, color );
-        return;
-    }
-
-    cv::Point2f a(0.0, -l(2)/l(1) );
-    cv::Point2f b(-l(2)/l(0), 0.0 );
-    // cout << a << "<--->" << b << endl;
-    // cv::line( im, a, b, cv::Scalar(255,255,255) );
-    MiscUtils::draw_fullLine( im, a, b, color );
-}
-
-// mark point on the image, pt is in homogeneous co-ordinate.
-void MiscUtils::draw_point( const Vector3d pt, cv::Mat& im, cv::Scalar color  )
-{
-    // C++: void circle(Mat& img, Point center, int radius, const Scalar& color, int thickness=1, int lineType=8, int shift=0)
-    cv::circle( im, cv::Point2f( pt(0)/pt(2), pt(1)/pt(2) ), 2, color, -1   );
-
-}
-
-// mark point on image
-void MiscUtils::draw_point( const Vector2d pt, cv::Mat& im, cv::Scalar color  )
-{
-    cv::circle( im, cv::Point2f( pt(0), pt(1) ), 2, color, -1   );
 }

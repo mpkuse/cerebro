@@ -31,7 +31,6 @@ public:
     split( std::string const& original, char separator );
 
 
-    //---------------------------- Conversions ---------------------------------//
     // convert from opencv format of keypoints to Eigen
     static void keypoint_2_eigen( const std::vector<cv::KeyPoint>& kp, MatrixXd& uv, bool make_homogeneous=true );
 
@@ -41,11 +40,8 @@ public:
                                 MatrixXd& M1, MatrixXd& M2,
                                 bool make_homogeneous=true
                             );
-    //---------------------------- Conversions ---------------------------------//
 
 
-
-    //--------------------- Plot Keypoints on Image ----------------------------//
     // Eigen Interace:  PLotting functions with Eigen Interfaces
     static void plot_point_sets( const cv::Mat& im, const MatrixXd& pts_set, cv::Mat& dst,
                                             const cv::Scalar& color, bool enable_keypoint_annotation=true,const string& msg=string("") );
@@ -65,17 +61,6 @@ public:
     // Plotting with annotations specified by VectorXi inplace
     static void plot_point_sets( cv::Mat& im, const MatrixXd& pts_set,
                                             const cv::Scalar& color, const VectorXi& annotations, const string& msg );
-
-    // plot point with colors specified at every point. pts_set : 3xN or 2xN, len(color_annotations) == pts_set.cols()
-    static void plot_point_sets( const cv::Mat& im, const MatrixXd& pts_set, cv::Mat& dst,
-                                            vector<cv::Scalar>& color_annotations, float alpha=0.8, const string& msg=string("N/A") );
-
-    // END--------------------- Plot Keypoints on Image ----------------------------//
-
-
-
-
-    //------------------------------- Plot Matchings on image pair -------------------------//
 
     // Plots [ imA | imaB ] with points correspondences
     // [Input]
@@ -109,29 +94,5 @@ public:
                            const string& msg=string("N.A")
                           );
 
-    //------------------------------- Plot Matchings on image pair -------------------------//
-
-
-    //------------------------- Points and Lines on Images --------------------------------//
-
-    // Given two image-points draw line between them, extend both ways. Infinite line-segments
-    static void draw_fullLine(cv::Mat& img, cv::Point2f a, cv::Point2f b, cv::Scalar color);
-
-    // draw line on the image, given a line equation in homogeneous co-ordinates. l = (a,b,c) for ax+by+c = 0
-    static void draw_line( const Vector3d l, cv::Mat& im, cv::Scalar color );
-
-    // mark point on the image, pt is in homogeneous co-ordinate.
-    static void draw_point( const Vector3d pt, cv::Mat& im, cv::Scalar color  );
-
-    // mark point on image
-    static void draw_point( const Vector2d pt, cv::Mat& im, cv::Scalar color  );
-
-    // END ------------------------- Points and Lines on Images --------------------------------//
-
-
-
-private:
-
-    static double Slope(int x0, int y0, int x1, int y1);
 
 };
