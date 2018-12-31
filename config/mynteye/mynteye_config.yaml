@@ -8,6 +8,7 @@ output_path: "/Bulk_Data/vins-mono-output/"
 # Additional camera (stereo) for cerebro - added my mpkuse
 image_topic_1: "/mynteye/right/image_raw"
 camera_yaml_1: "camera_right.yaml" # this yaml file will be searched in directory where this yaml file is.
+extrinsic_1_T_0: "extrinsics.yaml" # TODO contains the right_T_left, ie. stereo baseline. I need right_T_left that a transform that transforms 3d points of left to 3d points of right. in other words, if you sir of right the position of left camera.
 
 #camera calibration
 model_type: MEI

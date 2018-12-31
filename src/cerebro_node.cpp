@@ -156,7 +156,7 @@ int main( int argc, char ** argv )
 
         // Make Abstract Camera
         camodocal::CameraPtr abstract_camera_1;
-        cout << "Load file : " << ___camera_yaml_1_path << endl;
+        cout << TermColor::GREEN() << "Load file : " << ___camera_yaml_1_path << TermColor::RESET() << endl;
         abstract_camera_1 = camodocal::CameraFactory::instance()->generateCameraFromYamlFile(___camera_yaml_1_path);
         assert( abstract_camera_1 && "Even after loading yaml the camera_1 seem invalid. Something wrong\n");
 
@@ -164,7 +164,72 @@ int main( int argc, char ** argv )
     }
 
 
-    // TODO : set stereobaseline transform ie. right_T_left from yaml file
+    // [B.3]
+    // Camera baseline. Set stereobaseline transform ie. right_T_left from yaml file
+    if(  !fs["extrinsic_1_T_0"].isString() )
+    {
+        ROS_WARN_STREAM( "[cerebro_node] cannot find key `extrinsic_1_T_0` in config file=" << config_file << " this was not needed for monocular camera, but needed for a stereo camera" );
+    }
+    else {
+        // Extract the fname from the config_file
+        string extrinsic_1_T_0;
+        fs["extrinsic_1_T_0"] >> extrinsic_1_T_0;
+        ROS_INFO(  "in config_file=%s; extrinsic_1_T_0 : %s", config_file.c_str(), extrinsic_1_T_0.c_str() );
+
+        // Make full path from fname
+        vector<string> ___path = MiscUtils::split( config_file, '/' );
+        // does::> $(python) '/'.join( ___path[0:-1] )
+        string ___extrinsic_1_T_0_path = string("");
+        for( int _i = 0 ; _i<___path.size()-1 ; _i++ ) {
+            ___extrinsic_1_T_0_path += ___path[_i] + "/";
+        }
+        ___extrinsic_1_T_0_path += "/"+extrinsic_1_T_0;
+        cout << "___extrinsic_1_T_0_fullpath=" << ___extrinsic_1_T_0_path << endl;
+
+
+        // Open fullpath of extrinsic.yaml
+        cout << "opencv yaml reading: open file: " << ___extrinsic_1_T_0_path << endl;
+        cv::FileStorage fs(___extrinsic_1_T_0_path, cv::FileStorage::READ);
+
+        if (!fs.isOpened())
+        {
+            ROS_ERROR_STREAM(  "config_file asked to open extrinsicbasline file but it cannot be opened.\nTHIS IS FATAL, QUITING" );
+            exit(1);
+        }
+
+        cout << TermColor::GREEN() << "successfully opened file "<< ___extrinsic_1_T_0_path << TermColor::RESET() << endl;
+        cv::FileNode n = fs["transform"];
+        Vector4d q_xyzw;
+        q_xyzw << (double)n["q_x"] , (double)n["q_y"] ,(double) n["q_z"] ,(double) n["q_w"];
+
+        Vector3d tr_xyz;
+        tr_xyz << (double)n["t_x"] , (double)n["t_y"] ,(double) n["t_z"];
+
+        cout << "--values from file--\n" << TermColor::iGREEN();
+        cout << "q_xyzw:\n" << q_xyzw << endl;
+        cout << "tr_xyz:\n" << tr_xyz << endl;
+        cout << TermColor::RESET() << endl;
+
+        Matrix4d _1_T_0;
+        PoseManipUtils::raw_xyzw_to_eigenmat( q_xyzw, tr_xyz/1000., _1_T_0 ); cout << "translation divided by 1000 to convert from mm (in file) to meters (as needed)\n";
+        // cout << TermColor::iBLUE() << "_1_T_0:\n" <<  _1_T_0  << TermColor::RESET() << endl;
+        cout << TermColor::iBLUE() << "_1_T_0: " << PoseManipUtils::prettyprintMatrix4d( _1_T_0 ) << TermColor::RESET() << endl;
+
+
+        dataManager.setCameraRelPose( _1_T_0, std::make_pair(1,0) );
+
+
+        #if 0
+        // verify if it was correctly set --> Works! Verified !
+        cout << "isCameraRelPoseSet ? " << dataManager.isCameraRelPoseSet( std::make_pair(1,0) ) << endl;
+        cout << "isCameraRelPoseSet ? " << dataManager.isCameraRelPoseSet( std::make_pair(6,10) ) << endl;
+        // cout << "getCameraRelPose:\n" << dataManager.getCameraRelPose( std::make_pair(1,0) ) << endl;
+        cout << "getCameraRelPose:\n" << PoseManipUtils::prettyprintMatrix4d( dataManager.getCameraRelPose( std::make_pair(1,0) ) ) << endl;
+        auto ___all_available_keys = dataManager.getCameraRelPoseKeys();
+        cout << "# relative poses available = " << ___all_available_keys.size() << endl;
+        #endif
+    }
+
 
 
 
@@ -210,6 +275,13 @@ int main( int argc, char ** argv )
     cer.descriptor_computer_thread_enable();
     std::thread desc_th( &Cerebro::descriptor_computer_thread, &cer ); //runs @20hz
 
+
+    // [C.1]
+    // loopcandidates consumer
+    cer.loopcandidate_consumer_enable();
+    std::thread loopcandidate_consumer_th( &Cerebro::loopcandiate_consumer_thread, &cer ); // runs @1hz
+
+
     // [D]
     // Visualization
     Visualization viz(nh);
@@ -226,11 +298,13 @@ int main( int argc, char ** argv )
     dataManager.data_association_thread_disable();
     cer.run_thread_disable();
     cer.descriptor_computer_thread_disable();
+    cer.loopcandidate_consumer_disable();
     viz.run_thread_disable();
 
     t1.join(); cout << "t1.join()\n";
     t2.join(); cout << "t2.join()\n";
     desc_th.join(); cout << "desc_th.join()\n";
+    loopcandidate_consumer_th.join(); cout << "loopcandidate_consumer_th.join()\n";
     t3.join(); cout << "t3.join()\n";
 
 
@@ -272,7 +346,7 @@ int main( int argc, char ** argv )
     ///////////////////////
     // Actual Logging.  //
     //////////////////////
-    #define __LOGGING__ 1 // make this 1 to enable logging. 0 to disable logging. rememeber to catkin_make after this change
+    #define __LOGGING__ 0 // make this 1 to enable logging. 0 to disable logging. rememeber to catkin_make after this change
     #if __LOGGING__
         // Write json log
         string save_dir = "/Bulk_Data/_tmp/";

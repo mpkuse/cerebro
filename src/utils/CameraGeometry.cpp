@@ -839,6 +839,7 @@ void GeometryUtils::getK( camodocal::CameraPtr m_cam, Matrix3d& K )
             default:
             // TODO: Implement for other models. Look at initUndistortRectifyMap for each of the abstract class.
             cout << "[getK] Wrong\nQuit....";
+            cout << "Implement for other models. Look at initUndistortRectifyMap for each of the abstract class.\n";
             exit(10);
 
     }

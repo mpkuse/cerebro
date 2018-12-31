@@ -21,6 +21,9 @@ using namespace Eigen;
 
 using namespace std;
 
+#include "GMSMatcher/gms_matcher.h"
+#include "ElapsedTime.h"
+
 
 class MiscUtils
 {
@@ -41,6 +44,8 @@ public:
                                 MatrixXd& M1, MatrixXd& M2,
                                 bool make_homogeneous=true
                             );
+
+
     //---------------------------- Conversions ---------------------------------//
 
 

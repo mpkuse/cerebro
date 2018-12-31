@@ -72,6 +72,48 @@ vector<short> DataManager::getAbstractCameraKeys() {
 }
 
 
+void DataManager::setCameraRelPose( Matrix4d a_T_b, std::pair<int,int> pair_a_b )
+{
+    // assert a and b abstract cameras exisits
+    assert( isAbstractCameraSet(pair_a_b.first) && isAbstractCameraSet(pair_a_b.second) && "in [DataManager::setCameraRelPose] one of the abstract-cameras were not set, even though you asked me to set their relative pose. You need to set the cameras first before you can set the relative poses.\n" );
+
+    cout << "---DataManager::setCameraRelPose---\n";
+    cout << "setting "<< pair_a_b.first << "_T_" << pair_a_b.second << " :::> " << PoseManipUtils::prettyprintMatrix4d( a_T_b ) << endl;
+
+    cam_relative_poses[ pair_a_b ] = a_T_b;
+    cout << "---DONE---\n";
+
+}
+
+bool DataManager::isCameraRelPoseSet( std::pair<int,int> pair_a_b )
+{
+    if( this->cam_relative_poses.count( pair_a_b ) > 0 )
+        return true;
+    else
+        return false;
+}
+
+const Matrix4d& DataManager::getCameraRelPose( std::pair<int,int> pair_a_b )
+{
+    assert( isCameraRelPoseSet( pair_a_b ) && "[DataManager::getCameraRelPose] make sure the rel cam pose you are requesting is available\n" );
+    if( !isCameraRelPoseSet( pair_a_b) ) {
+        ROS_ERROR( "[DataManager::getCameraRelPose] make sure the rel cam pose you are requesting is available\nYou requested (%d,%d) which is not available", pair_a_b.first, pair_a_b.second );
+        exit(2);
+    }
+
+    return this->cam_relative_poses[ pair_a_b ];
+}
+
+
+vector< std::pair<int,int> > DataManager::getCameraRelPoseKeys()
+{
+    vector< pair<int,int> > keys;
+    for( auto it=this->cam_relative_poses.begin(); it!=cam_relative_poses.end() ; it++ ) {
+        keys.push_back( it->first );
+    }
+    return keys;
+}
+
 const Matrix4d& DataManager::getIMUCamExtrinsic()
 {
     std::lock_guard<std::mutex> lk(global_vars_mutex);

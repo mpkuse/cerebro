@@ -75,8 +75,8 @@ public:
     bool isFeatIdsAvailable() const { return m_tracked_feat_ids; }
 
 
-    const cv::Mat& getImage() ;
-    const cv::Mat& getImage(short cam_id);
+    const cv::Mat& getImage() ; //< this will give out the default image.
+    const cv::Mat& getImage(short cam_id); // this will give out the image of the cam_id. cam_id=0 will have issues. if you want the default camera image do not pass any argument, which will result in the above call. 
     const Matrix4d& getPose();
     const MatrixXd& getPoseCovariance(); //6x6 matrix
     const MatrixXd& getPointCloud(); // returns a 4xN matrix

@@ -89,6 +89,11 @@ public:
     bool isAbstractCameraSet(short cam_id=0);
     vector<short> getAbstractCameraKeys();
 
+    void setCameraRelPose( Matrix4d a_T_b, std::pair<int,int> pair_a_b );
+    bool isCameraRelPoseSet( std::pair<int,int> pair_a_b );
+    const Matrix4d& getCameraRelPose( std::pair<int,int> pair_a_b );
+    vector< std::pair<int,int> > getCameraRelPoseKeys();
+
     std::map< ros::Time, DataNode* >& getDataMapRef() { return data_map; }
 
     const ros::Time getPose0Stamp() { return pose_0; }
@@ -112,9 +117,10 @@ private:
     /////////
     ///////// Global Variables
     /////////
-    // PinholeCamera camera; //< Camera Intrinsics. See corresponding class
-    // camodocal::CameraPtr abstract_camera; // removal. now all points in the map.
     std::map< int, camodocal::CameraPtr > all_abstract_cameras;
+    std::map< std::pair<int,int>,  Matrix4d > cam_relative_poses; //< pair:a,b then a_T_b
+
+
     ros::NodeHandle nh; //< Node Handle, TODO Not sure why this will be needed here. consider removing it from here.
     // const std::ofstream &out_stream;
 

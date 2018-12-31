@@ -24,6 +24,9 @@ find_package(Ceres REQUIRED)
 find_package(OpenCV 3 REQUIRED)
 #set( CMAKE_CXX_FLAGS "-fpermissive -std=c++11 -O3" )
 
+find_package(Theia REQUIRED)
+include_directories(${THEIA_INCLUDE_DIRS})
+
 find_package(Boost REQUIRED COMPONENTS filesystem program_options system)
 include_directories(${Boost_INCLUDE_DIRS})
 
@@ -170,6 +173,9 @@ FILE( GLOB KuseUtilsSources
         src/utils/RawFileIO.cpp
         src/utils/MiscUtils.cpp
         src/utils/CameraGeometry.cpp
+
+        src/utils/PointFeatureMatching.cpp
+        src/utils/GMSMatcher/gms_matcher.cpp
 )
 
 
@@ -214,6 +220,14 @@ add_executable (
         ${CamodocalCameraModelSources}
 )
 
+
+add_executable (
+    unittest_theia
+        src/unittest/unittest_theia.cpp
+        ${KuseUtilsSources}
+        ${CamodocalCameraModelSources}
+)
+
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 # add_dependencies(cerebro_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
@@ -250,6 +264,14 @@ target_link_libraries(unittest_camera_geom_class_usage
 )
 
 
+
+target_link_libraries(unittest_theia
+  ${catkin_LIBRARIES}
+  ${OpenCV_LIBRARIES}
+  ${CMAKE_THREAD_LIBS_INIT}
+  ${CERES_LIBRARIES}
+  ${THEIA_LIBRARIES}
+)
 #############
 ## Install ##
 #############

@@ -19,8 +19,8 @@ void Cerebro::setDataManager( DataManager* dataManager )
 
 
 
-#define __Cerebro__run__( msg ) msg ;
-// #define __Cerebro__run__( msg ) ;
+// #define __Cerebro__run__( msg ) msg ;
+#define __Cerebro__run__( msg ) ;
 void Cerebro::run()
 {
     descrip_N__dot__descrip_0_N();
@@ -153,7 +153,7 @@ void Cerebro::descrip_N__dot__descrip_0_N()
 
         }
         else {
-            cout << "do nothing. not seen enough yet.\n";
+            cout << "[Cerebro::descrip_N__dot__descrip_0_N] do nothing. not seen enough yet.\n";
         }
 
 
@@ -329,5 +329,218 @@ json Cerebro::foundLoops_as_JSON()
     }
 
     return jsonout_obj;
+
+}
+
+
+
+#define __Cerebro__loopcandi_consumer__(msg) msg;
+// #define __Cerebro__loopcandi_consumer__(msg)  ;
+void Cerebro::loopcandiate_consumer_thread()
+{
+    assert( m_dataManager_available && "You need to set the DataManager in class Cerebro before execution of the run() thread can begin. You can set the dataManager by call to Cerebro::setDataManager()\n");
+    assert( b_loopcandidate_consumer && "you need to call loopcandidate_consumer_enable() before loopcandiate_consumer_thread() can start executing\n" );
+
+
+    // init StereoGeometry
+    bool stereogeom_status = init_stereogeom();
+    if( !stereogeom_status )
+        return;
+    // stereogeom->set_K( 375.0, 375.0, 376.0, 240.0 ); // set this to something sensible, best is to use left camera's K
+
+
+    // init pt-feature-matcher
+
+
+    ros::Rate rate(1);
+    int prev_count = 0;
+    int new_count = 0;
+    while( b_loopcandidate_consumer )
+    {
+        new_count = foundLoops_count();
+
+        if( new_count == prev_count ) {
+            rate.sleep();
+            continue;
+        }
+
+        cout << TermColor::iGREEN() ;
+        cout << "I see "<< new_count - prev_count << " new candidates. from i=["<< prev_count << "," << new_count-1 << "]\n";
+        // cout << "Cerebro::loopcandiate_consumer_thread(); #loops=" << new_count << TermColor::RESET() << endl;
+        cout << TermColor::RESET() ;
+        for( int j= prev_count ; j<=new_count-1 ; j++ )
+        {
+            process_loop_candidate_imagepair( j );
+        }
+
+        prev_count = new_count;
+        rate.sleep();
+
+    }
+
+    cout << "disable called, quitting loopcandiate_consumer_thread\n";
+
+}
+
+bool Cerebro::init_stereogeom()
+{
+    auto left_camera = dataManager->getAbstractCameraRef(0);
+    if( !dataManager->isAbstractCameraSet(1) )
+    {
+        ROS_ERROR( "Stereo-camera right doesn't appear to be set. to use this thread, you need to have StereoGeometry. Edit the config file to set the 2nd camera and its baseline\n");
+        return false;
+    }
+    auto right_camera = dataManager->getAbstractCameraRef(1);
+    __Cerebro__loopcandi_consumer__(
+    cout << TermColor::iGREEN() ;
+    cout << "[Cerebro::loopcandiate_consumer_thread] left_camera\n" << left_camera->parametersToString() << endl;
+    cout << "[Cerebro::loopcandiate_consumer_thread] right_camera\n" << right_camera->parametersToString() << endl;
+    cout << TermColor::RESET();
+    )
+
+    Matrix4d right_T_left;
+    if( !dataManager->isCameraRelPoseSet( std::make_pair(1,0)) )
+    {
+        ROS_ERROR( "stereo camera appears to be set but the baseline (stereo-extrinsic) is not specified in the config_file. In config file you need to set `extrinsic_1_T_0`");
+        return false;
+    }
+    right_T_left = dataManager->getCameraRelPose( std::make_pair(1,0) );
+    __Cerebro__loopcandi_consumer__(
+    cout << TermColor::iGREEN() ;
+    cout << "[Cerebro::loopcandiate_consumer_thread] right_T_left: " << PoseManipUtils::prettyprintMatrix4d( right_T_left ) << endl;
+    cout << TermColor::RESET();
+    )
+    stereogeom = std::make_shared<StereoGeometry>( left_camera,right_camera,     right_T_left  );
+    return true;
+}
+
+
+bool Cerebro::retrive_stereo_pair( DataNode* node, cv::Mat& left_image, cv::Mat& right_image, bool bgr2gray )
+{
+    // raw stereo-images in gray
+    if( !(node->isImageAvailable()) || !(node->isImageAvailable(1)) ) {
+        cout << TermColor::RED() << "[Cerebro::retrive_stereo_pair] Either of the node images (stereo-pair was not available)" << TermColor::RESET() << endl;
+        return false;
+    }
+    cv::Mat bgr_left_image = node->getImage();
+    cv::Mat bgr_right_image = node->getImage(1);
+
+    if( bgr2gray ) {
+
+        if( bgr_left_image.channels() > 1 )
+            cv::cvtColor( bgr_left_image, left_image, CV_BGR2GRAY );
+        else
+            left_image = bgr_left_image;
+
+        if( bgr_right_image.channels() > 1 )
+            cv::cvtColor( bgr_right_image, right_image, CV_BGR2GRAY );
+        else
+            right_image = bgr_right_image;
+    }
+    else {
+        left_image = bgr_left_image;
+        right_image = bgr_right_image;
+    }
+
+    #if 0
+    cout << "bgr_left_image: " << MiscUtils::cvmat_info( bgr_left_image ) << "\t";
+    cout << "bgr_right_image: " << MiscUtils::cvmat_info( bgr_right_image ) << "\t";
+    cout << "left_image: " << MiscUtils::cvmat_info( left_image ) << "\t";
+    cout << "right_image: " << MiscUtils::cvmat_info( right_image ) << "\t";
+    cout << endl;
+    #endif
+    return true;
+
+}
+
+
+
+void Cerebro::process_loop_candidate_imagepair( int i )
+{
+    auto u = foundLoops_i( i );
+    ros::Time t_curr = std::get<0>(u);
+    ros::Time t_prev = std::get<1>(u);
+    double score = std::get<2>(u);
+
+    assert( data_map.count( t_curr ) > 0 && data_map.count( t_prev ) > 0  && "One or both of the timestamps in foundloops where not in the data_map. This cannot be happening...fatal...\n" );
+    auto data_map = dataManager->getDataMapRef();
+    int idx_1 = std::distance( data_map.begin(), data_map.find( t_curr )  );
+    int idx_2 = std::distance( data_map.begin(), data_map.find( t_prev )  );
+
+    DataNode * node_1 = data_map.find( t_curr )->second;
+    DataNode * node_2 = data_map.find( t_prev )->second;
+
+    // cv::Mat im_1 = node_1->getImage();
+    // cv::Mat im_2 = node_2->getImage();
+
+    cout << TermColor::BLUE() << "{"<<i <<  "} process: "<< idx_1 << "<--->" << idx_2 << TermColor::RESET() << endl;
+
+    // cv::imshow( "im_1", im_1);
+    // cv::imshow( "im_2", im_2);
+
+
+
+    //---------Disparity of `idx_1`
+    cv::Mat grey_im_1_left, grey_im_1_right;
+    bool ret_status = retrive_stereo_pair( node_1, grey_im_1_left, grey_im_1_right );
+    if( !ret_status )
+        return;
+
+
+    // will get 3d points, stereo-rectified image, and disparity false colormap
+    MatrixXd _3dpts; //4xN
+    cv::Mat imleft_srectified, imright_srectified;
+    cv::Mat disparity_for_visualization;
+    ElapsedTime timer;
+    timer.tic();
+    stereogeom->get_srectifiedim_and_3dpoints_and_disparity_from_raw_images(grey_im_1_left, grey_im_1_right,
+        imleft_srectified, imright_srectified,
+         _3dpts, disparity_for_visualization );
+    cout << timer.toc_milli() << " (ms)!!  get_srectifiedim_and_3dpoints_and_disparity_from_raw_images\n";
+
+    cv::imshow( "imleft_srectified", imleft_srectified );
+    // cv::imshow( "imright_srectified", imright_srectified );
+    cv::imshow( "disparity_for_visualization", disparity_for_visualization );
+
+
+    //----------point_feature_matches for `idx_1` <--> `idx_2`
+    // srectified idx_2 image pair needed
+    cv::Mat grey_im_2_left, grey_im_2_right;
+    bool ret_status_2 = retrive_stereo_pair( node_2, grey_im_2_left, grey_im_2_right );
+    if( !ret_status_2 )
+        return;
+
+    cv::Mat im2_left_srectified, im2_right_srectified;
+    timer.tic();
+    stereogeom->do_stereo_rectification_of_raw_images( grey_im_2_left, grey_im_2_right,
+                            im2_left_srectified, im2_right_srectified );
+    cout << timer.toc_milli() << " (ms)!! do_stereo_rectification_of_raw_images\n";
+    cv::imshow( "im2_left_srectified", im2_left_srectified );
+
+
+    // gms matcher
+    MatrixXd uv, uv_d; // u is from frame_a; ud is from frame_b
+    timer.tic();
+    StaticPointFeatureMatching::gms_point_feature_matches( imleft_srectified, im2_left_srectified, uv, uv_d );
+    cout << timer.toc_milli() << " (ms)!! gms_point_feature_matches\n"; 
+
+    // plot
+    cv::Mat dst_feat_matches;
+    MiscUtils::plot_point_pair( imleft_srectified, uv, idx_1,
+                     im2_left_srectified, uv_d, idx_2,
+                        dst_feat_matches, 3, "NAA"
+                         );
+    cv::resize(dst_feat_matches, dst_feat_matches, cv::Size(), 0.5, 0.5 );
+    cv::imshow( "dst_feat_matches", dst_feat_matches );
+
+    //---------------- make collection of 3d 2d points
+    // 3d of `idx_1` <---> 2d of `idx_2`
+
+
+    //-------------- theia::pnp
+    cv::waitKey(50);
+
+
+
 
 }

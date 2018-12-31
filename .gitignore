@@ -4,3 +4,4 @@
 *.npz
 *.keras
 *.pth
+*.bak

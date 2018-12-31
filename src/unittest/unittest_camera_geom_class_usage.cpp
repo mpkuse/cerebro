@@ -89,6 +89,10 @@ int stereo_demo()
     cv::Mat imleft_raw =  cv::imread( BASE+"/"+std::to_string(frame_id)+".jpg", 0 );
     cv::Mat imright_raw =  cv::imread( BASE+"/"+std::to_string(frame_id)+"_1.jpg", 0 );
 
+    cout << "imleft_raw: " << MiscUtils::cvmat_info( imleft_raw ) << endl;
+    cout << "imright_raw: " << MiscUtils::cvmat_info( imright_raw ) << endl;
+
+
     if( imleft_raw.empty() || imright_raw.empty() ) {
         cout << "imleft_raw is empty OR imright_raw is empty\n";
         return 0;
@@ -114,6 +118,9 @@ int stereo_demo()
     return 0;
 
 }
+
+
+
 
 int main()
 {

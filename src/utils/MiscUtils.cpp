@@ -83,6 +83,7 @@ void MiscUtils::dmatch_2_eigen( const std::vector<cv::KeyPoint>& kp1, const std:
 }
 
 
+
 void MiscUtils::plot_point_sets( const cv::Mat& im, const MatrixXd& pts_set, cv::Mat& dst,
                                         const cv::Scalar& color, bool enable_keypoint_annotation, const string& msg )
 {

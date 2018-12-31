@@ -6,7 +6,7 @@
 
 <!-- ### IN LAB -->
 <!-- <arg name="bag_file" default="1.bag" doc="sitting on my desk"/> -->
-<arg name="bag_file" default="2018-11-20-17-45-55.bag" doc="single loop in lab"/>
+<!-- <arg name="bag_file" default="2018-11-20-17-45-55.bag" doc="single loop in lab"/> -->
 <!-- <arg name="bag_file" default="2018-11-20-17-42-54.bag" doc="multiple loops in lab"/> -->
 <!-- <arg name="bag_file" default="2018-11-22-12-06-47.bag" doc="drone fly area loopy"/> -->
 <!-- <arg name="bag_file" default="2018-11-22-12-09-21.bag" doc="conference room RI"/> -->
@@ -18,7 +18,7 @@
 <!-- <arg name="bag_file" default="2018-11-29-15-22-50.bag" doc="academic concourse"/> -->
 <!-- <arg name="bag_file" default="2018-11-29-15-30-39.bag" doc="near coffee shop 1"/> -->
 <!-- <arg name="bag_file" default="2018-11-29-15-36-41.bag" doc="seng"/> -->
-<!-- <arg name="bag_file" default="2018-12-13-16-48-46.bag" doc="seng3"/> -->
+<arg name="bag_file" default="2018-12-13-16-48-46.bag" doc="seng3"/>
 <!-- <arg name="bag_file" default="2018-12-13-16-56-36.bag" doc="concourse-seng4"/> -->
 
 
