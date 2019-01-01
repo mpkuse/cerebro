@@ -34,6 +34,7 @@ void Visualization::setVizPublishers( const string base_topic_name )
     ROS_INFO( "Visualization Publisher framedata_pub_topic: %s", framedata_pub_topic.c_str() );
     framedata_pub = nh.advertise<visualization_msgs::Marker>(framedata_pub_topic, 1000);
 
+    // can add image publish if need be here.
 }
 
 void Visualization::run( const int looprate )
@@ -48,10 +49,76 @@ void Visualization::run( const int looprate )
         // cout << "Visualization::run() " << dataManager->getDataMapRef().size() <<endl;
         this->publish_frames();
         this->publish_loopcandidates();
-        this->publish_test_string();
+        // this->publish_test_string();
+        this->publish_processed_loopcandidates();
 
         rate.sleep();
     }
+}
+
+
+void Visualization::publish_processed_loopcandidates()
+{
+    static int prev_count = -1;
+
+    if( prev_count == cerebro->processedLoops_count() || prev_count<0 ) {
+        prev_count = cerebro->processedLoops_count();
+        // nothing new
+        return;
+    }
+
+    int new_count = cerebro->processedLoops_count();
+    // [prev_count , new_count ] are new
+
+    // cout << "[Visualization::publish_processed_loopcandidates]" << new_count << endl;
+    cout << "#new procs_loops=" << new_count - prev_count << "  from [" << prev_count << "," << new_count-1 << "]\n";
+
+    visualization_msgs::Marker marker;
+    RosMarkerUtils::init_line_marker( marker );
+    marker.ns = "processed_loopcandidates_line";
+
+    // loop over all the new
+    for( int i=prev_count ; i<= new_count-1; i++ )
+    {
+        // publish green colored line
+
+        cout << "---\nUsing processedLoop["<<i<<"]"<<endl;
+        ProcessedLoopCandidate c =  cerebro->processedLoops_i( i );
+        cout << c.node_1->getT() << "<--->" << c.node_2->getT() << endl;
+        cout << "isPoseAvailable: " << c.node_1->isPoseAvailable() << endl;
+
+        Vector4d w_t_1 = c.node_1->getPose().col(3);
+        Vector4d w_t_2 = c.node_2->getPose().col(3);
+        RosMarkerUtils::add_point_to_marker( w_t_1, marker, true );
+        RosMarkerUtils::add_point_to_marker( w_t_2, marker, false );
+        RosMarkerUtils::setcolor_to_marker( 0.0, 1.0, 0.0 , marker );
+        marker.ns = "processed_loopcandidates_line";
+        marker.id = i;
+        framedata_pub.publish( marker );
+
+
+
+        if( c.isSet_3d2d__2T1 == false ) { cout << "[Visualization::publish_processed_loopcandidates] _3d2d__2T1 is not set"; exit(1); }
+        Matrix4d w_T_2__new = c.node_1->getPose() * (c._3d2d__2T1).inverse();
+        Vector4d w_t_2__new = w_T_2__new.col(3);
+        RosMarkerUtils::add_point_to_marker( w_t_1, marker, true );
+        RosMarkerUtils::add_point_to_marker( w_t_2__new, marker, false );
+        RosMarkerUtils::setcolor_to_marker( 1.0, 1.0, 1.0 , marker );
+        marker.ns = "processed_loopcandidates_new_position_of_2";
+        marker.id = i;
+        framedata_pub.publish( marker );
+
+
+
+
+    }
+
+
+
+
+
+
+    prev_count = new_count;
 }
 
 

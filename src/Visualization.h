@@ -59,7 +59,8 @@ private:
 
 private:
     void publish_frames(); //< publishes last 10 frames as markers. (occasionally all)
-    void publish_loopcandidates(); //< publishes last 10 loop candidates. cerebro->foundLoops_count(). 
+    void publish_loopcandidates(); //< publishes last 10 loop candidates. cerebro->foundLoops_count().
+    void publish_processed_loopcandidates(); //< uses Cerebro::processedLoops_i().
     void publish_test_string();
 
 

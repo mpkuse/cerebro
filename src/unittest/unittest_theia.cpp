@@ -266,6 +266,9 @@ bool relative_pose_compute_with_theia( std::shared_ptr<StereoGeometry> stereogeo
     out_b_T_a = b_T_a;
     return true;
 
+
+    // TODO : Verify this computed pose by reprojecting 3d points. 
+
 }
 
 void plot_vio_poses( json& json_obj, ros::Publisher& pub )

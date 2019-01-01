@@ -17,17 +17,22 @@
 
 #include "PinholeCamera.h"
 #include "DataManager.h"
+#include "ProcessedLoopCandidate.h"
+
 #include "utils/TermColor.h"
 #include "utils/ElapsedTime.h"
 
 #include "utils/CameraGeometry.h"
 #include "utils/PointFeatureMatching.h"
 
+
 #include "utils/nlohmann/json.hpp"
 using json = nlohmann::json;
 
 // ROS-Service Defination
 #include <cerebro/WholeImageDescriptorCompute.h>
+
+#include <theia/theia.h>
 
 
 class Cerebro
@@ -88,6 +93,10 @@ public:
     void loopcandidate_consumer_disable() { b_loopcandidate_consumer=false; }
     void loopcandiate_consumer_thread();
 
+    const int processedLoops_count() const;
+    const ProcessedLoopCandidate& processedLoops_i( int i ) const;
+    // TODO: have a function which returns a json of the info in processedloopcandi_list.
+
 
 
 
@@ -96,11 +105,26 @@ private:
     atomic<bool> b_loopcandidate_consumer;
 
     // helpers
-    void process_loop_candidate_imagepair( int j );
+
+    // Processed foundLoops_i[ j ] and writes the info in the object `proc_candi`
+    bool process_loop_candidate_imagepair( int j, ProcessedLoopCandidate& proc_candi );
 
     bool init_stereogeom(); // expected to be called in loopcandiate_consumer_thread. this sets the variable `stereogeom`
     bool retrive_stereo_pair( DataNode* node, cv::Mat& left_image, cv::Mat& right_image, bool bgr2gray=true );
     std::shared_ptr<StereoGeometry> stereogeom;
+
+    // uv : pf of im1
+    // _3dImage_uv : 3D image corresponding to im1-stereopair
+    // uv_d : pf of im2. len(uv) == len(uv_d)
+    // [Returns]
+    //  feature_position: normalized image co-ordinates of uv_d where the depths are valid
+    //  world_point
+    bool make_3d_2d_collection__using__pfmatches_and_disparity( const MatrixXd& uv, const cv::Mat& _3dImage_uv,     const MatrixXd& uv_d,
+                                std::vector<Eigen::Vector2d>& feature_position,
+                                std::vector<Eigen::Vector3d>& world_point );
+
+    mutable std::mutex m_processedLoops;
+    vector< ProcessedLoopCandidate > processedloopcandi_list;
 
 
 

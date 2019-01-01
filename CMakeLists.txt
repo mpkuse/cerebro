@@ -189,6 +189,7 @@ add_executable(
         src/DataNode.cpp
         src/Cerebro.cpp
         src/Visualization.cpp
+        src/ProcessedLoopCandidate.cpp
         ${KuseUtilsSources}
         ${CamodocalCameraModelSources}
 )
@@ -239,6 +240,7 @@ target_link_libraries(cerebro_node
   ${CMAKE_THREAD_LIBS_INIT}
   ${CERES_LIBRARIES}
   ${Boost_LIBRARIES}
+  ${THEIA_LIBRARIES}
 )
 
 target_link_libraries(unittest_rosservice_client
