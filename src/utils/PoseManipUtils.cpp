@@ -26,6 +26,22 @@ void PoseManipUtils::geometry_msgs_Pose_to_eigenmat( const geometry_msgs::Pose& 
     dstT(2,3) = pose.position.z;
     dstT(3,3) = 1.0;
 }
+
+
+void PoseManipUtils::eigenmat_to_geometry_msgs_Pose( const Matrix4d& T, geometry_msgs::Pose& pose )
+{
+    assert( T(3,3) == 1 );
+    Quaterniond q( T.topLeftCorner<3,3>() );
+
+    pose.position.x = T(0,3);
+    pose.position.y = T(1,3);
+    pose.position.z = T(2,3);
+    pose.orientation.x = q.x();
+    pose.orientation.y = q.y();
+    pose.orientation.z = q.z();
+    pose.orientation.w = q.w();
+
+}
 #endif
 
 void PoseManipUtils::eigenmat_to_raw( const Matrix4d& T, double * quat, double * t)
@@ -184,7 +200,7 @@ string PoseManipUtils::prettyprintMatrix4d( const Matrix4d& M )
    ypr = R2ypr(  M.topLeftCorner<3,3>()  );
 
   char __tmp[200];
-  snprintf( __tmp, 200, ":YPR(deg)=(%4.2f,%4.2f,%4.2f)  :TxTyTz=(%4.2f,%4.2f,%4.2f)",  ypr(0), ypr(1), ypr(2), M(0,3), M(1,3), M(2,3) );
+  snprintf( __tmp, 200, ":YPR(deg)=(%4.3f,%4.3f,%4.3f)  :TxTyTz=(%4.3f,%4.3f,%4.3f)",  ypr(0), ypr(1), ypr(2), M(0,3), M(1,3), M(2,3) );
   string return_string = string( __tmp );
   return return_string;
 }

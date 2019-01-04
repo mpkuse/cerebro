@@ -267,6 +267,7 @@ int main( int argc, char ** argv )
     // Cerebro threads
     Cerebro cer( nh );
     cer.setDataManager( &dataManager );
+    cer.setPublishers( "/cerebro" );
     cer.run_thread_enable();
     std::thread t2( &Cerebro::run, &cer );
 
@@ -346,7 +347,7 @@ int main( int argc, char ** argv )
     ///////////////////////
     // Actual Logging.  //
     //////////////////////
-    #define __LOGGING__ 0 // make this 1 to enable logging. 0 to disable logging. rememeber to catkin_make after this change
+    #define __LOGGING__ 1 // make this 1 to enable logging. 0 to disable logging. rememeber to catkin_make after this change
     #if __LOGGING__
         // Write json log
         string save_dir = "/Bulk_Data/_tmp/";
@@ -358,8 +359,10 @@ int main( int argc, char ** argv )
         string system_cmd;
 
         system_cmd = string("rm -rf "+save_dir).c_str();
-        cout << TermColor::YELLOW() << system_cmd << TermColor::RESET() << endl;
-        const int rm_dir_err = system( system_cmd.c_str() );
+        // cout << TermColor::YELLOW() << system_cmd << TermColor::RESET() << endl;
+        // int rm_dir_err = system( system_cmd.c_str() );
+        const int rm_dir_err = RawFileIO::exec_cmd( system_cmd );
+
         if ( rm_dir_err == -1 )
         {
             cout << TermColor::RED() << "[cerebro_node] Error removing directory!\n" << TermColor::RESET() << endl;
@@ -367,8 +370,9 @@ int main( int argc, char ** argv )
         }
 
         system_cmd = string("mkdir -p "+save_dir).c_str();
-        cout << TermColor::YELLOW() << system_cmd << TermColor::RESET() << endl;
-        const int dir_err = system( system_cmd.c_str() );
+        // cout << TermColor::YELLOW() << system_cmd << TermColor::RESET() << endl;
+        // const int dir_err = system( system_cmd.c_str() );
+        const int dir_err = RawFileIO::exec_cmd( system_cmd );
         if ( dir_err == -1 )
         {
             cout << TermColor::RED() << "[cerebro_node] Error creating directory!\n" << TermColor::RESET() << endl;
@@ -458,6 +462,65 @@ int main( int argc, char ** argv )
         json jsonout_obj = cer.foundLoops_as_JSON();
         RawFileIO::write_string( save_dir+"/loopcandidates_liverun.json", jsonout_obj.dump(4) );
 
+
+
+        // Save matching images from ProcessedLoopCandidate
+        string cmd_ = string("mkdir -p ")+save_dir+"/matching/";
+        RawFileIO::exec_cmd( cmd_ );
+
+        json all_procloops_json_obj;
+        for( int i=0 ; i<cer.processedLoops_count() ; i++ ) {
+
+            // Retrive i^{th} item
+            ProcessedLoopCandidate c = cer.processedLoops_i( i );
+
+            // Write matching pair image with pf markings
+            cv::Mat __imm = c.matching_im_pair ;
+            if( __imm.rows > 0 && __imm.cols > 0 ) {
+                RawFileIO::write_image( save_dir+"/matching/im_pair_"+to_string(i)+".jpg", __imm );
+            }
+            else {
+                cout << "in logging, matching_im_pair of ProcessedLoopCandidate[" << i << "] is not available\n";
+            }
+
+
+            // pnp verification image
+            cv::Mat __imm_pnp = c.pnp_verification_image ;
+            if( __imm_pnp.rows > 0 && __imm_pnp.cols > 0 ) {
+                RawFileIO::write_image( save_dir+"/matching/im_pair_"+to_string(i)+"_pnpverify.jpg", __imm_pnp );
+            }
+            else {
+                cout << "in logging, pnp_verification_image ProcessedLoopCandidate[" << i << "] is not available\n";
+            }
+
+
+            // disparity of node_1
+            cv::Mat __imm_node_1_disparity = c.node_1_disparity_viz;
+            if( __imm_node_1_disparity.rows > 0 && __imm_node_1_disparity.cols > 0 ) {
+                RawFileIO::write_image( save_dir+"/matching/im_pair_"+to_string(i)+"_node1_disparity.jpg", __imm_node_1_disparity );
+            }
+            else {
+                cout << "in logging, node_1_disparity_viz ProcessedLoopCandidate[" << i << "] is not available\n";
+            }
+
+
+            // Json of the object
+            json procloops_json_obj;
+            if( c.asJson(procloops_json_obj) ) {
+                all_procloops_json_obj.push_back( procloops_json_obj );
+            }
+            else {
+                cout << "cannot make json for this  ProcessedLoopCandidate[" << i << "]\n";
+            }
+
+            // Write the poses as files
+            if( c.isSet_3d2d__2T1 )
+                RawFileIO::write_EigenMatrix( save_dir+"/matching/im_pair_"+to_string(i)+".3d2d__2T1", c._3d2d__2T1 );
+            if( c.isSet_2d3d__2T1 )
+                RawFileIO::write_EigenMatrix( save_dir+"/matching/im_pair_"+to_string(i)+".2d3d__2T1", c._2d3d__2T1 );
+
+        }
+        RawFileIO::write_string( save_dir+"/matching/ProcessedLoopCandidate.json", all_procloops_json_obj.dump(4) );
 
     #endif
 

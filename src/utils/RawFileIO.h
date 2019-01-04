@@ -7,6 +7,7 @@
 #include <fstream>
 #include <queue>
 #include <ostream>
+#include <cstdlib>
 
 //opencv
 #include <opencv2/core/core.hpp>
@@ -64,7 +65,8 @@ public:
     /// TODO: Have a flag to read interpret the 1d array as a colmajor.
     static bool read_eigen_matrix( const std::vector<double>& ary, Matrix4d& result );
 
-    bool if_file_exist( char * fname );
-    bool if_file_exist( string fname );
+    static bool if_file_exist( char * fname );
+    static bool if_file_exist( string fname );
+    static int exec_cmd( const string& cmd ); //< Executes a unix command.
 
 };

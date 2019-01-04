@@ -17,6 +17,14 @@ void Cerebro::setDataManager( DataManager* dataManager )
     m_dataManager_available = true;
 }
 
+void Cerebro::setPublishers( const string base_topic_name )
+{
+    string pub_loopedge_topic = base_topic_name+"/loopedge";
+    ROS_INFO( "[Cerebro::setPublishers] Publish <cerebro::LoopEdge> %s", pub_loopedge_topic.c_str() );
+    pub_loopedge = nh.advertise<cerebro::LoopEdge>( pub_loopedge_topic, 1000 );
+
+    m_pub_available = true;
+}
 
 
 // #define __Cerebro__run__( msg ) msg ;
@@ -342,6 +350,11 @@ json Cerebro::foundLoops_as_JSON()
 // #define __Cerebro__loopcandi_consumer__IMP( msg ) msg;
 #define __Cerebro__loopcandi_consumer__IMP( msg ) ;
 // ^Text only printing
+
+
+// #define __Cerebro__loopcandi_consumer__IMSHOW 0 // will not produce the images (ofcourse will not show as well)
+// #define __Cerebro__loopcandi_consumer__IMSHOW 1 // produce the images and log them, will not imshow
+#define __Cerebro__loopcandi_consumer__IMSHOW 2 // produce the images and imshow them
 void Cerebro::loopcandiate_consumer_thread()
 {
     assert( m_dataManager_available && "You need to set the DataManager in class Cerebro before execution of the run() thread can begin. You can set the dataManager by call to Cerebro::setDataManager()\n");
@@ -397,6 +410,15 @@ void Cerebro::loopcandiate_consumer_thread()
                 __Cerebro__loopcandi_consumer__IMP(
                 cout  << "\tAdded to `processedloopcandi_list`"  << endl;
                 )
+
+
+                // publish proc_candi
+                cerebro::LoopEdge loopedge_msg;
+                bool __makemsg_status = proc_candi.makeLoopEdgeMsg( loopedge_msg );
+                __Cerebro__loopcandi_consumer__IMP(
+                cout << TermColor::iBLUE() <<  "__makemsg_status: " << __makemsg_status << "  publish loopedge_msg" << TermColor::RESET() << endl;
+                )
+                pub_loopedge.publish( loopedge_msg );
             }
             else {
                 __Cerebro__loopcandi_consumer__IMP( cout << "\tNot added to `processedloopcandi_list`, status was false\n" << endl; )
@@ -510,7 +532,7 @@ bool Cerebro::retrive_stereo_pair( DataNode* node, cv::Mat& left_image, cv::Mat&
 
 
 bool Cerebro::make_3d_2d_collection__using__pfmatches_and_disparity( const MatrixXd& uv, const cv::Mat& _3dImage_uv,     const MatrixXd& uv_d,
-                            std::vector<Eigen::Vector2d>& feature_position,
+                            std::vector<Eigen::Vector2d>& feature_position_uv, std::vector<Eigen::Vector2d>& feature_position_uv_d,
                             std::vector<Eigen::Vector3d>& world_point )
 {
     assert( (uv.cols() == uv_d.cols() ) && "[Cerebro::make_3d_2d_collection__using__pfmatches_and_disparity] pf-matches need to be of same length. You provided of different lengths\n" );
@@ -531,7 +553,8 @@ bool Cerebro::make_3d_2d_collection__using__pfmatches_and_disparity( const Matri
     int c = 0;
     MatrixXd ud_normalized = stereogeom->get_K().inverse() * uv_d;
     MatrixXd u_normalized = stereogeom->get_K().inverse() * uv;
-    feature_position.clear();
+    feature_position_uv.clear();
+    feature_position_uv_d.clear();
     world_point.clear();
 
     for( int k=0 ; k<uv.cols() ; k++ )
@@ -551,8 +574,8 @@ bool Cerebro::make_3d_2d_collection__using__pfmatches_and_disparity( const Matri
         cout << endl;
         #endif
 
-        feature_position.push_back( Vector2d( ud_normalized(0,k), ud_normalized(1,k) ) );
-        // feature_position.push_back( Vector2d( u_normalized(0,k), u_normalized(1,k) ) );
+        feature_position_uv.push_back( Vector2d( u_normalized(0,k), u_normalized(1,k) ) );
+        feature_position_uv_d.push_back( Vector2d( ud_normalized(0,k), ud_normalized(1,k) ) );
         world_point.push_back( Vector3d( _3dpt[0], _3dpt[1], _3dpt[2] ) );
     }
     __Cerebro__loopcandi_consumer__(
@@ -617,11 +640,8 @@ bool Cerebro::process_loop_candidate_imagepair( int ii, ProcessedLoopCandidate& 
     )
 
 
-    // cv::imshow( "imleft_srectified", imleft_srectified );
-    // cv::imshow( "imright_srectified", imright_srectified );
-    __Cerebro__loopcandi_consumer__(
-    cv::imshow( "im1_disparity_for_visualization", disparity_for_visualization );
-    )
+
+
 
     //---------------- END Disparity of `idx_1`
 
@@ -657,8 +677,9 @@ bool Cerebro::process_loop_candidate_imagepair( int ii, ProcessedLoopCandidate& 
     MatrixXd uv, uv_d; // u is from frame_a; ud is from frame_b
     timer.tic();
     StaticPointFeatureMatching::gms_point_feature_matches( imleft_srectified, im2_left_srectified, uv, uv_d );
+    auto elapsed_time_gms = timer.toc_milli();
     __Cerebro__loopcandi_consumer__(
-    cout << timer.toc_milli() << " (ms)!! gms_point_feature_matches\n";
+    cout << elapsed_time_gms << " (ms)!! gms_point_feature_matches\n";
     )
 
 
@@ -670,10 +691,11 @@ bool Cerebro::process_loop_candidate_imagepair( int ii, ProcessedLoopCandidate& 
     // 3d of `idx_1` <---> 2d of `idx_2`
 
 
-    std::vector<Eigen::Vector2d> feature_position;
+    std::vector<Eigen::Vector2d> feature_position_uv;
+    std::vector<Eigen::Vector2d> feature_position_uv_d;
     std::vector<Eigen::Vector3d> world_point;
     make_3d_2d_collection__using__pfmatches_and_disparity( uv, _3dImage__im1,     uv_d,
-                                feature_position, world_point );
+                                feature_position_uv, feature_position_uv_d, world_point );
     int n_valid_depths = world_point.size();
 
 
@@ -683,21 +705,9 @@ bool Cerebro::process_loop_candidate_imagepair( int ii, ProcessedLoopCandidate& 
 
 
 
-    // plot
-    __Cerebro__loopcandi_consumer__(
-    cv::Mat dst_feat_matches;
-    string msg = string("gms_matcher;")+"of the total "+std::to_string(uv.cols())+" point feature correspondences " +std::to_string(n_valid_depths)+ " had valid depths";
-    cout << msg << endl;
-    MiscUtils::plot_point_pair( imleft_srectified, uv, idx_1,
-                     im2_left_srectified, uv_d, idx_2,
-                        dst_feat_matches, 3, msg  );
-    cv::resize(dst_feat_matches, dst_feat_matches, cv::Size(), 0.5, 0.5 );
-    cv::imshow( "dst_feat_matches", dst_feat_matches );
-    )
 
 
-
-    //-------------- theia::pnp
+    // See if the matching can be rejected due to insufficient # of matches
     if( uv.cols() < 80 ) {
         __Cerebro__loopcandi_consumer__IMP(
         cout << TermColor::YELLOW() << "of the total "+std::to_string(uv.cols())+" point feature correspondences " +std::to_string(n_valid_depths)+ " had valid depths. " << " too few pf-matches from gms. Skip this. TH=80" << TermColor::RESET() << endl;
@@ -714,13 +724,20 @@ bool Cerebro::process_loop_candidate_imagepair( int ii, ProcessedLoopCandidate& 
 
     // TODO assess u, ud, world_point for histogram spreads. a more spread in measurements will give more precise more. Also will be helpful to weedout bad poses
 
-
+    //------------------------------------------
+    //-------------- theia::pnp
+    //------------------------------------------
+    Matrix4d b_T_a; //< RESULT
+    string pnp__msg; //< msg about pnp
+    #if 1
+    //--- DlsPnp
     std::vector<Eigen::Quaterniond> solution_rotations;
     std::vector<Eigen::Vector3d> solution_translations;
     timer.tic();
-    theia::DlsPnp( feature_position, world_point, &solution_rotations, &solution_translations  );
+    theia::DlsPnp( feature_position_uv_d, world_point, &solution_rotations, &solution_translations  );
+    auto elapsed_dls_pnp = timer.toc_milli() ;
     __Cerebro__loopcandi_consumer__(
-    cout << timer.toc_milli() << " : (ms) : theia::DlsPnp done in\n";
+    cout << elapsed_dls_pnp << " : (ms) : theia::DlsPnp done in\n";
     cout << "solutions count = " << solution_rotations.size() << " " << solution_translations.size() << endl;
     )
 
@@ -731,27 +748,266 @@ bool Cerebro::process_loop_candidate_imagepair( int ii, ProcessedLoopCandidate& 
         return false;
     }
 
-    Matrix4d b_T_a = Matrix4d::Identity();
+    if( solution_rotations.size() > 1 ) {
+        __Cerebro__loopcandi_consumer__IMP(
+        cout << TermColor::RED() << " theia::DlsPnp returns multiple solution" << TermColor::RESET() << endl;
+        )
+        return false;
+    }
+
+    // retrive solution
+    b_T_a = Matrix4d::Identity();
     b_T_a.topLeftCorner(3,3) = solution_rotations[0].toRotationMatrix();
     b_T_a.col(3).topRows(3) = solution_translations[0];
 
+    __Cerebro__loopcandi_consumer__IMP(
+    // cout << "solution_T " << b_T_a << endl;
+    cout << TermColor::GREEN() << "DlsPnp (b_T_a): " << PoseManipUtils::prettyprintMatrix4d( b_T_a ) << TermColor::RESET() << endl;
+    // out_b_T_a = b_T_a;
+    pnp__msg +=  "DlsPnp (b_T_a): " + PoseManipUtils::prettyprintMatrix4d( b_T_a ) + ";";
+    pnp__msg += "  elapsed_dls_pnp="+to_string(elapsed_dls_pnp)+";";
+    )
+    #endif
+
+
+    #if 1
+    //--- DlsPnpWithRansac
+    __Cerebro__loopcandi_consumer__( timer.tic() );
+    // prep data
+    vector<CorrespondencePair_3d2d> data_r;
+    for( int i=0 ; i<world_point.size() ; i++ )
+    {
+        CorrespondencePair_3d2d _data;
+        _data.a_X = world_point[i];
+        _data.uv_d = feature_position_uv_d[i];
+        data_r.push_back( _data );
+    }
+
+    // Specify RANSAC parameters.
+
+    DlsPnpWithRansac dlspnp_estimator;
+    RelativePose best_rel_pose;
+
+    // Set the ransac parameters.
+    theia::RansacParameters params;
+    params.error_thresh = 0.02;
+    params.min_inlier_ratio = 0.7;
+    params.max_iterations = 50;
+    params.min_iterations = 5;
+    params.use_mle = true;
+
+    // Create Ransac object, specifying the number of points to sample to
+    // generate a model estimation.
+    theia::Ransac<DlsPnpWithRansac> ransac_estimator(params, dlspnp_estimator);
+    // Initialize must always be called!
+    ransac_estimator.Initialize();
+
+    theia::RansacSummary summary;
+    ransac_estimator.Estimate(data_r, &best_rel_pose, &summary);
+
+    auto elapsed_dls_pnp_ransac=timer.toc_milli();
+    __Cerebro__loopcandi_consumer__IMP(
+    cout << elapsed_dls_pnp_ransac << "(ms)!! DlsPnpWithRansac ElapsedTime includes data prep\n";
+    cout << "Ransac:";
+    // for( int i=0; i<summary.inliers.size() ; i++ )
+        // cout << "\t" << i<<":"<< summary.inliers[i];
+    cout << "\tnum_iterations=" << summary.num_iterations;
+    cout << "\tconfidence=" << summary.confidence;
+    cout << endl;
+    cout << TermColor::GREEN() << "best solution (ransac) : "<< PoseManipUtils::prettyprintMatrix4d( best_rel_pose.b_T_a ) << TermColor::RESET() << endl;
+    )
+    pnp__msg +=  "DlsPnpWithRansac (best_rel_pose.b_T_a): " + PoseManipUtils::prettyprintMatrix4d( best_rel_pose.b_T_a ) + ";";
+    pnp__msg += string("    num_iterations=")+to_string(summary.num_iterations)+"  confidence="+to_string(summary.confidence);
+    pnp__msg += string( "   elapsed_dls_pnp_ransac (ms)="+to_string(elapsed_dls_pnp_ransac));
+
+
+    b_T_a = best_rel_pose.b_T_a;
+    #endif
+
+
+
+
     __Cerebro__loopcandi_consumer__(
     // cout << "solution_T " << b_T_a << endl;
-    cout << "solution_T (b_T_a): " << PoseManipUtils::prettyprintMatrix4d( b_T_a ) << endl;
+    cout << "Final (b_T_a): " << PoseManipUtils::prettyprintMatrix4d( b_T_a ) << endl;
     // out_b_T_a = b_T_a;
     )
 
 
-    // ProcessedLoopCandidate  proc_candi( ii, node_1, node_2 );
+    // Fill the output
     proc_candi = ProcessedLoopCandidate( ii, node_1, node_2 );
+    proc_candi.idx_from_datamanager_1 = idx_1;
+    proc_candi.idx_from_datamanager_2 = idx_2;
     proc_candi.pf_matches = uv.cols();
     proc_candi._3d2d_n_pfvalid_depth = n_valid_depths;
     proc_candi._3d2d__2T1 = b_T_a;
     proc_candi.isSet_3d2d__2T1 = true;
+    proc_candi._3d2d__2T1__ransac_confidence = summary.confidence;
+
+
+    //################ All Plotting/Viz/Debug after this ##########################//
+
+
+    //-----------------------------------------
+    // plot point-feature matches.
+    //------------------------------------------
+    #if (__Cerebro__loopcandi_consumer__IMSHOW == 1) || (__Cerebro__loopcandi_consumer__IMSHOW == 2)
+    cv::Mat dst_feat_matches;
+    string msg = string("gms_matcher:")+"of the total "+std::to_string(uv.cols())+" point feature correspondences " +std::to_string(n_valid_depths)+ " had valid depths;"+"computed in (ms)"+to_string(elapsed_time_gms);
+    msg += ";_3d2d_2T1: "+  PoseManipUtils::prettyprintMatrix4d( b_T_a ) ;
+    MiscUtils::plot_point_pair( imleft_srectified, uv, idx_1,
+                     im2_left_srectified, uv_d, idx_2,
+                        dst_feat_matches, 3, msg  );
+    cv::resize(dst_feat_matches, dst_feat_matches, cv::Size(), 0.5, 0.5 );
+
+    #if __Cerebro__loopcandi_consumer__IMSHOW == 2
+    cv::imshow( "dst_feat_matches", dst_feat_matches );
+    #endif
+
+
+
+    __Cerebro__loopcandi_consumer__(
+    string msg2 = string("gms_matcher:")+"of the total "+std::to_string(uv.cols())+" point feature correspondences " +std::to_string(n_valid_depths)+ " had valid depths;"+"computed in (ms)"+to_string(elapsed_time_gms);
+    msg2 += ";_3d2d_2T1: "+  PoseManipUtils::prettyprintMatrix4d( b_T_a ) ;
+    cout << msg2 << endl;
+    cout << "adding `cv::Mat dst_feat_matches` to `proc_candi.matching_im_pair`\n";
+    )
+    proc_candi.matching_im_pair = dst_feat_matches;
+
+    #endif
+
+
+
+    // verification image of the pose
+    #if (__Cerebro__loopcandi_consumer__IMSHOW == 1) || (__Cerebro__loopcandi_consumer__IMSHOW == 2)
+    //---------------------------------------------
+    //--- Use the theia's estimated pose do PI( b_T_a * 3dpts ) and plot these
+    //--- points on B. Also plot detected points of B
+    //---------------------------------------------
+    MatrixXd _3dpts_of_A_projectedonB = MatrixXd::Zero(3, world_point.size() );
+    MatrixXd _detectedpts_of_B = MatrixXd::Zero(3, world_point.size() );
+    MatrixXd _detectedpts_of_A = MatrixXd::Zero(3, world_point.size() );
+    int n_good = 0;
+    for( int i=0 ; i<world_point.size() ; i++ ) {
+        Vector4d a_X_i;
+        a_X_i << Vector3d(world_point[i]), 1.0;
+        Vector4d b_X_i = b_T_a * a_X_i;
+        Vector3d _X_i = b_X_i.topRows(3);
+        _X_i /= _X_i(2); // Z-division for projection
+        _3dpts_of_A_projectedonB.col(i) = stereogeom->get_K() * _X_i; //< scaling with camera-intrinsic matrix
+
+
+        Vector3d _tmp;
+        _tmp << feature_position_uv_d[i], 1.0 ;
+        _detectedpts_of_B.col(i) = stereogeom->get_K() * _tmp;
+
+        _tmp << feature_position_uv[i], 1.0 ;
+        _detectedpts_of_A.col(i) = stereogeom->get_K() * _tmp;
+
+
+        Vector3d delta = _3dpts_of_A_projectedonB.col(i) - _detectedpts_of_B.col(i);
+        if( abs(delta(0)) < 2. && abs(delta(1)) < 2. ) {
+            // cout << "  delta=" << delta.transpose();
+            n_good++;
+        }
+        else {
+            // cout << TermColor::RED() << "delta=" << delta.transpose() << TermColor::RESET();
+        }
+        // cout << endl;
+    }
+    // cout << "n_good=" <<n_good << endl;
+
+
+    //------------------------------
+    //--- Use relative pose of obometry to do PI( odom_b_T_a * 3dpts ) and plot these on image-b
+    //--- load odometry poses
+    //-------------------------------
+    #if 1
+
+    MatrixXd _3dpts_of_A_projectedonB_with_odom_rel_pose = MatrixXd::Zero(3, world_point.size() );
+    if( node_1->isPoseAvailable() && node_2->isPoseAvailable() ) {
+
+        Matrix4d odom_wTA = node_1->getPose();
+        // cout << "wTa(odom)" << PoseManipUtils::prettyprintMatrix4d( wTa ) << endl;
+        Matrix4d odom_wTB = node_2->getPose();
+        // cout << "wTb(odom)" << PoseManipUtils::prettyprintMatrix4d( wTb ) << endl;
+        Matrix4d odom_b_T_a = odom_wTB.inverse() * odom_wTA;
+
+        __Cerebro__loopcandi_consumer__(
+            cout << "odom_b_T_a" << PoseManipUtils::prettyprintMatrix4d( odom_b_T_a ) << endl;
+        )
+        pnp__msg += "odom_b_T_a "+PoseManipUtils::prettyprintMatrix4d( odom_b_T_a ) +";";
+
+        // PI( odom_b_T_a * a_X )
+        for( int i=0 ; i<world_point.size() ; i++ ) {
+            Vector4d a_X_i;
+            a_X_i << Vector3d(world_point[i]), 1.0;
+            Vector4d b_X_i = odom_b_T_a * a_X_i;
+            Vector3d _X_i = b_X_i.topRows(3);
+            _X_i /= _X_i(2); // Z-division for projection
+            _3dpts_of_A_projectedonB_with_odom_rel_pose.col(i) = stereogeom->get_K() * _X_i; //< scaling with camera-intrinsic matrix
+        }
+
+    }
+    else {
+        cout << TermColor::RED() << "[Cerebro::process_loop_candidate_imagepair] In plotting part needs poses from DataManager which is not available." << TermColor::RESET() << endl;
+    }
+
+    #endif
+
+
+
+
+    // plot( B, ud )
+    cv::Mat __dst;
+    MiscUtils::plot_point_sets( im2_left_srectified, _detectedpts_of_B, __dst, cv::Scalar( 0,0,255), false, "_detectedpts_of_B (red) npts="+to_string(_detectedpts_of_B.cols()) );
+    // cv::imshow( "plot( B, ud )", __dst );
+
+    // plot( B, _3dpts_of_A_projectedonB )
+    MiscUtils::plot_point_sets( __dst, _3dpts_of_A_projectedonB, cv::Scalar( 0,255,255), false, ";_3dpts_of_A_projectedonB, PI( b_T_a * X),(yellow)" );
+    // MiscUtils::plot_point_sets( b_imleft_srectified, _3dpts_of_A_projectedonB, __dst, cv::Scalar( 0,255,255), false, "_3dpts_of_A_projectedonB" );
+
+    MiscUtils::plot_point_sets( __dst, _detectedpts_of_A, cv::Scalar( 255,255,255), false, ";;_detectedpts_of_A(white)" );
+
+    MiscUtils::plot_point_sets( __dst, _3dpts_of_A_projectedonB_with_odom_rel_pose, cv::Scalar( 255,0,0), false, ";;;_3dpts_of_A_projectedonB_with_odom_rel_pose, PI( odom_b_T_a * X),(blue)" );
+
+
+    // status image for __dst.
+    string status_msg = "im2_left_srectified;";
+    status_msg += "_detectedpts_of_B (red);";
+    status_msg += "_3dpts_of_A_projectedonB, PI( b_T_a * X),(yellow);";
+    status_msg += "_detectedpts_of_A(white);";
+    status_msg += "_3dpts_of_A_projectedonB_with_odom_rel_pose, PI( odom_b_T_a * X),(blue);";
+    MiscUtils::append_status_image( __dst, status_msg+";"+pnp__msg );
+
+    proc_candi.pnp_verification_image = __dst;
+
+    #if __Cerebro__loopcandi_consumer__IMSHOW == 2
+    cv::imshow( "im2_left_srectified", __dst );
+    #endif
+
+    #endif
+
+
+
+    // disparity and other images
+    #if (__Cerebro__loopcandi_consumer__IMSHOW == 1) || (__Cerebro__loopcandi_consumer__IMSHOW == 2)
+    proc_candi.node_1_disparity_viz = disparity_for_visualization; // this is disparity of im1. see code way above
+
+    #if __Cerebro__loopcandi_consumer__IMSHOW == 2
+    // cv::imshow( "imleft_srectified", imleft_srectified );
+    // cv::imshow( "imright_srectified", imright_srectified );
+    cv::imshow( "im1_disparity_for_visualization", disparity_for_visualization );
+    #endif
+    #endif
+
 
 
     // Done
-    __Cerebro__loopcandi_consumer__( cv::waitKey(50); )
+    #if __Cerebro__loopcandi_consumer__IMSHOW == 2
+    cv::waitKey(50);
+    #endif
+
     return true;
 
 

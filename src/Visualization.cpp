@@ -57,6 +57,8 @@ void Visualization::run( const int looprate )
 }
 
 
+// #define __Visualization___publish_processed_loopcandidates(msg) msg;
+#define __Visualization___publish_processed_loopcandidates(msg) ;
 void Visualization::publish_processed_loopcandidates()
 {
     static int prev_count = -1;
@@ -71,7 +73,9 @@ void Visualization::publish_processed_loopcandidates()
     // [prev_count , new_count ] are new
 
     // cout << "[Visualization::publish_processed_loopcandidates]" << new_count << endl;
+    __Visualization___publish_processed_loopcandidates(
     cout << "#new procs_loops=" << new_count - prev_count << "  from [" << prev_count << "," << new_count-1 << "]\n";
+    )
 
     visualization_msgs::Marker marker;
     RosMarkerUtils::init_line_marker( marker );
@@ -81,11 +85,12 @@ void Visualization::publish_processed_loopcandidates()
     for( int i=prev_count ; i<= new_count-1; i++ )
     {
         // publish green colored line
-
-        cout << "---\nUsing processedLoop["<<i<<"]"<<endl;
         ProcessedLoopCandidate c =  cerebro->processedLoops_i( i );
+        __Visualization___publish_processed_loopcandidates(
+        cout << "---\nUsing processedLoop["<<i<<"]"<<endl;
         cout << c.node_1->getT() << "<--->" << c.node_2->getT() << endl;
         cout << "isPoseAvailable: " << c.node_1->isPoseAvailable() << endl;
+        )
 
         Vector4d w_t_1 = c.node_1->getPose().col(3);
         Vector4d w_t_2 = c.node_2->getPose().col(3);

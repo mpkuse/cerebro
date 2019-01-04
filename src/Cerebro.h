@@ -18,6 +18,7 @@
 #include "PinholeCamera.h"
 #include "DataManager.h"
 #include "ProcessedLoopCandidate.h"
+#include "DlsPnpWithRansac.h"
 
 #include "utils/TermColor.h"
 #include "utils/ElapsedTime.h"
@@ -34,6 +35,10 @@ using json = nlohmann::json;
 
 #include <theia/theia.h>
 
+#include <Eigen/Dense>
+#include <Eigen/Geometry>
+using namespace Eigen;
+using namespace std;
 
 class Cerebro
 {
@@ -42,12 +47,16 @@ class Cerebro
 public:
     Cerebro( ros::NodeHandle& nh  ); // TODO removal of nh argument.
     void setDataManager( DataManager* dataManager );
+    void setPublishers( const string base_topic_name );
 
 private:
     // global private variables
     bool m_dataManager_available=false;
     DataManager * dataManager;
-    ros::NodeHandle nh; ///< I see no reason to have this at all. TODO: removal.
+    ros::NodeHandle nh; ///< This is here so that I can set new useful publishers
+
+    bool m_pub_available = false;
+    ros::Publisher pub_loopedge;
 
     //-------------- END Constructor --------------------//
 
@@ -117,10 +126,11 @@ private:
     // _3dImage_uv : 3D image corresponding to im1-stereopair
     // uv_d : pf of im2. len(uv) == len(uv_d)
     // [Returns]
-    //  feature_position: normalized image co-ordinates of uv_d where the depths are valid
-    //  world_point
+    //  feature_position_uv: normalized image co-ordinates of uv where the depths are valid
+    //  feature_position_uv_d: normalized image co-ordinates of uv_d where the depths are valid
+    //  world_point: 3d points of uv.
     bool make_3d_2d_collection__using__pfmatches_and_disparity( const MatrixXd& uv, const cv::Mat& _3dImage_uv,     const MatrixXd& uv_d,
-                                std::vector<Eigen::Vector2d>& feature_position,
+                                std::vector<Eigen::Vector2d>& feature_position_uv, std::vector<Eigen::Vector2d>& feature_position_uv_d,
                                 std::vector<Eigen::Vector3d>& world_point );
 
     mutable std::mutex m_processedLoops;

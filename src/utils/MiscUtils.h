@@ -131,6 +131,10 @@ public:
     // mark point on image
     static void draw_point( const Vector2d pt, cv::Mat& im, cv::Scalar color  );
 
+
+    // append a status image . ';' separated
+    static void append_status_image( cv::Mat& im, const string& msg, float txt_size=0.4, cv::Scalar bg_color=cv::Scalar(0,0,0), cv::Scalar txt_color=cv::Scalar(255,255,255) );
+
     // END ------------------------- Points and Lines on Images --------------------------------//
 
 

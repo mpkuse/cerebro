@@ -60,11 +60,12 @@ include_directories(${Boost_INCLUDE_DIRS})
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
+add_message_files(
+  FILES
 #   Message1.msg
 #   Message2.msg
-# )
+    LoopEdge.msg
+)
 
 ## Generate services in the 'srv' folder
 add_service_files(
@@ -122,6 +123,7 @@ catkin_package(
 #  LIBRARIES cerebro
 #  CATKIN_DEPENDS cv_bridge image_transport roscpp rospy std_msgs
 #  DEPENDS system_lib
+CATKIN_DEPENDS message_runtime
 )
 
 ###########

@@ -327,7 +327,7 @@ void MiscUtils::plot_point_pair( const cv::Mat& imA, const MatrixXd& ptsA, int i
 
   // put msg in status image
   if( msg.length() > 0 ) { // ':' separated. Each will go in new line
-      std::vector<std::string> msg_tokens = split(msg, ':');
+      std::vector<std::string> msg_tokens = split(msg, ';');
       for( int h=0 ; h<msg_tokens.size() ; h++ )
           cv::putText( status, msg_tokens[h].c_str(), cv::Point(10,80+20*h), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(255,255,255), 1.5 );
   }
@@ -419,13 +419,41 @@ void MiscUtils::plot_point_pair( const cv::Mat& imA, const MatrixXd& ptsA, int i
 
   // put msg in status image
   if( msg.length() > 0 ) { // ':' separated. Each will go in new line
-      std::vector<std::string> msg_tokens = split(msg, ':');
+      std::vector<std::string> msg_tokens = split(msg, ';');
       for( int h=0 ; h<msg_tokens.size() ; h++ )
           cv::putText( status, msg_tokens[h].c_str(), cv::Point(10,80+20*h), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(255,255,255), 1.5 );
   }
 
 
   cv::vconcat( outImg, status, dst );
+
+}
+
+
+// append a status image . ';' separated
+void MiscUtils::append_status_image( cv::Mat& im, const string& msg, float txt_size, cv::Scalar bg_color, cv::Scalar txt_color )
+{
+    bool is_single_channel = (im.channels()==1)?true:false;
+    txt_size = (txt_size<0.1 || txt_size>2)?0.4:txt_size;
+
+    std::vector<std::string> msg_tokens = split(msg, ';');
+    int status_im_height = 50+20*msg_tokens.size();
+
+    cv::Mat status;
+    if( is_single_channel )
+        status = cv::Mat(status_im_height, im.cols, CV_8UC1, cv::Scalar(0,0,0) );
+    else
+        status = cv::Mat(status_im_height, im.cols, CV_8UC3, bg_color );
+
+
+    for( int h=0 ; h<msg_tokens.size() ; h++ )
+        cv::putText( status, msg_tokens[h].c_str(), cv::Point(10,20+20*h),
+                cv::FONT_HERSHEY_SIMPLEX,
+                txt_size, txt_color, 1.5 );
+
+
+    cv::vconcat( im, status, im );
+
 
 }
 

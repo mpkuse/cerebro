@@ -308,3 +308,12 @@ bool RawFileIO::if_file_exist( char * fname )
 }
 
 bool RawFileIO::if_file_exist( string fname ) { return if_file_exist( fname.c_str() ); }
+
+
+
+int RawFileIO::exec_cmd( const string& system_cmd ) //< Executes a unix command.
+{
+    cout <<"\033[1;33m"  << system_cmd << "\033[0m" << endl;
+    const int _err_code = system( system_cmd.c_str() );
+    return _err_code;
+}
