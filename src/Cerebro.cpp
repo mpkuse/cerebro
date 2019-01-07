@@ -347,8 +347,8 @@ json Cerebro::foundLoops_as_JSON()
 #define __Cerebro__loopcandi_consumer__(msg)  ;
 // ^This will also imshow image-pairs with gms-matches marked.
 
-// #define __Cerebro__loopcandi_consumer__IMP( msg ) msg;
-#define __Cerebro__loopcandi_consumer__IMP( msg ) ;
+#define __Cerebro__loopcandi_consumer__IMP( msg ) msg;
+// #define __Cerebro__loopcandi_consumer__IMP( msg ) ;
 // ^Text only printing
 
 
@@ -818,7 +818,7 @@ bool Cerebro::process_loop_candidate_imagepair( int ii, ProcessedLoopCandidate& 
     )
     pnp__msg +=  "DlsPnpWithRansac (best_rel_pose.b_T_a): " + PoseManipUtils::prettyprintMatrix4d( best_rel_pose.b_T_a ) + ";";
     pnp__msg += string("    num_iterations=")+to_string(summary.num_iterations)+"  confidence="+to_string(summary.confidence);
-    pnp__msg += string( "   elapsed_dls_pnp_ransac (ms)="+to_string(elapsed_dls_pnp_ransac));
+    pnp__msg += string( "   elapsed_dls_pnp_ransac (ms)=")+to_string(elapsed_dls_pnp_ransac)+";";
 
 
     b_T_a = best_rel_pose.b_T_a;
@@ -933,10 +933,16 @@ bool Cerebro::process_loop_candidate_imagepair( int ii, ProcessedLoopCandidate& 
         // cout << "wTb(odom)" << PoseManipUtils::prettyprintMatrix4d( wTb ) << endl;
         Matrix4d odom_b_T_a = odom_wTB.inverse() * odom_wTA;
 
+
         __Cerebro__loopcandi_consumer__(
             cout << "odom_b_T_a" << PoseManipUtils::prettyprintMatrix4d( odom_b_T_a ) << endl;
         )
         pnp__msg += "odom_b_T_a "+PoseManipUtils::prettyprintMatrix4d( odom_b_T_a ) +";";
+
+        auto a_timestamp = node_1->getT();
+        auto b_timestamp = node_2->getT();
+        pnp__msg += "a.timestamp: " + to_string(a_timestamp.toSec());
+        pnp__msg += "    b.timestamp: " + to_string(b_timestamp.toSec()) + ";";
 
         // PI( odom_b_T_a * a_X )
         for( int i=0 ; i<world_point.size() ; i++ ) {

@@ -404,6 +404,7 @@ int main( int argc, char ** argv )
             }
 
             // Save Point Cloud
+            #if 0
             if( it->second->isPtCldAvailable() ) {
                 RawFileIO::write_EigenMatrix( fname+".wX.pointcloud", it->second->getPointCloud() );
                 if( it->second->isPoseAvailable() ) {
@@ -412,9 +413,11 @@ int main( int argc, char ** argv )
                 else
                     ROS_WARN( "ptclod is available but pose is not available at seq_id=%d", seq_id );
             }
+            #endif
 
 
             // Save Tracked Points
+            #if 0
             if( it->second->isUVAvailable() ) {
                 RawFileIO::write_EigenMatrix( fname+".unvn", it->second->getUnVn() );
                 RawFileIO::write_EigenMatrix( fname+".uv", it->second->getUV() );
@@ -425,6 +428,7 @@ int main( int argc, char ** argv )
             if( it->second->isWholeImageDescriptorAvailable() ) {
                 RawFileIO::write_EigenMatrix( fname+".imgdesc", it->second->getWholeImageDescriptor() );
             }
+            #endif 
         }
 
 

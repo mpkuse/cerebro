@@ -24,7 +24,8 @@ bool ProcessedLoopCandidate::makeLoopEdgeMsg(  cerebro::LoopEdge& msg )
     msg.pose_1T0 = pose;
 
     msg.weight = _3d2d__2T1__ransac_confidence; //1.0;
-    msg.description = to_string(idx_from_datamanager_1)+"<=>"+to_string(idx_from_datamanager_2);//"ordinary";
+    msg.description = to_string(idx_from_datamanager_1)+"<=>"+to_string(idx_from_datamanager_2);
+    msg.description += "    this pose is: "+to_string(idx_from_datamanager_2)+"_T_"+to_string(idx_from_datamanager_1);
 
     return true;
 }
