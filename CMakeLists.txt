@@ -192,6 +192,7 @@ add_executable(
         src/Cerebro.cpp
         src/Visualization.cpp
         src/ProcessedLoopCandidate.cpp
+        src/DlsPnpWithRansac.cpp
         ${KuseUtilsSources}
         ${CamodocalCameraModelSources}
 )

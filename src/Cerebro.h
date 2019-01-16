@@ -117,6 +117,7 @@ private:
 
     // Processed foundLoops_i[ j ] and writes the info in the object `proc_candi`
     bool process_loop_candidate_imagepair( int j, ProcessedLoopCandidate& proc_candi );
+    bool process_loop_candidate_imagepair_consistent_pose_compute( int j, ProcessedLoopCandidate& proc_candi ); //< enhanced version of the above
 
     bool init_stereogeom(); // expected to be called in loopcandiate_consumer_thread. this sets the variable `stereogeom`
     bool retrive_stereo_pair( DataNode* node, cv::Mat& left_image, cv::Mat& right_image, bool bgr2gray=true );

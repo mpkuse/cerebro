@@ -7,8 +7,19 @@
         Created : 4th Jan, 2018
 */
 
+
+#include "utils/TermColor.h"
+#include "utils/ElapsedTime.h"
+#include "utils/PoseManipUtils.h"
+
 #include <theia/theia.h>
 #include <vector>
+
+#include <Eigen/Dense>
+#include <Eigen/Geometry>
+using namespace Eigen;
+using namespace std;
+
 
 /////////// DlsPnp-RANSAC ///////////////////
 // Data
@@ -83,3 +94,19 @@ public:
     }
 };
 /////////// END DlsPnp-RANSAC ///////////////////
+
+
+
+
+
+class StaticTheiaPoseCompute
+{
+public:
+    static float P3P_ICP( const vector<Vector3d>& uv_X, const vector<Vector3d>& uvd_Y,
+        Matrix4d& uvd_T_uv, string & p3p__msg );
+
+    static float PNP( const std::vector<Vector3d>& w_X, const std::vector<Vector2d>& c_uv_normalized,
+        Matrix4d& c_T_w,
+        string& pnp__msg );
+
+};

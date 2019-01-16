@@ -117,6 +117,7 @@ public:
 };
 /////////// END DlsPnp-RANSAC ///////////////////
 
+
 void point_feature_matches( const cv::Mat& imleft_undistorted, const cv::Mat& imright_undistorted,
                             MatrixXd& u, MatrixXd& ud )
 {
@@ -1094,7 +1095,7 @@ float PNP( const std::vector<Vector3d>& w_X, const std::vector<Vector2d>& c_uv_n
 {
     pnp__msg = "";
     ElapsedTime timer;
-    #if 1
+    #if 0
     //--- DlsPnp
     std::vector<Eigen::Quaterniond> solution_rotations;
     std::vector<Eigen::Vector3d> solution_translations;
@@ -1110,6 +1111,7 @@ float PNP( const std::vector<Vector3d>& w_X, const std::vector<Vector2d>& c_uv_n
         ___P_N_P__(
         cout << TermColor::RED() << " theia::DlsPnp returns no solution" << TermColor::RESET() << endl;
         )
+        pnp__msg = " theia::DlsPnp returns no solution";
         return -1.;
     }
 
@@ -1117,6 +1119,7 @@ float PNP( const std::vector<Vector3d>& w_X, const std::vector<Vector2d>& c_uv_n
         ___P_N_P__(
         cout << TermColor::RED() << " theia::DlsPnp returns multiple solution" << TermColor::RESET() << endl;
         )
+        pnp__msg =  " theia::DlsPnp returns multiple solution";
         return -1.;
     }
 
