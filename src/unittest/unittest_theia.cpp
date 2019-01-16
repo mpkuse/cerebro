@@ -194,6 +194,12 @@ std::shared_ptr<StereoGeometry> make_stereo_geom()
     cout << left_camera->parametersToString() << endl;
     cout << right_camera->parametersToString() << endl;
 
+    if( !left_camera || !right_camera )
+    {
+        cout << "\nERROR : Abstract stereo Camera is not set. You need to init camera before setting it to geometry clases\n";
+        exit(10);
+    }
+
 
     //----------- Stereo Base line load (alsoed called extrinsic calibration)
         // mynt eye
@@ -201,13 +207,21 @@ std::shared_ptr<StereoGeometry> make_stereo_geom()
     Vector3d tr_xyz = Vector3d( -1.2006984141573309e+02/1000.,3.3956264524978619e-01/1000.,-1.6784055634087214e-01/1000. );
     Matrix4d right_T_left;
     PoseManipUtils::raw_xyzw_to_eigenmat( q_xyzw, tr_xyz, right_T_left );
-    cout << "right_T_left: " << PoseManipUtils::prettyprintMatrix4d( right_T_left ) << endl;
+    cout << "XXright_T_left: " << PoseManipUtils::prettyprintMatrix4d( right_T_left ) << endl;
 
+    // StereoGeometry* sthm = new StereoGeometry( left_camera, right_camera, right_T_left );
+    // cout << "sthn->get_K() " << sthm->get_K() << endl;
+
+
+    // StereoGeometry NNN = StereoGeometry( left_camera, right_camera, right_T_left );
+    // cout << "NNN->get_K() " << NNN.get_K() << endl;
 
     //-------------------- init stereogeom
     std::shared_ptr<StereoGeometry> stereogeom;
     stereogeom = std::make_shared<StereoGeometry>( left_camera,right_camera,     right_T_left  );
-    stereogeom->set_K( 375.0, 375.0, 376.0, 240.0 );
+    // stereogeom->set_K( 375.0, 375.0, 376.0, 240.0 );
+
+    cout << "[in make_stereo_geom]" << stereogeom->get_K() << endl;
 
     return stereogeom;
 
@@ -693,9 +707,662 @@ void plot_loop_candidates_as_lines( json& log, json& loopcandidates, ros::Publis
     }
 }
 
-int main(int argc, char ** argv)
+
+bool self_projection_test( std::shared_ptr<StereoGeometry> stereogeom,
+                        int frame_a, int frame_b )
+{
+    // I hacve a doubt that the 3dImage which is created from stereo geometry
+    // gives out the 3d points in co-ordinate system of right camera-center.
+    // I am wanting it in left camera center co-ordinates. Just reproject those
+    // points and ensure my premise.
+
+    //------------------------------------------------
+    //------ 3d points from frame_a
+    //------------------------------------------------
+    cout << TermColor::iGREEN() << "LOAD: BASE/"+std::to_string(frame_a)+".jpg" << TermColor::RESET() << endl;
+    cv::Mat a_imleft_raw =  cv::imread( BASE+"/"+std::to_string(frame_a)+".jpg", 0 );
+    cv::Mat a_imright_raw = cv::imread( BASE+"/"+std::to_string(frame_a)+"_1.jpg", 0 );
+    Matrix4d wTA;
+    RawFileIO::read_eigen_matrix( BASE+"/"+std::to_string(frame_a)+".wTc", wTA );
+    if( a_imright_raw.empty() || a_imright_raw.empty() )
+    {
+        cout << TermColor::RED() << "Cannot read image with idx=" << frame_a << " perhaps filenotfound" << TermColor::RESET() << endl;
+        return false;
+    }
+
+
+    cv::Mat a_imleft_srectified, a_imright_srectified;
+    cv::Mat _3dImage;
+    MatrixXd _3dpts;
+    cv::Mat disp_viz;
+    stereogeom->get_srectifiedim_and_3dpoints_and_3dmap_and_disparity_from_raw_images( a_imleft_raw, a_imright_raw,
+        a_imleft_srectified,a_imright_srectified,  _3dpts, _3dImage, disp_viz );
+
+
+
+    //-----------------------------------------------------
+    //--------------- stereo rectify b
+    //-----------------------------------------------------
+    cout << TermColor::iGREEN() << "LOAD: BASE/"+std::to_string(frame_b)+".jpg" << TermColor::RESET() << endl;
+    cv::Mat b_imleft_raw =  cv::imread( BASE+"/"+std::to_string(frame_b)+".jpg", 0 );
+    cv::Mat b_imright_raw = cv::imread( BASE+"/"+std::to_string(frame_b)+"_1.jpg", 0 );
+    Matrix4d wTB;
+    RawFileIO::read_eigen_matrix( BASE+"/"+std::to_string(frame_b)+".wTc", wTB );
+    if( b_imleft_raw.empty() || b_imright_raw.empty() )
+    {
+        cout << TermColor::RED() << "Cannot read image with idx=" << frame_b << " perhaps filenotfound" << TermColor::RESET() << endl;
+        return false;
+    }
+    cv::Mat b_imleft_srectified, b_imright_srectified;
+    stereogeom->do_stereo_rectification_of_raw_images( b_imleft_raw, b_imright_raw,
+                            b_imleft_srectified, b_imright_srectified );
+
+
+    //---------------------------------------------------------------------
+    //------------ point matches between a_left, b_left
+    //---------------------------------------------------------------------
+    MatrixXd u, ud; // u is from frame_a; ud is from frame_b
+    point_feature_matches(a_imleft_srectified, b_imleft_srectified, u, ud );
+    if( u.cols() < 30 ) {
+        cout << TermColor::RED() << "too few gms matches between " << frame_a << " and " << frame_b << TermColor::RESET() << endl;
+        return false;
+    }
+
+
+    //----------------------------------------------------------------------
+    //---------------- make collection of 3d 2d points
+    //----------------------------------------------------------------------
+    int c = 0;
+    MatrixXd u_normalized = stereogeom->get_K().inverse() * u;
+    MatrixXd ud_normalized = stereogeom->get_K().inverse() * ud;
+    std::vector<Eigen::Vector3d> world_point;
+    std::vector<Eigen::Vector2d> feature_position_ud;
+    std::vector<Eigen::Vector2d> feature_position_u;
+    for( int k=0 ; k<u.cols() ; k++ )
+    {
+        cv::Vec3f _3dpt = _3dImage.at<cv::Vec3f>( (int)u(1,k), (int)u(0,k) );
+        if( _3dpt[2] < 0.1 || _3dpt[2] > 25.  )
+            continue;
+
+        // the 3d point should also project to same 2d points.
+
+
+        c++;
+        #if 0
+        cout << TermColor::RED() << "---" << k << "---" << TermColor::RESET() << endl;
+        cout << "ud=" << ud.col(k).transpose() ;
+        cout << " <--> ";
+        cout << "u=" << u.col(k).transpose() ;
+        cout << "  3dpt of u=";
+        cout <<  TermColor::GREEN() << _3dpt[0] << " " << _3dpt[1] << " " << _3dpt[2] << " " << TermColor::RESET();
+
+        // project 3d point with Identity
+        Vector3d X_i = Vector3d( (double) _3dpt[0],(double) _3dpt[1],(double) _3dpt[2] );
+        X_i(0) /= X_i(2);
+        X_i(1) /= X_i(2);
+        X_i(2) /= X_i(2);
+        Vector3d u_cap = stereogeom->get_K() * X_i;
+        cout << "\nPI(3dpt)=" << u_cap.transpose() ;
+
+        auto delta = u_cap - u.col(k);
+        if( abs(delta(0))  < 2. && abs(delta(1)) < 2. ) {
+            cout << TermColor::GREEN() << "\tdelta=" << delta.transpose() << TermColor::RESET();
+            make_n_good++;
+        }
+        else
+            cout << "\tdelta=" << delta.transpose() ;
+
+        cout << endl;
+        #endif
+
+        feature_position_ud.push_back( Vector2d( ud_normalized(0,k), ud_normalized(1,k) ) );
+        feature_position_u.push_back( Vector2d( u_normalized(0,k), u_normalized(1,k) ) );
+
+        world_point.push_back( Vector3d( _3dpt[0], _3dpt[1], _3dpt[2] ) );
+        // world_point.push_back( X_i );
+    }
+    cout << TermColor::GREEN() << "of the total " << u.cols() << " point feature correspondences " << c << " had valid depths" << TermColor::RESET() << endl;
+
+
+    #if 0
+    // PI( _3dpts )
+    cout << "_3dpts.shape=" << _3dpts.rows() << "," << _3dpts.cols() << endl;
+    MatrixXd reporj = MatrixXd::Zero( 3, _3dpts.cols() );
+    vector<cv::Scalar> reporj_falsedepthcolors;
+    auto fp_map = FalseColors();
+    for( int i=0 ; i<_3dpts.cols() ; i++ ) {
+        Vector4d a_X = _3dpts.col(i); //< 3d pt
+        reporj_falsedepthcolors.push_back( fp_map.getFalseColor(a_X(2)/10.) );
+        reporj.col(i) = stereogeom->get_K() * (a_X.topRows(3) / a_X(2)); // u <== PI( a_X )
+    }
+
+    cv::Mat __dst;
+    // MiscUtils::plot_point_sets( a_imleft_raw, reporj, __dst, reporj_falsedepthcolors, 0.5, "PI(_3dpts) on a_imleft_raw" );
+    MiscUtils::plot_point_sets( a_imright_raw, reporj, __dst, reporj_falsedepthcolors, 0.5, "PI(_3dpts) on a_imright_raw" );
+    cv::imshow( "__dst", __dst );
+
+    cv::imshow( "strip", fp_map.getStrip(30, 300) );
+    cv::waitKey(0);
+    #endif
+
+
+
+    #if 0
+    // PI(world_point) - OK
+    MatrixXd reproj_of_worldpts_on_left_of_A = MatrixXd::Zero(3,world_point.size());
+    for( int i=0 ; i<world_point.size() ; i++ ) {
+        reproj_of_worldpts_on_left_of_A.col(i) = stereogeom->get_K() * (world_point[i] / world_point[i](2) );
+    }
+
+    cv::Mat __dst;
+    MiscUtils::plot_point_sets( a_imleft_raw, reproj_of_worldpts_on_left_of_A, __dst, cv::Scalar(0,0,255), false, "reproj_of_worldpts_on_left_of_A(red)" );
+    MiscUtils::plot_point_sets( __dst, u, cv::Scalar(0,255,0), false, ";u plotted on A (in green)" );
+    cv::imshow( "__dst", __dst );
+    cv::waitKey(0);
+    #endif
+
+
+    Matrix4d odom_b_T_a = wTB.inverse() * wTA ;
+
+    Matrix3d rm_R1, rm_R2;
+    cv::cv2eigen( stereogeom->get_rm_R1(), rm_R1 );
+    cv::cv2eigen( stereogeom->get_rm_R2(), rm_R2 );
+    Matrix4d rm_T1, rm_T2;
+    rm_T1 = Matrix4d::Identity();
+    rm_T2 = Matrix4d::Identity();
+    rm_T1.topLeftCorner<3,3>() = rm_R1;
+    rm_T2.topLeftCorner<3,3>() = rm_R2;
+    cout << "odom_b_T_a" << PoseManipUtils::prettyprintMatrix4d( odom_b_T_a ) << endl;
+    cout << "rm_T1" << PoseManipUtils::prettyprintMatrix4d( rm_T1 ) << endl;
+    cout << "rm_T2" << PoseManipUtils::prettyprintMatrix4d( rm_T2 ) << endl;
+
+    cout << "get_rm_R1\n" << stereogeom->get_rm_R1() << endl;
+    cout << "get_rm_R1\n" << rm_R1 << endl;
+    cout << "---\n";
+    cout << "get_rm_R2\n" << stereogeom->get_rm_R2() << endl;
+    cout << "get_rm_R2\n" << rm_R2 << endl;
+
+
+    MatrixXd reproj_of_worldpts_on_srectifiedleft_of_B = MatrixXd::Zero(3,world_point.size());
+    MatrixXd reproj_of_worldpts_on_srectifiedleft_of_B__1 = MatrixXd::Zero(3,world_point.size());
+
+    for( int i=0 ; i<world_point.size() ; i++ ) {
+        Vector4d ad_X;
+        ad_X << world_point[i] , 1.0;
+        Vector4d bd_X = rm_T2.inverse() * odom_b_T_a * rm_T1 * ad_X;
+        // Vector4d bd_X = odom_b_T_a * ad_X;
+        // Vector4d bd_X = rm_T1.inverse() * odom_b_T_a * ad_X;
+        reproj_of_worldpts_on_srectifiedleft_of_B.col(i) =
+            stereogeom->get_K() * (bd_X.topRows(3) / bd_X(2) );
+
+
+        Vector4d bd_X_1 = (rm_T2.inverse() * (odom_b_T_a * rm_T1)) * ad_X;
+        reproj_of_worldpts_on_srectifiedleft_of_B__1.col(i) =
+            stereogeom->get_K() * (bd_X_1.topRows(3) / bd_X_1(2) );
+    }
+    cv::Mat __dst;
+    MiscUtils::plot_point_sets( b_imleft_srectified, ud, __dst, cv::Scalar(0,255,0), false, "ud plotted on B srectified_left (in green)" );
+    MiscUtils::plot_point_sets( __dst, reproj_of_worldpts_on_srectifiedleft_of_B, cv::Scalar(0,0,255), false, ";reproj_of_worldpts_on_srectifiedleft_of_B with odom_b_T_a(red)" );
+    MiscUtils::plot_point_sets( __dst, reproj_of_worldpts_on_srectifiedleft_of_B__1, cv::Scalar(0,128,255), false, ";;reproj_of_worldpts_on_srectifiedleft_of_B__1 with odom_b_T_a(yellow)" );
+    cv::imshow( "__dst", __dst );
+    cv::waitKey(0);
+
+}
+
+//-----------------------------------------------
+//-------- NEW ----------------------------------
+//-----------------------------------------------
+// Given the point feature matches and the 3d image (from disparity map) will return
+// the valid world points and corresponding points.
+// [Input]
+//      uv: 2xN matrix of point-feature in image-a. In image co-ordinates (not normalized image cords)
+//      _3dImage_uv : 3d image from disparity map of image-a. sizeof( _3dImage_uv) === WxHx3
+//      uv_d: 2xN matrix of point-feature in image-b. Note that uv<-->uv_d are correspondences so should of equal sizes
+// [Output]
+//      feature_position_uv : a subset of uv but normalized_image_cordinates
+//      feature_position_uv_d : a subset of uv_d. results in normalized_image_cordinates
+//      world_point : 3d points of uv.
+// [Note]
+//      feature_position_uv \subset uv. Selects points which have valid depths.
+//      size of output is same for all 3
+//      world points are of uv and in co-ordinate system of camera center of uv (or image-a).
+
+bool make_3d_2d_collection__using__pfmatches_and_disparity( std::shared_ptr<StereoGeometry> stereogeom,
+            const MatrixXd& uv, const cv::Mat& _3dImage_uv,     const MatrixXd& uv_d,
+                            std::vector<Eigen::Vector2d>& feature_position_uv, std::vector<Eigen::Vector2d>& feature_position_uv_d,
+                            std::vector<Eigen::Vector3d>& world_point )
+{
+    assert( (uv.cols() == uv_d.cols() ) && "[Cerebro::make_3d_2d_collection__using__pfmatches_and_disparity] pf-matches need to be of same length. You provided of different lengths\n" );
+    assert( _3dImage_uv.type() == CV_32FC3 );
+
+    if( uv.cols() != uv_d.cols() ) {
+        cout << TermColor::RED() << "[Cerebro::make_3d_2d_collection__using__pfmatches_and_disparity] pf-matches need to be of same length. You provided of different lengths\n" << TermColor::RESET();
+        return false;
+    }
+
+    if( _3dImage_uv.type() != CV_32FC3 && _3dImage_uv.rows <= 0 && _3dImage_uv.cols <= 0  ) {
+        cout << TermColor::RED() << "[Cerebro::make_3d_2d_collection__using__pfmatches_and_disparity] _3dImage is expected to be of size CV_32FC3\n" << TermColor::RESET();
+        return false;
+    }
+
+
+
+    int c = 0;
+    MatrixXd ud_normalized = stereogeom->get_K().inverse() * uv_d;
+    MatrixXd u_normalized = stereogeom->get_K().inverse() * uv;
+    feature_position_uv.clear();
+    feature_position_uv_d.clear();
+    world_point.clear();
+
+    for( int k=0 ; k<uv.cols() ; k++ )
+    {
+        cv::Vec3f _3dpt = _3dImage_uv.at<cv::Vec3f>( (int)uv(1,k), (int)uv(0,k) );
+        if( _3dpt[2] < 0.1 || _3dpt[2] > 25.  )
+            continue;
+
+        c++;
+        #if 0
+        cout << TermColor::RED() << "---" << k << "---" << TermColor::RESET() << endl;
+        cout << "ud=" << ud.col(k).transpose() ;
+        cout << " <--> ";
+        cout << "u=" << u.col(k).transpose() ;
+        cout << "  3dpt of u=";
+        cout <<  TermColor::GREEN() << _3dpt[0] << " " << _3dpt[1] << " " << _3dpt[2] << " " << TermColor::RESET();
+        cout << endl;
+        #endif
+
+        feature_position_uv.push_back( Vector2d( u_normalized(0,k), u_normalized(1,k) ) );
+        feature_position_uv_d.push_back( Vector2d( ud_normalized(0,k), ud_normalized(1,k) ) );
+        world_point.push_back( Vector3d( _3dpt[0], _3dpt[1], _3dpt[2] ) );
+    }
+
+        cout << "[make_3d_2d_collection__using__pfmatches_and_disparity]of the total " << uv.cols() << " point feature correspondences " << c << " had valid depths\n";
+
+    return true;
+
+    if( c < 30 ) {
+        cout << TermColor::RED() << "too few valid 3d points between frames" <<  TermColor::RESET() << endl;
+        return false;
+    }
+
+}
+
+// given pf-matches uv<-->ud_d and their _3dImages. returns the 3d point correspondences at points where it is valid
+// uv_X: the 3d points are in frame of ref of camera-uv
+// uvd_Y: these 3d points are in frame of ref of camera-uvd
+bool make_3d_3d_collection__using__pfmatches_and_disparity(
+    const MatrixXd& uv, const cv::Mat& _3dImage_uv,
+    const MatrixXd& uv_d, const cv::Mat& _3dImage_uv_d,
+    vector<Vector3d>& uv_X, vector<Vector3d>& uvd_Y
+)
+{
+    assert( uv.cols() > 0 && uv.cols() == uv_d.cols() );
+    uv_X.clear();
+    uvd_Y.clear();
+
+    // similar to above but should return world_point__uv and world_point__uv_d
+    int c=0;
+    for( int k=0 ; k<uv.cols() ; k++ )
+    {
+        cv::Vec3f uv_3dpt = _3dImage_uv.at<cv::Vec3f>( (int)uv(1,k), (int)uv(0,k) );
+        cv::Vec3f uvd_3dpt = _3dImage_uv_d.at<cv::Vec3f>( (int)uv_d(1,k), (int)uv_d(0,k) );
+
+        if( uv_3dpt[2] < 0.1 || uv_3dpt[2] > 25. || uvd_3dpt[2] < 0.1 || uvd_3dpt[2] > 25.  )
+            continue;
+
+        uv_X.push_back( Vector3d( uv_3dpt[0], uv_3dpt[1], uv_3dpt[2] ) );
+        uvd_Y.push_back( Vector3d( uvd_3dpt[0], uvd_3dpt[1], uvd_3dpt[2] ) );
+        c++;
+
+    }
+    cout << "[make_3d_3d_collection__using__pfmatches_and_disparity] of the total " << uv.cols() << " point feature correspondences " << c << " had valid depths\n";
+
+}
+
+
+// Theia's ICP
+// [Input]
+//      uv_X: a 3d point cloud expressed in some frame-of-ref, call it frame-of-ref of `uv`
+//      uvd_Y: a 3d point cloud expressed in another frame-of-ref, call it frame-of-ref of `uvd`
+// [Output]
+//      uvd_T_uv: Relative pose between the point clouds
+// [Note]
+//      uv_X <---> uvd_Y
+// #define ____P3P_ICP_( msg ) msg;
+#define ____P3P_ICP_( msg ) ;
+float P3P_ICP( const vector<Vector3d>& uv_X, const vector<Vector3d>& uvd_Y,
+    Matrix4d& uvd_T_uv, string & p3p__msg )
+{
+
+    // call this theia::AlignPointCloudsUmeyamaWithWeights
+    // void AlignPointCloudsUmeyamaWithWeights(
+    //     const std::vector<Eigen::Vector3d>& left,
+    //     const std::vector<Eigen::Vector3d>& right,
+    //     const std::vector<double>& weights, Eigen::Matrix3d* rotation,
+    //     Eigen::Vector3d* translation, double* scale)
+    p3p__msg = "";
+    Matrix3d ____R;
+    Vector3d ____t; double ___s=1.0;
+
+    ElapsedTime timer;
+    timer.tic();
+    theia::AlignPointCloudsUmeyama( uv_X, uvd_Y, &____R, &____t, &___s ); // all weights = 1. TODO: ideally weights could be proportion to point's Z.
+    // theia::AlignPointCloudsICP( uv_X, uvd_Y, &____R, &____t ); // all weights = 1. TODO: ideally weights could be proportion to point's Z.
+
+    double elapsed_time_p3p = timer.toc_milli();
+
+    ____P3P_ICP_(
+    cout << "___R:\n" << ____R << endl;
+    cout << "___t: " << ____t.transpose() << endl;
+    cout << "___s: " << ___s << endl;
+    )
+
+    uvd_T_uv = Matrix4d::Identity();
+    uvd_T_uv.topLeftCorner<3,3>() = ____R;
+    uvd_T_uv.col(3).topRows(3) = ____t;
+
+    ____P3P_ICP_(
+    cout << TermColor::GREEN() << "p3p done in (ms) " << elapsed_time_p3p << "  p3p_ICP: {uvd}_T_{uv} : " << PoseManipUtils::prettyprintMatrix4d( uvd_T_uv ) << TermColor::RESET() << endl;
+    )
+
+
+
+    if( min( ___s, 1.0/___s ) < 0.9 ) {
+        cout << TermColor::RED() << "theia::AlignPointCloudsUmeyama scales doesn't look good;this usually implies that estimation is bad.        scale= " << ___s << endl;
+        p3p__msg += "p3p_ICP: scale=" +to_string( ___s )+" {uvd}_T_{uv} : " + PoseManipUtils::prettyprintMatrix4d( uvd_T_uv );
+        p3p__msg += "p3p done in (ms)" + to_string(elapsed_time_p3p)+";    theia::AlignPointCloudsUmeyama scales doesn't look good, this usually implies that estimation is bad. scale= " + to_string(___s);
+        return -1;
+    }
+
+    p3p__msg += "p3p done in (ms)" + to_string(elapsed_time_p3p)+";    p3p_ICP: {uvd}_T_{uv} : " + PoseManipUtils::prettyprintMatrix4d( uvd_T_uv );
+    p3p__msg += ";weight="+to_string( min( ___s, 1.0/___s ) );
+    return  min( ___s, 1.0/___s );
+
+}
+
+// Computation of pose given 3d points and imaged points
+// [Input]
+//      w_X: 3d points in co-ordinate system `w`
+//      c_uv_normalized: normalized image co-ordinates of camera c. These are projections of w_X on the camera c
+// [Output]
+//      c_T_w: pose of the camera is actually the inverse of this matrix. Becareful.
+// #define ___P_N_P__( msg ) msg;
+#define ___P_N_P__( msg ) ;
+float PNP( const std::vector<Vector3d>& w_X, const std::vector<Vector2d>& c_uv_normalized,
+    Matrix4d& c_T_w,
+    string& pnp__msg )
+{
+    pnp__msg = "";
+    ElapsedTime timer;
+    #if 1
+    //--- DlsPnp
+    std::vector<Eigen::Quaterniond> solution_rotations;
+    std::vector<Eigen::Vector3d> solution_translations;
+    timer.tic();
+    theia::DlsPnp( c_uv_normalized, w_X, &solution_rotations, &solution_translations  );
+    auto elapsed_dls_pnp = timer.toc_milli() ;
+    ___P_N_P__(
+    cout << elapsed_dls_pnp << " : (ms) : theia::DlsPnp done in\n";
+    cout << "solutions count = " << solution_rotations.size() << " " << solution_translations.size() << endl;
+    )
+
+    if( solution_rotations.size() == 0 ) {
+        ___P_N_P__(
+        cout << TermColor::RED() << " theia::DlsPnp returns no solution" << TermColor::RESET() << endl;
+        )
+        return -1.;
+    }
+
+    if( solution_rotations.size() > 1 ) {
+        ___P_N_P__(
+        cout << TermColor::RED() << " theia::DlsPnp returns multiple solution" << TermColor::RESET() << endl;
+        )
+        return -1.;
+    }
+
+    // retrive solution
+    c_T_w = Matrix4d::Identity();
+    c_T_w.topLeftCorner(3,3) = solution_rotations[0].toRotationMatrix();
+    c_T_w.col(3).topRows(3) = solution_translations[0];
+
+    ___P_N_P__(
+    // cout << "solution_T " << b_T_a << endl;
+    cout << TermColor::GREEN() << "DlsPnp (c_T_w): " << PoseManipUtils::prettyprintMatrix4d( c_T_w ) << TermColor::RESET() << endl;
+    // out_b_T_a = b_T_a;
+    )
+
+    pnp__msg +=  "DlsPnp (c_T_w): " + PoseManipUtils::prettyprintMatrix4d( c_T_w ) + ";";
+    pnp__msg += "  elapsed_dls_pnp_ms="+to_string(elapsed_dls_pnp)+";";
+
+    // return 1.0;
+    #endif
+
+
+    #if 1
+    //--- DlsPnpWithRansac
+    timer.tic();
+    // prep data
+    vector<CorrespondencePair_3d2d> data_r;
+    for( int i=0 ; i<w_X.size() ; i++ )
+    {
+        CorrespondencePair_3d2d _data;
+        _data.a_X = w_X[i];
+        _data.uv_d = c_uv_normalized[i];
+        data_r.push_back( _data );
+    }
+
+    // Specify RANSAC parameters.
+
+    DlsPnpWithRansac dlspnp_estimator;
+    RelativePose best_rel_pose;
+
+    // Set the ransac parameters.
+    theia::RansacParameters params;
+    params.error_thresh = 0.02;
+    params.min_inlier_ratio = 0.7;
+    params.max_iterations = 50;
+    params.min_iterations = 5;
+    params.use_mle = true;
+
+    // Create Ransac object, specifying the number of points to sample to
+    // generate a model estimation.
+    theia::Ransac<DlsPnpWithRansac> ransac_estimator(params, dlspnp_estimator);
+    // Initialize must always be called!
+    ransac_estimator.Initialize();
+
+    theia::RansacSummary summary;
+    ransac_estimator.Estimate(data_r, &best_rel_pose, &summary);
+
+    auto elapsed_dls_pnp_ransac=timer.toc_milli();
+    ___P_N_P__(
+    cout << elapsed_dls_pnp_ransac << "(ms)!! DlsPnpWithRansac ElapsedTime includes data prep\n";
+    cout << "Ransac:";
+    // for( int i=0; i<summary.inliers.size() ; i++ )
+        // cout << "\t" << i<<":"<< summary.inliers[i];
+    cout << "\tnum_iterations=" << summary.num_iterations;
+    cout << "\tconfidence=" << summary.confidence;
+    cout << endl;
+    cout << TermColor::GREEN() << "best solution (ransac) : "<< PoseManipUtils::prettyprintMatrix4d( best_rel_pose.b_T_a ) << TermColor::RESET() << endl;
+    )
+    pnp__msg +=  "DlsPnpWithRansac (best_rel_pose.b_T_a): " + PoseManipUtils::prettyprintMatrix4d( best_rel_pose.b_T_a ) + ";";
+    pnp__msg += string("    num_iterations=")+to_string(summary.num_iterations)+"  confidence="+to_string(summary.confidence);
+    pnp__msg += string( "   elapsed_dls_pnp_ransac (ms)=")+to_string(elapsed_dls_pnp_ransac)+";";
+
+
+    c_T_w = best_rel_pose.b_T_a;
+    return summary.confidence;
+    #endif
+
+
+
+}
+
+bool verified_alignment( std::shared_ptr<StereoGeometry> stereogeom,
+                        int frame_a, int frame_b )
+{
+    // I hacve a doubt that the 3dImage which is created from stereo geometry
+    // gives out the 3d points in co-ordinate system of right camera-center.
+    // I am wanting it in left camera center co-ordinates. Just reproject those
+    // points and ensure my premise.
+
+    //------------------------------------------------
+    //------ 3d points from frame_a
+    //------------------------------------------------
+    cout << TermColor::iGREEN() << "LOAD: BASE/"+std::to_string(frame_a)+".jpg" << TermColor::RESET() << endl;
+    cv::Mat a_imleft_raw =  cv::imread( BASE+"/"+std::to_string(frame_a)+".jpg", 0 );
+    cv::Mat a_imright_raw = cv::imread( BASE+"/"+std::to_string(frame_a)+"_1.jpg", 0 );
+    Matrix4d wTA;
+    RawFileIO::read_eigen_matrix( BASE+"/"+std::to_string(frame_a)+".wTc", wTA );
+    if( a_imright_raw.empty() || a_imright_raw.empty() )
+    {
+        cout << TermColor::RED() << "Cannot read image with idx=" << frame_a << " perhaps filenotfound" << TermColor::RESET() << endl;
+        return false;
+    }
+
+
+    cv::Mat a_imleft_srectified, a_imright_srectified;
+    cv::Mat a_3dImage;
+    MatrixXd a_3dpts;
+    cv::Mat a_disp_viz;
+    stereogeom->get_srectifiedim_and_3dpoints_and_3dmap_and_disparity_from_raw_images( a_imleft_raw, a_imright_raw,
+        a_imleft_srectified,a_imright_srectified,  a_3dpts, a_3dImage, a_disp_viz );
+
+
+
+    //-----------------------------------------------------
+    //--------------- stereo rectify b
+    //-----------------------------------------------------
+    cout << TermColor::iGREEN() << "LOAD: BASE/"+std::to_string(frame_b)+".jpg" << TermColor::RESET() << endl;
+    cv::Mat b_imleft_raw =  cv::imread( BASE+"/"+std::to_string(frame_b)+".jpg", 0 );
+    cv::Mat b_imright_raw = cv::imread( BASE+"/"+std::to_string(frame_b)+"_1.jpg", 0 );
+    Matrix4d wTB;
+    RawFileIO::read_eigen_matrix( BASE+"/"+std::to_string(frame_b)+".wTc", wTB );
+    if( b_imleft_raw.empty() || b_imright_raw.empty() )
+    {
+        cout << TermColor::RED() << "Cannot read image with idx=" << frame_b << " perhaps filenotfound" << TermColor::RESET() << endl;
+        return false;
+    }
+    cv::Mat b_imleft_srectified, b_imright_srectified;
+    cv::Mat b_3dImage;
+    MatrixXd b_3dpts;
+    cv::Mat b_disp_viz;
+    stereogeom->get_srectifiedim_and_3dpoints_and_3dmap_and_disparity_from_raw_images( b_imleft_raw, b_imright_raw,
+                            b_imleft_srectified, b_imright_srectified,  b_3dpts, b_3dImage, b_disp_viz );
+
+
+    //---------------------------------------------------------------------
+    //------------ point matches between a_left, b_left
+    //---------------------------------------------------------------------
+    MatrixXd uv, uv_d; // u is from frame_a; ud is from frame_b
+    ElapsedTime timer;
+    timer.tic();
+    point_feature_matches(a_imleft_srectified, b_imleft_srectified, uv, uv_d );
+    string msg_pf_matches = to_string( timer.toc_milli() )+" (ms) elapsed time for point_feature_matches computation";
+    if( uv.cols() < 30 ) {
+        cout << TermColor::RED() << "too few gms matches between " << frame_a << " and " << frame_b << TermColor::RESET() << endl;
+        return false;
+    }
+
+
+    #if 1 // plot ppoint-feature matches
+    cv::Mat dst_feat_matches;
+    MiscUtils::plot_point_pair( a_imleft_srectified, uv, frame_a,
+                     b_imleft_srectified, uv_d, frame_b,
+                        dst_feat_matches, 3, msg_pf_matches+";#pf-matches: "+to_string( uv.cols() )  );
+    cv::resize(dst_feat_matches, dst_feat_matches, cv::Size(), 0.5, 0.5 );
+    cv::imshow( "dst_feat_matches", dst_feat_matches );
+    #endif
+
+    #if 1  // disparty maps of both images
+    cv::Mat dst_disp;
+    MiscUtils::side_by_side( a_disp_viz, b_disp_viz, dst_disp );
+    MiscUtils::append_status_image( dst_disp, "a="+ to_string(frame_a)+"     b="+to_string(frame_b), .8 );
+    cv::resize(dst_disp, dst_disp, cv::Size(), 0.5, 0.5 );
+    #endif
+
+    //
+    // Collect 3d points
+    //
+
+    // Option-A:
+    cout << TermColor::BLUE() << "Option-A" << TermColor::RESET() << endl;
+    std::vector<Eigen::Vector2d> feature_position_uv;
+    std::vector<Eigen::Vector2d> feature_position_uv_d;
+    std::vector<Eigen::Vector3d> world_point_uv;
+    make_3d_2d_collection__using__pfmatches_and_disparity( stereogeom, uv, a_3dImage, uv_d,
+                                feature_position_uv, feature_position_uv_d, world_point_uv);
+    Matrix4d op1__b_T_a; string pnp__msg;
+    float pnp_goodness = PNP( world_point_uv, feature_position_uv_d, op1__b_T_a, pnp__msg  );
+    cout << TermColor::YELLOW() << pnp_goodness << " op1__b_T_a = " << PoseManipUtils::prettyprintMatrix4d( op1__b_T_a ) << TermColor::RESET() << endl;
+    cout << pnp__msg << endl;
+
+    // Option-B:
+    cout << TermColor::BLUE() << "Option-B" << TermColor::RESET() << endl;
+    std::vector<Eigen::Vector3d> world_point_uv_d;
+    make_3d_2d_collection__using__pfmatches_and_disparity( stereogeom, uv_d, b_3dImage, uv,
+                                feature_position_uv_d, feature_position_uv, world_point_uv_d);
+    Matrix4d op2__a_T_b, op2__b_T_a; string pnp__msg_option_B;
+    float pnp_goodness_optioN_B = PNP( world_point_uv_d, feature_position_uv, op2__a_T_b, pnp__msg_option_B  );
+    op2__b_T_a = op2__a_T_b.inverse();
+    cout << TermColor::YELLOW() << pnp_goodness_optioN_B << " op2__a_T_b = " << PoseManipUtils::prettyprintMatrix4d( op2__a_T_b ) << TermColor::RESET() << endl;
+    cout << TermColor::YELLOW() << pnp_goodness_optioN_B << " op2__b_T_a = " << PoseManipUtils::prettyprintMatrix4d( op2__b_T_a ) << TermColor::RESET() << endl;
+    cout << pnp__msg_option_B << endl;
+
+    // Option-C
+    cout << TermColor::BLUE() << "Option-C" << TermColor::RESET() << endl;
+    vector< Vector3d> uv_X;
+    vector< Vector3d> uvd_Y;
+    make_3d_3d_collection__using__pfmatches_and_disparity( uv, a_3dImage, uv_d, b_3dImage,
+        uv_X, uvd_Y );
+    Matrix4d icp_b_T_a; string p3p__msg;
+    float p3p_goodness = P3P_ICP( uv_X, uvd_Y, icp_b_T_a, p3p__msg );
+    cout << TermColor::YELLOW() << p3p_goodness << " icp_b_T_a = " << PoseManipUtils::prettyprintMatrix4d( icp_b_T_a ) << TermColor::RESET() << endl;
+    cout << p3p__msg << endl;
+
+
+    #if 1
+    MiscUtils::append_status_image( dst_disp, "[b_T_a <-- PNP( 3d(a), uv(b))];"+pnp__msg+";[a_T_b <-- PNP( 3d(b), uv(a))];"+pnp__msg_option_B+";[icp_b_T_a <-- ICP(3d(a), 3d(b))];"+p3p__msg );
+    cv::imshow( "dst_disp", dst_disp );
+    #endif
+
+
+
+    Matrix4d odom_b_T_a = wTB.inverse() * wTA;
+    cout << TermColor::YELLOW() << "odom_b_T_a = " << PoseManipUtils::prettyprintMatrix4d( odom_b_T_a ) << TermColor::RESET() << endl;
+
+
+    cout << "|op1 - op2|" << PoseManipUtils::prettyprintMatrix4d( op1__b_T_a.inverse() * op2__b_T_a ) << endl;
+    cout << "|op1 - icp|" << PoseManipUtils::prettyprintMatrix4d( op1__b_T_a.inverse() * icp_b_T_a ) << endl;
+    cout << "|op2 - icp|" << PoseManipUtils::prettyprintMatrix4d( op2__b_T_a.inverse() * icp_b_T_a ) << endl;
+
+
+}
+
+int main( int argc, char ** argv )
 {
     std::shared_ptr<StereoGeometry> stereogeom = make_stereo_geom();
+
+    // load ProcessedLoopCandidate.json
+    cout << "Open JSON : " << BASE+"/matching/ProcessedLoopCandidate.json" << endl;
+    std::ifstream fp(BASE+"/matching/ProcessedLoopCandidate.json");
+    json proc_candi_json;
+    fp >> proc_candi_json;
+    for( int i =0 ; i<proc_candi_json.size() ; i++ ) // loop over all the candidates
+    {
+        int a = proc_candi_json[i]["idx_a"];
+        int b = proc_candi_json[i]["idx_b"];
+        cout << a << " " << b << endl;
+        bool status = verified_alignment( stereogeom, a, b );
+        cv::waitKey(0);
+
+    }
+}
+
+int main2(int argc, char ** argv)
+{
+    std::shared_ptr<StereoGeometry> stereogeom = make_stereo_geom();
+    // cout << "exit main\n";
+    // return 0;
 
     // will return false if cannot compute pose
 
@@ -703,10 +1370,13 @@ int main(int argc, char ** argv)
         cout << "[MAIN::INVALID USAGE] I am expecting you to give two numbers in the command line between which you want to compute the pose\n";
         exit(1);
     }
-    Matrix4d out_b_T_a;
+    Matrix4d out_b_T_a = Matrix4d::Identity();
     int a = stoi( argv[1] );
     int b = stoi( argv[2] );
-    bool status = relative_pose_compute_with_theia(stereogeom, a, b, out_b_T_a );
+    // bool status = relative_pose_compute_with_theia(stereogeom, a, b, out_b_T_a );
+    // bool status = self_projection_test( stereogeom, a, b );
+    bool status = verified_alignment( stereogeom, a, b );
+
 
     // bool status = relative_pose_compute_with_theia(stereogeom, 195, 3, out_b_T_a );
     cv::waitKey(0);
@@ -715,23 +1385,6 @@ int main(int argc, char ** argv)
     cout << "status: " << status << endl;
     cout << PoseManipUtils::prettyprintMatrix4d( out_b_T_a ) << endl;
 
-
-
-    #if 0
-    cout << "#### Odom Pose Diff ####\n";
-    string fname;
-    fname = BASE+"/"+std::to_string(a)+".wTc";
-    Matrix4d wTa;
-    RawFileIO::read_eigen_matrix( fname, wTa );
-    cout << "wTa(odom)" << PoseManipUtils::prettyprintMatrix4d( wTa ) << endl;
-
-    fname = BASE+"/"+std::to_string(b)+".wTc";
-    Matrix4d wTb;
-    RawFileIO::read_eigen_matrix( fname, wTb );
-    cout << "wTb(odom)" << PoseManipUtils::prettyprintMatrix4d( wTb ) << endl;
-
-    cout << "bTa(odom)=" << PoseManipUtils::prettyprintMatrix4d( wTb.inverse() * wTa ) << endl;
-    #endif
 
 }
 

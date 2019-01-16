@@ -352,6 +352,10 @@ int main( int argc, char ** argv )
         // Write json log
         string save_dir = "/Bulk_Data/_tmp/";
 
+        ROS_INFO( "cerebro_node logging to : %s.\nThis will take upto 2 minutes.", save_dir.c_str());
+        ROS_ERROR( "cerebro_node logging to : %s.\nThis will take upto 2 minutes.", save_dir.c_str());
+        ROS_WARN( "cerebro_node logging to : %s.\nThis will take upto 2 minutes.", save_dir.c_str());
+
         //
         // $ rm -rf ${save_dir}
         // $ mkdir ${save_dir}
@@ -428,7 +432,7 @@ int main( int argc, char ** argv )
             if( it->second->isWholeImageDescriptorAvailable() ) {
                 RawFileIO::write_EigenMatrix( fname+".imgdesc", it->second->getWholeImageDescriptor() );
             }
-            #endif 
+            #endif
         }
 
 

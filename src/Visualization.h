@@ -60,7 +60,7 @@ private:
 private:
     void publish_frames(); //< publishes last 10 frames as markers. (occasionally all)
     void publish_loopcandidates(); //< publishes last 10 loop candidates. cerebro->foundLoops_count().
-    void publish_processed_loopcandidates(); //< uses Cerebro::processedLoops_i().
+    void publish_processed_loopcandidates(); //< uses Cerebro::processedLoops_i() and publishes only the newly found loops. cerebro->processedLoops_i( i )
     void publish_test_string();
 
 
@@ -68,5 +68,6 @@ private:
 private:
     ros::Publisher chatter_pub;
     ros::Publisher framedata_pub;
+    ros::Publisher imagepaire_pub;
 
 };

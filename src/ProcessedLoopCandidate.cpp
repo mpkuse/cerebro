@@ -45,6 +45,7 @@ bool ProcessedLoopCandidate::asJson( json& out_json )
 
     if( isSet_3d2d__2T1 ) {
         x["3d2d__2T1"] = PoseManipUtils::prettyprintMatrix4d( _3d2d__2T1 );
+        x["_3d2d__2T1__ransac_confidence"] = _3d2d__2T1__ransac_confidence;
     }
 
     if( isSet_2d3d__2T1 ) {

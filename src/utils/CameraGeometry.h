@@ -63,7 +63,7 @@ public:
     // right_T_left: extrinsic calibration for stereo pair. The position of left camera as viewed from right camera.
     StereoGeometry( camodocal::CameraPtr _left_camera,
                     camodocal::CameraPtr _right_camera,
-                    Matrix4d right_T_left
+                    const Matrix4d& right_T_left
                 );
 
 
@@ -234,6 +234,10 @@ public:
 public:
     const cv::Mat& get_Q() const { return rm_Q; }
     // TODO: (if need be) also have getters from rm_R1, rm_R2, rm_P1, rm_P2, rm_shift, rm_fundamental_matrix.
+    const cv::Mat& get_rm_R1( ) const { return rm_R1; }
+    const cv::Mat& get_rm_R2( ) const { return rm_R2; }
+    const cv::Mat& get_rm_P1( ) const { return rm_P1; }
+    const cv::Mat& get_rm_P2( ) const { return rm_P2; }
 
     void print_blockmatcher_algo_info();
 
@@ -249,8 +253,8 @@ private:
     // stereo rectify maps
     // theory : http://homepages.inf.ed.ac.uk/rbf/CVonline/LOCAL_COPIES/FUSIELLO/tutorial.html
 
-    std::mutex m_extrinsics;
-    std::mutex m_intrinsics;
+    mutable std::mutex m_extrinsics;
+    mutable std::mutex m_intrinsics;
 
     // This function is called everytime you change the intrinsics and extrinsics for
     // the stereo pair. This outputs the stereo-rectification maps, ie. map1_x, map1_y, map2_x, map2_y

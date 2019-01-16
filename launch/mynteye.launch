@@ -7,11 +7,12 @@
 <!-- ### IN LAB -->
 <!-- <arg name="bag_file" default="1.bag" doc="sitting on my desk"/> -->
 <!-- <arg name="bag_file" default="2018-11-20-17-45-55.bag" doc="single loop in lab"/> -->
-<arg name="bag_file" default="2018-11-20-17-42-54.bag" doc="multiple loops in lab"/>
+<!-- <arg name="bag_file" default="2018-11-20-17-42-54.bag" doc="multiple loops in lab"/> -->
 <!-- <arg name="bag_file" default="2018-11-22-12-06-47.bag" doc="drone fly area loopy"/> -->
 <!-- <arg name="bag_file" default="2018-11-22-12-09-21.bag" doc="conference room RI"/> -->
 <!-- <arg name="bag_file" default="2018-11-29-12-37-49.bag" doc="lab rotated loops"/> -->
 <!-- <arg name="bag_file" default="2018-11-29-15-10-24.bag" doc="outside RI"/> -->
+<arg name="bag_file" default="2019-01-14-18-25-18.bag" doc="lab AR test"/>
 
 <!-- ### In HKUST Academic block and CYT UG -->
 <!-- <arg name="bag_file" default="2018-11-29-15-13-44.bag" doc="CYT UG floor"/> -->
@@ -24,7 +25,7 @@
 
 
 
-<node pkg="rosbag" type="play" name="rosbag" args="$(arg bag_path)/$(arg bag_file) -s 3" output="log"/>
+<node pkg="rosbag" type="play" name="rosbag" args="$(arg bag_path)/$(arg bag_file) -s 2" output="log"/>
 
 <!-- ############################# DONE BAGS #######################################  -->
 
@@ -57,9 +58,16 @@
 
 
 
-    <!-- <node name="my_desc_server" pkg="cerebro" type="whole_image_desc_compute_server.py" output="screen">
+    <node name="whole_image_desc_compute_server" pkg="cerebro" type="whole_image_desc_compute_server.py" output="log">
        <param name="config_file" type="string" value="$(arg config_path)" />
-    </node> -->
+    </node>
+
+
+<!-- Graph-based Pose Graph Optimization Solver -->
+<!-- rosrun solve_keyframe_pose_graph keyframe_pose_graph_slam -->
+    <node name="keyframe_pose_graph_slam_node" pkg="solve_keyframe_pose_graph" type="keyframe_pose_graph_slam" output="log" >
+        <!-- params can go here if need be -->
+    </node>
 
 
 </launch>

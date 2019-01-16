@@ -325,6 +325,12 @@ std::string DataManager::metaDataAsJson()
         buffer << "\"stamp_relative\": " << ( it->first -  this->getPose0Stamp() ).toSec() << ",\n";
         buffer << "\"seq\": " << seq_id << ",\n";
 
+        buffer << "\"getT\": " << it->second->getT() << ",\n";
+        buffer << "\"getT_image\": " << it->second->getT_image() << ",\n";
+        buffer << "\"getT_image_1\": " << it->second->getT_image(1) << ",\n";
+        buffer << "\"getT_pose\": " << it->second->getT_pose() << ",\n";
+        buffer << "\"getT_uv\": " << it->second->getT_uv() << ",\n";
+
         buffer << "\"isKeyFrame\":" << it->second->isKeyFrame() << ",\n";
         buffer << "\"isImageAvailable\":" << it->second->isImageAvailable() << ",\n";
         buffer << "\"isImageAvailable_1\":" << it->second->isImageAvailable(1) << ",\n";

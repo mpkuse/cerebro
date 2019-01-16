@@ -337,7 +337,28 @@ void MiscUtils::plot_point_pair( const cv::Mat& imA, const MatrixXd& ptsA, int i
 
 }
 
+cv::Scalar MiscUtils::getFalseColor( float f )
+{
+    cv::Mat colormap_gray = cv::Mat::zeros( 1, 256, CV_8UC1 );
+    cv::Mat colormap_color;
+    for( int i=0 ; i<256; i++ ) colormap_gray.at<uchar>(0,i) = i;
+    cv::applyColorMap(colormap_gray, colormap_color, cv::COLORMAP_JET	);
+    if( f<0 ) {
+        cv::Vec3b f_ = colormap_color.at<cv::Vec3b>(0,  (int)0 );
+        cv::Scalar color_marker = cv::Scalar(f_[0],f_[1],f_[2]);
+        return color_marker;
+    }
+    if( f>1. ) {
+        cv::Vec3b f_ = colormap_color.at<cv::Vec3b>(0,  (int)255 );
+        cv::Scalar color_marker = cv::Scalar(f_[0],f_[1],f_[2]);
+        return color_marker;
+    }
 
+    int idx = (int) (f*255.);
+    cv::Vec3b f_ = colormap_color.at<cv::Vec3b>(0,  (int)idx );
+    cv::Scalar color_marker = cv::Scalar(f_[0],f_[1],f_[2]);
+    return color_marker;
+}
 
 void MiscUtils::plot_point_pair( const cv::Mat& imA, const MatrixXd& ptsA, int idxA,
                       const cv::Mat& imB, const MatrixXd& ptsB, int idxB,
@@ -457,7 +478,29 @@ void MiscUtils::append_status_image( cv::Mat& im, const string& msg, float txt_s
 
 }
 
+bool MiscUtils::side_by_side( const cv::Mat& A, const cv::Mat& B, cv::Mat& dst )
+{
+    if( A.rows == B.rows && A.channels() == B.channels() ) {
+        cv::hconcat(A, B, dst);
+        return true;
+    }
+    else {
+        dst = cv::Mat();
+        return false;
+    }
+}
 
+bool MiscUtils::vertical_side_by_side( const cv::Mat& A, const cv::Mat& B, cv::Mat& dst )
+{
+    if( A.cols == B.cols && A.channels() == B.channels() ) {
+        cv::vconcat(A, B, dst);
+        return true;
+    }
+    else {
+        dst = cv::Mat();
+        return false;
+    }
+}
 
 double MiscUtils::Slope(int x0, int y0, int x1, int y1){
      return (double)(y1-y0)/(x1-x0);

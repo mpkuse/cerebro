@@ -134,13 +134,65 @@ public:
 
     // append a status image . ';' separated
     static void append_status_image( cv::Mat& im, const string& msg, float txt_size=0.4, cv::Scalar bg_color=cv::Scalar(0,0,0), cv::Scalar txt_color=cv::Scalar(255,255,255) );
+    static bool side_by_side( const cv::Mat& A, const cv::Mat& B, cv::Mat& dst );
+    static bool vertical_side_by_side( const cv::Mat& A, const cv::Mat& B, cv::Mat& dst );
 
     // END ------------------------- Points and Lines on Images --------------------------------//
 
+
+    // [Input] : f a float between 0 and 1.
+    // [Output]: cv::Scalar gives out a bgr color pallet.
+    // Note: This is inefficient, don't use it too often. If you are going to do lot of quering for colors use `class FalseColors`
+    static cv::Scalar getFalseColor( float f );
 
 
 private:
 
     static double Slope(int x0, int y0, int x1, int y1);
+
+};
+
+
+class FalseColors
+{
+public:
+    FalseColors() {
+        cv::Mat colormap_gray = cv::Mat::zeros( 1, 256, CV_8UC1 );
+        for( int i=0 ; i<256; i++ ) colormap_gray.at<uchar>(0,i) = i;
+        cv::applyColorMap(colormap_gray, colormap_color, cv::COLORMAP_JET	);
+    }
+
+    cv::Scalar getFalseColor( float f ) {
+        int idx = (int) (f*255.);
+        if( f<0 ) {
+            idx=0;
+        }
+        if( f>255 ) {
+            idx=255;
+        }
+
+
+        cv::Vec3b f_ = colormap_color.at<cv::Vec3b>(0,  (int)idx );
+        cv::Scalar color_marker = cv::Scalar(f_[0],f_[1],f_[2]);
+        return color_marker;
+    }
+
+    cv::Mat getStrip( int nrows, int ncols ) {
+        cv::Mat colormap_gray = cv::Mat::zeros( nrows, ncols, CV_8UC1 );
+
+        for( int r=0; r<nrows; r++ ) {
+            for( int c=0 ; c<ncols; c++ )
+                colormap_gray.at<uchar>(r,c) = (uchar) ( (float(c)/ncols)*256 );
+        }
+
+        cv::Mat __dst;
+        cv::applyColorMap(colormap_gray, __dst, cv::COLORMAP_JET	);
+        return __dst;
+    }
+
+
+private:
+    cv::Mat colormap_color;
+
 
 };

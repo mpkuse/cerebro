@@ -35,6 +35,9 @@ void Visualization::setVizPublishers( const string base_topic_name )
     framedata_pub = nh.advertise<visualization_msgs::Marker>(framedata_pub_topic, 1000);
 
     // can add image publish if need be here.
+    string imagepaire_pub_topic = base_topic_name+"/imagepaire";
+    ROS_INFO( "Visualization Publisher imagepair_pub_topic: %s", imagepaire_pub_topic.c_str() );
+    imagepaire_pub = nh.advertise<sensor_msgs::Image>(imagepaire_pub_topic, 1000);
 }
 
 void Visualization::run( const int looprate )
@@ -61,6 +64,8 @@ void Visualization::run( const int looprate )
 #define __Visualization___publish_processed_loopcandidates(msg) ;
 void Visualization::publish_processed_loopcandidates()
 {
+    assert( m_dataManager_available && m_cerebro_available && "You need to set cerebro and DataManager in class Visualization  before execution of the run() thread can begin. You can set the cerebro by call to Visualization::setCerebro() and dataManager as setDataManager.\n");
+
     static int prev_count = -1;
 
     if( prev_count == cerebro->processedLoops_count() || prev_count<0 ) {
@@ -82,18 +87,26 @@ void Visualization::publish_processed_loopcandidates()
     marker.ns = "processed_loopcandidates_line";
 
     // loop over all the new
-    for( int i=prev_count ; i<= new_count-1; i++ )
+    int loop_start = prev_count;
+    int loop_end = new_count;
+    bool publish_image = true;
+    // if( rand()%100 < 2 ) {
+        // loop_start=0;
+        // publish_image=false;
+    // }
+
+    for( int i=loop_start ; i< loop_end; i++ )
     {
         // publish green colored line
-        ProcessedLoopCandidate c =  cerebro->processedLoops_i( i );
+        ProcessedLoopCandidate candidate_i =  cerebro->processedLoops_i( i );
         __Visualization___publish_processed_loopcandidates(
         cout << "---\nUsing processedLoop["<<i<<"]"<<endl;
-        cout << c.node_1->getT() << "<--->" << c.node_2->getT() << endl;
-        cout << "isPoseAvailable: " << c.node_1->isPoseAvailable() << endl;
+        cout << candidate_i.node_1->getT() << "<--->" << candidate_i.node_2->getT() << endl;
+        cout << "isPoseAvailable: " << candidate_i.node_1->isPoseAvailable() << endl;
         )
 
-        Vector4d w_t_1 = c.node_1->getPose().col(3);
-        Vector4d w_t_2 = c.node_2->getPose().col(3);
+        Vector4d w_t_1 = candidate_i.node_1->getPose().col(3);
+        Vector4d w_t_2 = candidate_i.node_2->getPose().col(3);
         RosMarkerUtils::add_point_to_marker( w_t_1, marker, true );
         RosMarkerUtils::add_point_to_marker( w_t_2, marker, false );
         RosMarkerUtils::setcolor_to_marker( 0.0, 1.0, 0.0 , marker );
@@ -102,9 +115,9 @@ void Visualization::publish_processed_loopcandidates()
         framedata_pub.publish( marker );
 
 
-
-        if( c.isSet_3d2d__2T1 == false ) { cout << "[Visualization::publish_processed_loopcandidates] _3d2d__2T1 is not set"; exit(1); }
-        Matrix4d w_T_2__new = c.node_1->getPose() * (c._3d2d__2T1).inverse();
+        // Publish marker line
+        if( candidate_i.isSet_3d2d__2T1 == false ) { cout << "[Visualization::publish_processed_loopcandidates] _3d2d__2T1 is not set"; exit(1); }
+        Matrix4d w_T_2__new = candidate_i.node_1->getPose() * (candidate_i._3d2d__2T1).inverse();
         Vector4d w_t_2__new = w_T_2__new.col(3);
         RosMarkerUtils::add_point_to_marker( w_t_1, marker, true );
         RosMarkerUtils::add_point_to_marker( w_t_2__new, marker, false );
@@ -114,6 +127,38 @@ void Visualization::publish_processed_loopcandidates()
         framedata_pub.publish( marker );
 
 
+        // publish image
+        if( publish_image) {
+            if( true && candidate_i.matching_im_pair.rows > 0 && candidate_i.matching_im_pair.cols>0 ) {
+                // if debug image is available publish it
+                cv::Mat buffer;
+                cv::resize(candidate_i.matching_im_pair, buffer, cv::Size(), 0.5, 0.5 );
+
+
+                cv_bridge::CvImage cv_image;
+                cv_image.image = buffer;
+                cv_image.encoding = "bgr8";
+                sensor_msgs::Image ros_image_msg;
+                cv_image.toImageMsg(ros_image_msg);
+                imagepaire_pub.publish( ros_image_msg );
+            }
+            else if( candidate_i.node_1->isImageAvailable() && candidate_i.node_2->isImageAvailable() ){
+                // use image from node
+                cv::Mat side_by_side_impair;
+                MiscUtils::side_by_side( candidate_i.node_1->getImage(), candidate_i.node_2->getImage(), side_by_side_impair );
+
+                cv::Mat buffer;
+                cv::resize(side_by_side_impair, buffer, cv::Size(), 0.5, 0.5 );
+
+
+                cv_bridge::CvImage cv_image;
+                cv_image.image = buffer;
+                cv_image.encoding = "bgr8";
+                sensor_msgs::Image ros_image_msg;
+                cv_image.toImageMsg(ros_image_msg);
+                imagepaire_pub.publish( ros_image_msg );
+            }
+        }
 
 
     }

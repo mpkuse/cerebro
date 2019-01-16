@@ -347,14 +347,14 @@ json Cerebro::foundLoops_as_JSON()
 #define __Cerebro__loopcandi_consumer__(msg)  ;
 // ^This will also imshow image-pairs with gms-matches marked.
 
-#define __Cerebro__loopcandi_consumer__IMP( msg ) msg;
-// #define __Cerebro__loopcandi_consumer__IMP( msg ) ;
+// #define __Cerebro__loopcandi_consumer__IMP( msg ) msg;
+#define __Cerebro__loopcandi_consumer__IMP( msg ) ;
 // ^Text only printing
 
 
 // #define __Cerebro__loopcandi_consumer__IMSHOW 0 // will not produce the images (ofcourse will not show as well)
-// #define __Cerebro__loopcandi_consumer__IMSHOW 1 // produce the images and log them, will not imshow
-#define __Cerebro__loopcandi_consumer__IMSHOW 2 // produce the images and imshow them
+#define __Cerebro__loopcandi_consumer__IMSHOW 1 // produce the images and log them, will not imshow
+// #define __Cerebro__loopcandi_consumer__IMSHOW 2 // produce the images and imshow them
 void Cerebro::loopcandiate_consumer_thread()
 {
     assert( m_dataManager_available && "You need to set the DataManager in class Cerebro before execution of the run() thread can begin. You can set the dataManager by call to Cerebro::setDataManager()\n");
@@ -708,14 +708,14 @@ bool Cerebro::process_loop_candidate_imagepair( int ii, ProcessedLoopCandidate& 
 
 
     // See if the matching can be rejected due to insufficient # of matches
-    if( uv.cols() < 80 ) {
+    if( uv.cols() < 150 ) {
         __Cerebro__loopcandi_consumer__IMP(
         cout << TermColor::YELLOW() << "of the total "+std::to_string(uv.cols())+" point feature correspondences " +std::to_string(n_valid_depths)+ " had valid depths. " << " too few pf-matches from gms. Skip this. TH=80" << TermColor::RESET() << endl;
         )
         return false;
     }
 
-    if( n_valid_depths < 80 ) {
+    if( n_valid_depths < 150 ) {
         __Cerebro__loopcandi_consumer__IMP(
         cout << TermColor::YELLOW() << "of the total "+std::to_string(uv.cols())+" point feature correspondences " +std::to_string(n_valid_depths)+ " had valid depths. " << "too few pf-matches depths from gms. Skip this. TH=80" << TermColor::RESET() << endl;
         )
@@ -728,7 +728,7 @@ bool Cerebro::process_loop_candidate_imagepair( int ii, ProcessedLoopCandidate& 
     //-------------- theia::pnp
     //------------------------------------------
     Matrix4d b_T_a; //< RESULT
-    string pnp__msg; //< msg about pnp
+    string pnp__msg = string(""); //< msg about pnp
     #if 1
     //--- DlsPnp
     std::vector<Eigen::Quaterniond> solution_rotations;

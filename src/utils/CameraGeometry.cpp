@@ -46,11 +46,11 @@ void MonoGeometry::do_image_undistortion( const cv::Mat& im_raw, cv::Mat & im_un
 
 StereoGeometry::StereoGeometry( camodocal::CameraPtr _left_camera,
                 camodocal::CameraPtr _right_camera,
-                Matrix4d __right_T_left )
+                const Matrix4d& __right_T_left )
 {
     if( !_left_camera || !_right_camera )
     {
-        cout << "ERROR : Abstract stereo Camera is not set. You need to init camera before setting it to geometry clases";
+        cout << "\nERROR : Abstract stereo Camera is not set. You need to init camera before setting it to geometry clases\n";
         exit(10);
     }
     assert( _left_camera && _right_camera  && "Abstract stereo Camera is not set. You need to init camera before setting it to geometry clases" );
@@ -287,10 +287,19 @@ void StereoGeometry::make_stereo_rectification_maps()
     cv::Mat R, T;
     cv::eigen2cv( right_R_left, R );
     cv::eigen2cv( right_t_left, T );
+    __StereoGeometry___make_stereo_rectification_maps(
+    cout << "R"<< R << endl;
+    cout << "T" << T << endl;
+    cout << "this->K_new:  "<< this->K_new << endl;
+    )
 
-
+    // Matrix3d K_new_eigen = get_K(); //< this causes some issues. Better not use it.
+    Matrix3d K_new_eigen =  this->K_new;//get_K();
+    __StereoGeometry___make_stereo_rectification_maps(
+        cout << "K_new_eigen: " << K_new_eigen << endl;
+    )
     cv::Mat K_new_cvmat;
-    cv::eigen2cv( this->K_new, K_new_cvmat );
+    cv::eigen2cv( K_new_eigen, K_new_cvmat );
 
     // TODO: If need be write getters for these matrices.
     // cv::Mat R1, R2;
