@@ -8,7 +8,7 @@
 <!-- <arg name="bag_file" default="1.bag" doc="sitting on my desk"/> -->
 <!-- <arg name="bag_file" default="2018-11-20-17-45-55.bag" doc="single loop in lab"/> -->
 <!-- <arg name="bag_file" default="2018-11-20-17-42-54.bag" doc="multiple loops in lab"/> -->
-<arg name="bag_file" default="2018-11-22-12-06-47.bag" doc="drone fly area loopy"/>
+<!-- <arg name="bag_file" default="2018-11-22-12-06-47.bag" doc="drone fly area loopy"/> -->
 <!-- <arg name="bag_file" default="2018-11-22-12-09-21.bag" doc="conference room RI"/> -->
 <!-- <arg name="bag_file" default="2018-11-29-12-37-49.bag" doc="lab rotated loops"/> -->
 <!-- <arg name="bag_file" default="2018-11-29-15-10-24.bag" doc="outside RI"/> -->
@@ -24,6 +24,9 @@
 
 
 
+<!-- ### Kidnap sequences -->
+<arg name="bag_file" default="/kidnap/2019-01-14-17-20-06.bag" doc="lab kidnap"/>
+
 
 <node pkg="rosbag" type="play" name="rosbag" args="$(arg bag_path)/$(arg bag_file) -s 2" output="log"/>
 
@@ -37,37 +40,53 @@
 <arg name="vins_path" default="$(find feature_tracker)/../config/../" />
 
 
+<!-- a) set loop_closure_enable=1 will enable loop closure. 0 will disable
+     b) set loop_closure_type="1" will use cerebro-loopclosure by mpkuse,
+         loop_closure_type="0" will use vins-mono-default loopclosure. please don't set this to anything other than 0 or 1
+ -->
+<arg name="loop_closure_enable" default="1" />
+<arg name="loop_closure_type" default="1" />
 
 
-<!-- VINS -->
-    <node name="feature_tracker" pkg="feature_tracker" type="feature_tracker" output="log">
-        <param name="config_file" type="string" value="$(arg config_path)" />
-        <param name="vins_folder" type="string" value="$(arg vins_path)" />
-    </node>
+<!-- VINS-MONO Odometry -->
+<node name="feature_tracker" pkg="feature_tracker" type="feature_tracker" output="log">
+    <param name="config_file" type="string" value="$(arg config_path)" />
+    <param name="vins_folder" type="string" value="$(arg vins_path)" />
+</node>
 
-    <node name="vins_estimator" pkg="vins_estimator" type="vins_estimator" output="log">
-       <param name="config_file" type="string" value="$(arg config_path)" />
-       <param name="vins_folder" type="string" value="$(arg vins_path)" />
-    </node>
-
-
-<!-- Cerebro -->
-    <node name="cerebro_node" pkg="cerebro" type="cerebro_node" output="screen">
-       <param name="config_file" type="string" value="$(arg config_path)" />
-    </node>
+<node name="vins_estimator" pkg="vins_estimator" type="vins_estimator" output="log">
+   <param name="config_file" type="string" value="$(arg config_path)" />
+   <param name="vins_folder" type="string" value="$(arg vins_path)" />
+</node>
 
 
+<group if="$(loop_closure_enable)" >
+    <group unless="$(arg loop_closure_type)">
+    <!-- vins-mono default loop closure/pose-graph opt node -->
+        <node name="pose_graph" pkg="pose_graph" type="pose_graph" output="screen">
+            <param name="config_file" type="string" value="$(arg config_path)" />
+            <param name="visualization_shift_x" type="int" value="0" />
+            <param name="visualization_shift_y" type="int" value="0" />
+            <param name="skip_cnt" type="int" value="0" />
+            <param name="skip_dis" type="double" value="0" />
+        </node>
+    </group>
 
-    <node name="whole_image_desc_compute_server" pkg="cerebro" type="whole_image_desc_compute_server.py" output="log">
-       <param name="config_file" type="string" value="$(arg config_path)" />
-    </node>
+    <group if="$(arg loop_closure_type)" >
+    <!-- Cerebro -->
+        <node name="cerebro_node" pkg="cerebro" type="cerebro_node" output="screen">
+           <param name="config_file" type="string" value="$(arg config_path)" />
+        </node>
+
+        <node name="whole_image_desc_compute_server" pkg="cerebro" type="whole_image_desc_compute_server.py" output="log">
+           <param name="config_file" type="string" value="$(arg config_path)" />
+        </node>
 
 
-<!-- Graph-based Pose Graph Optimization Solver -->
-<!-- rosrun solve_keyframe_pose_graph keyframe_pose_graph_slam -->
-    <node name="keyframe_pose_graph_slam_node" pkg="solve_keyframe_pose_graph" type="keyframe_pose_graph_slam" output="log" >
-        <!-- params can go here if need be -->
-    </node>
-
-
+    <!-- Graph-based Pose Graph Optimization Solver -->
+    <!-- rosrun solve_keyframe_pose_graph keyframe_pose_graph_slam -->
+        <node name="keyframe_pose_graph_slam_node" pkg="solve_keyframe_pose_graph" type="keyframe_pose_graph_slam" output="log" >
+        </node>
+    </group>
+</group>
 </launch>

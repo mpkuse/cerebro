@@ -129,19 +129,22 @@ void Visualization::publish_processed_loopcandidates()
 
         // publish image
         if( publish_image) {
-            if( true && candidate_i.matching_im_pair.rows > 0 && candidate_i.matching_im_pair.cols>0 ) {
-                // if debug image is available publish it
-                cv::Mat buffer;
-                cv::resize(candidate_i.matching_im_pair, buffer, cv::Size(), 0.5, 0.5 );
+            if( false ) {
 
-
-                cv_bridge::CvImage cv_image;
-                cv_image.image = buffer;
-                cv_image.encoding = "bgr8";
-                sensor_msgs::Image ros_image_msg;
-                cv_image.toImageMsg(ros_image_msg);
-                imagepaire_pub.publish( ros_image_msg );
             }
+            // if( false && candidate_i.matching_im_pair.rows > 0 && candidate_i.matching_im_pair.cols>0 ) {
+            //     // if debug image is available publish it
+            //     cv::Mat buffer;
+            //     cv::resize(candidate_i.matching_im_pair, buffer, cv::Size(), 0.5, 0.5 );
+            //
+            //
+            //     cv_bridge::CvImage cv_image;
+            //     cv_image.image = buffer;
+            //     cv_image.encoding = "bgr8";
+            //     sensor_msgs::Image ros_image_msg;
+            //     cv_image.toImageMsg(ros_image_msg);
+            //     imagepaire_pub.publish( ros_image_msg );
+            // }
             else if( candidate_i.node_1->isImageAvailable() && candidate_i.node_2->isImageAvailable() ){
                 // use image from node
                 cv::Mat side_by_side_impair;

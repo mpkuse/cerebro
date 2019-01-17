@@ -77,7 +77,7 @@ public:
         // I want nearby points to have smaller Error than far off points.
         // So artificially increase the error when depth is higher for the point.
         double f = 1.;
-        #if 0
+        #if 1
         if( depth < 1. )
             f = .5;
         if( depth >=1 && depth < 3 )

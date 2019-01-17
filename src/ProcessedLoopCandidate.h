@@ -84,10 +84,13 @@ public:
     // std::mutex _mutex;
 
     // debug images
-    cv::Mat matching_im_pair;
-    cv::Mat pnp_verification_image;
-    cv::Mat node_1_disparity_viz;
-    cv::Mat node_2_disparity_viz;
+    vector<cv::Mat> debug_images;
+    vector<string> debug_images_titles;
+
+    // cv::Mat matching_im_pair;
+    // cv::Mat pnp_verification_image;
+    // cv::Mat node_1_disparity_viz;
+    // cv::Mat node_2_disparity_viz;
 
     //TODO: have a asJson function, return string.
 };

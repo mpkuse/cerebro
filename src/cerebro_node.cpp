@@ -347,7 +347,7 @@ int main( int argc, char ** argv )
     ///////////////////////
     // Actual Logging.  //
     //////////////////////
-    #define __LOGGING__ 0 // make this 1 to enable logging. 0 to disable logging. rememeber to catkin_make after this change
+    #define __LOGGING__ 1 // make this 1 to enable logging. 0 to disable logging. rememeber to catkin_make after this change
     #if __LOGGING__
         // Write json log
         string save_dir = "/Bulk_Data/_tmp/";
@@ -482,6 +482,18 @@ int main( int argc, char ** argv )
             // Retrive i^{th} item
             ProcessedLoopCandidate c = cer.processedLoops_i( i );
 
+            // Write all the logged images
+            for( int l=0 ; l<c.debug_images.size() ; l++ ) {
+                cv::Mat __imm = c.debug_images[l] ;
+                if( __imm.rows > 0 && __imm.cols > 0 ) {
+                    RawFileIO::write_image( save_dir+"/matching/im_pair_"+to_string(i)+"_"+c.debug_images_titles[l]+".jpg", __imm );
+                }
+                else {
+                    cout << "in logging, matching_im_pair of ProcessedLoopCandidate[" << i << "] is not available\n";
+                }
+            }
+
+            #if 0
             // Write matching pair image with pf markings
             cv::Mat __imm = c.matching_im_pair ;
             if( __imm.rows > 0 && __imm.cols > 0 ) {
@@ -510,7 +522,7 @@ int main( int argc, char ** argv )
             else {
                 cout << "in logging, node_1_disparity_viz ProcessedLoopCandidate[" << i << "] is not available\n";
             }
-
+            #endif
 
             // Json of the object
             json procloops_json_obj;
