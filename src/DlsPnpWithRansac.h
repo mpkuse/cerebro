@@ -77,7 +77,7 @@ public:
         // I want nearby points to have smaller Error than far off points.
         // So artificially increase the error when depth is higher for the point.
         double f = 1.;
-        #if 1
+        #if 0
         if( depth < 1. )
             f = .5;
         if( depth >=1 && depth < 3 )
@@ -97,6 +97,68 @@ public:
 
 
 
+//////////////////// AlignPointCloudsUmeyama with Ransac ///////////////////////
+// Data
+struct CorrespondencePair_3d3d {
+    Vector3d a_X; // 3d point expressed in co-ordinate system of `image-a`
+    Vector3d b_X; // 3d point expressed in co-ordinate system of `image-b`
+};
+
+// Model
+// struct RelativePose {
+    // Matrix4d b_T_a;
+// };
+
+class AlignPointCloudsUmeyamaWithRansac: public theia::Estimator<CorrespondencePair_3d3d, RelativePose> {
+public:
+    // Number of points needed to estimate a line.
+    double SampleSize() const  { return 10; }
+
+    bool EstimateModel( const std::vector<CorrespondencePair_3d3d>& data,
+                            std::vector<RelativePose>* models) const {
+        //TODO
+
+        std::vector<Vector3d> a_X;
+        std::vector<Vector3d> b_X;
+        for( int i=0 ; i<data.size() ; i++ ) {
+            a_X.push_back( data[i].a_X );
+            b_X.push_back( data[i].b_X );
+        }
+
+        Matrix3d ____R;
+        Vector3d ____t; double ___s=1.0;
+        theia::AlignPointCloudsUmeyama( a_X, b_X, &____R, &____t, &___s );
+
+        if( min( ___s, 1.0/___s ) > 0.9 ) {
+            RelativePose r;
+            r.b_T_a = Matrix4d::Identity();
+            r.b_T_a.topLeftCorner(3,3) = ____R;
+            r.b_T_a.col(3).topRows(3) = ____t;
+            models->push_back( r );
+            // cout << "Estimate s=" << ___s << " " << PoseManipUtils::prettyprintMatrix4d(r.b_T_a)<< endl;
+            return true;
+        } else {
+            return false;
+        }
+
+    }
+
+    double Error( const CorrespondencePair_3d3d& point, const RelativePose& r ) const {
+        Vector3d  b_X_cap = r.b_T_a.topLeftCorner(3,3) * point.a_X + r.b_T_a.col(3).topRows(3);
+
+        double err = (b_X_cap - point.b_X).norm();
+
+        double f=1.0;
+        if( point.a_X(2) < 1. && point.a_X(2) > 8. )
+            f = 1.2;
+
+        // cout << "ICP RAnsac error=" << err << endl;
+
+        return f*err;
+
+    }
+
+};
 
 
 class StaticTheiaPoseCompute

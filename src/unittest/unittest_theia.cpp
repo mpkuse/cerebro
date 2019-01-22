@@ -118,6 +118,72 @@ public:
 /////////// END DlsPnp-RANSAC ///////////////////
 
 
+
+//////////////////// AlignPointCloudsUmeyama with Ransac ///////////////////////
+// Data
+struct CorrespondencePair_3d3d {
+    Vector3d a_X; // 3d point expressed in co-ordinate system of `image-a`
+    Vector3d b_X; // 3d point expressed in co-ordinate system of `image-b`
+};
+
+// Model
+// struct RelativePose {
+    // Matrix4d b_T_a;
+// };
+
+class AlignPointCloudsUmeyamaWithRansac: public theia::Estimator<CorrespondencePair_3d3d, RelativePose> {
+public:
+    // Number of points needed to estimate a line.
+    double SampleSize() const  { return 10; }
+
+    bool EstimateModel( const std::vector<CorrespondencePair_3d3d>& data,
+                            std::vector<RelativePose>* models) const {
+        //TODO
+
+        std::vector<Vector3d> a_X;
+        std::vector<Vector3d> b_X;
+        for( int i=0 ; i<data.size() ; i++ ) {
+            a_X.push_back( data[i].a_X );
+            b_X.push_back( data[i].b_X );
+        }
+
+        Matrix3d ____R;
+        Vector3d ____t; double ___s=1.0;
+        theia::AlignPointCloudsUmeyama( a_X, b_X, &____R, &____t, &___s );
+
+        if( min( ___s, 1.0/___s ) > 0.9 ) {
+            RelativePose r;
+            r.b_T_a = Matrix4d::Identity();
+            r.b_T_a.topLeftCorner(3,3) = ____R;
+            r.b_T_a.col(3).topRows(3) = ____t;
+            models->push_back( r );
+            // cout << "Estimate s=" << ___s << " " << PoseManipUtils::prettyprintMatrix4d(r.b_T_a)<< endl;
+            return true;
+        } else {
+            return false;
+        }
+
+    }
+
+    double Error( const CorrespondencePair_3d3d& point, const RelativePose& r ) const {
+        Vector3d  b_X_cap = r.b_T_a.topLeftCorner(3,3) * point.a_X + r.b_T_a.col(3).topRows(3);
+
+        double err = (b_X_cap - point.b_X).norm();
+
+        double f=1.0;
+        if( point.a_X(2) < 1. && point.a_X(2) > 8. )
+            f = 1.2;
+
+        // cout << "ICP RAnsac error=" << err << endl;
+
+        return f*err;
+
+    }
+
+};
+
+//////////////////// END AlignPointCloudsUmeyama with Ransac ///////////////////////
+
 void point_feature_matches( const cv::Mat& imleft_undistorted, const cv::Mat& imright_undistorted,
                             MatrixXd& u, MatrixXd& ud )
 {
@@ -1029,8 +1095,8 @@ bool make_3d_3d_collection__using__pfmatches_and_disparity(
 //      uvd_T_uv: Relative pose between the point clouds
 // [Note]
 //      uv_X <---> uvd_Y
-// #define ____P3P_ICP_( msg ) msg;
-#define ____P3P_ICP_( msg ) ;
+#define ____P3P_ICP_( msg ) msg;
+// #define ____P3P_ICP_( msg ) ;
 float P3P_ICP( const vector<Vector3d>& uv_X, const vector<Vector3d>& uvd_Y,
     Matrix4d& uvd_T_uv, string & p3p__msg )
 {
@@ -1047,6 +1113,8 @@ float P3P_ICP( const vector<Vector3d>& uv_X, const vector<Vector3d>& uvd_Y,
 
     ElapsedTime timer;
     timer.tic();
+
+    #if 0
     theia::AlignPointCloudsUmeyama( uv_X, uvd_Y, &____R, &____t, &___s ); // all weights = 1. TODO: ideally weights could be proportion to point's Z.
     // theia::AlignPointCloudsICP( uv_X, uvd_Y, &____R, &____t ); // all weights = 1. TODO: ideally weights could be proportion to point's Z.
 
@@ -1069,15 +1137,66 @@ float P3P_ICP( const vector<Vector3d>& uv_X, const vector<Vector3d>& uvd_Y,
 
 
     if( min( ___s, 1.0/___s ) < 0.9 ) {
-        cout << TermColor::RED() << "theia::AlignPointCloudsUmeyama scales doesn't look good;this usually implies that estimation is bad.        scale= " << ___s << endl;
+        ____P3P_ICP_( cout << TermColor::RED() << "theia::AlignPointCloudsUmeyama scales doesn't look good;this usually implies that estimation is bad.        scale= " << ___s << TermColor::RESET() <<  endl; )
         p3p__msg += "p3p_ICP: scale=" +to_string( ___s )+" {uvd}_T_{uv} : " + PoseManipUtils::prettyprintMatrix4d( uvd_T_uv );
         p3p__msg += "p3p done in (ms)" + to_string(elapsed_time_p3p)+";    theia::AlignPointCloudsUmeyama scales doesn't look good, this usually implies that estimation is bad. scale= " + to_string(___s);
-        return -1;
+        // return -1;
     }
 
     p3p__msg += "p3p done in (ms)" + to_string(elapsed_time_p3p)+";    p3p_ICP: {uvd}_T_{uv} : " + PoseManipUtils::prettyprintMatrix4d( uvd_T_uv );
     p3p__msg += ";weight="+to_string( min( ___s, 1.0/___s ) );
-    return  min( ___s, 1.0/___s );
+    // return  min( ___s, 1.0/___s );
+    #endif
+
+
+    // with ransac
+    timer.tic();
+    vector<CorrespondencePair_3d3d> data_r;
+    for( int i=0 ; i<uv_X.size() ; i++ )
+    {
+        CorrespondencePair_3d3d _data;
+        _data.a_X = uv_X[i];
+        _data.b_X = uvd_Y[i];
+        data_r.push_back( _data );
+    }
+
+    AlignPointCloudsUmeyamaWithRansac icp_estimator;
+    RelativePose best_rel_pose;
+
+    // set ransac params
+    theia::RansacParameters params;
+    params.error_thresh = 0.1;
+    params.min_inlier_ratio = 0.7;
+    params.max_iterations = 50;
+    params.min_iterations = 5;
+    params.use_mle = true;
+
+    theia::Ransac<AlignPointCloudsUmeyamaWithRansac> ransac_estimator( params, icp_estimator);
+    ransac_estimator.Initialize();
+
+    theia::RansacSummary summary;
+    ransac_estimator.Estimate(data_r, &best_rel_pose, &summary);
+    auto elapsed_time_p3p_ransac = timer.toc_milli();
+
+    uvd_T_uv = Matrix4d::Identity();
+    uvd_T_uv =  best_rel_pose.b_T_a ;
+
+
+    ____P3P_ICP_(
+    cout << TermColor::iGREEN() << "ICP Ransac:";
+    // for( int i=0; i<summary.inliers.size() ; i++ )
+        // cout << "\t" << i<<":"<< summary.inliers[i];
+    cout << "\tnum_iterations=" << summary.num_iterations;
+    cout << "\tconfidence=" << summary.confidence;
+    cout << endl;
+    cout << "best solution (ransac icp ) : "<< PoseManipUtils::prettyprintMatrix4d( best_rel_pose.b_T_a ) << TermColor::RESET() << endl;
+    )
+    p3p__msg += "ICP Ransac;";
+    p3p__msg += "    best solution (b_T_a) : "+ PoseManipUtils::prettyprintMatrix4d( best_rel_pose.b_T_a ) + ";";
+    p3p__msg += "     #iterations="+to_string( summary.num_iterations );
+    p3p__msg += "    confidence="+to_string( summary.confidence ) ;
+    p3p__msg += "    icp_ransac_elapsetime_ms="+to_string( elapsed_time_p3p_ransac ) +";";
+    return summary.confidence;
 
 }
 

@@ -117,6 +117,10 @@ private:
 
     // Processed foundLoops_i[ j ] and writes the info in the object `proc_candi`
     bool process_loop_candidate_imagepair( int j, ProcessedLoopCandidate& proc_candi );
+
+    // This function processes the jth loopcandidate and fills in the ProcessedLoopCandidate.
+    // The return status means that some poses were computed. It doesn't mean the poses were consistent.
+    // Infact, nothing about consistency is performed here. It just computes relative poses using 3 indipendent way. 
     bool process_loop_candidate_imagepair_consistent_pose_compute( int j, ProcessedLoopCandidate& proc_candi ); //< enhanced version of the above
 
     bool init_stereogeom(); // expected to be called in loopcandiate_consumer_thread. this sets the variable `stereogeom`

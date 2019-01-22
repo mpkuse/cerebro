@@ -56,9 +56,14 @@ class ProcessedLoopCandidate
 {
 public:
     ProcessedLoopCandidate( int idx_from_raw_candidates_list, DataNode * node_1, DataNode * node_2 );
-    ProcessedLoopCandidate() { idx_from_raw_candidates_list=-1; }
+    ProcessedLoopCandidate() { idx_from_raw_candidates_list=-1; opX_b_T_a.clear(); debug_images.clear(); }
 
     bool makeLoopEdgeMsg(  cerebro::LoopEdge& msg );
+
+    // Looks at all the candidate relative poses and decides if they are all consistent.
+    // Returns true if consistent, returns false if not consistent
+    bool makeLoopEdgeMsgWithConsistencyCheck( cerebro::LoopEdge& msg );
+
     bool asJson( json& out_json );
 
 // private:
@@ -72,25 +77,33 @@ public:
 
     int pf_matches; //pf==>point-features
 
+
     int _3d2d_n_pfvalid_depth;
     Matrix4d _3d2d__2T1; //used 3d points from 1st view, 2d points from 2nd view.
     bool isSet_3d2d__2T1=false;
     float _3d2d__2T1__ransac_confidence;
 
-    int _2d3d_n_pfvalid_depth;
-    Matrix4d _2d3d__2T1; //used 2d points from 1st and 3d points from 2nd view.
-    bool isSet_2d3d__2T1=false;
+    // TODO: Removal
+    // int _2d3d_n_pfvalid_depth;
+    // Matrix4d _2d3d__2T1; //used 2d points from 1st and 3d points from 2nd view.
+    // bool isSet_2d3d__2T1=false;
 
     // std::mutex _mutex;
+
+    // All computed poses
+    vector<Matrix4d> opX_b_T_a; // b_T_a is same as 2T1
+    vector<float> opX_goodness;
+    vector<string> opX_b_T_a_name;
+    vector<string> opX_b_T_a_debugmsg;
 
     // debug images
     vector<cv::Mat> debug_images;
     vector<string> debug_images_titles;
 
+    // TODO: removal
     // cv::Mat matching_im_pair;
     // cv::Mat pnp_verification_image;
     // cv::Mat node_1_disparity_viz;
     // cv::Mat node_2_disparity_viz;
 
-    //TODO: have a asJson function, return string.
 };

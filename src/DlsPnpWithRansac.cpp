@@ -23,12 +23,16 @@ float StaticTheiaPoseCompute::P3P_ICP( const vector<Vector3d>& uv_X, const vecto
     //     const std::vector<Eigen::Vector3d>& right,
     //     const std::vector<double>& weights, Eigen::Matrix3d* rotation,
     //     Eigen::Vector3d* translation, double* scale)
+
+
     p3p__msg = "";
     Matrix3d ____R;
     Vector3d ____t; double ___s=1.0;
 
     ElapsedTime timer;
     timer.tic();
+
+    #if 0
     theia::AlignPointCloudsUmeyama( uv_X, uvd_Y, &____R, &____t, &___s ); // all weights = 1. TODO: ideally weights could be proportion to point's Z.
     // theia::AlignPointCloudsICP( uv_X, uvd_Y, &____R, &____t ); // all weights = 1. TODO: ideally weights could be proportion to point's Z.
 
@@ -60,6 +64,56 @@ float StaticTheiaPoseCompute::P3P_ICP( const vector<Vector3d>& uv_X, const vecto
     p3p__msg += "p3p done in (ms)" + to_string(elapsed_time_p3p)+";    p3p_ICP: {uvd}_T_{uv} : " + PoseManipUtils::prettyprintMatrix4d( uvd_T_uv );
     p3p__msg += ";weight="+to_string( min( ___s, 1.0/___s ) );
     return  min( ___s, 1.0/___s );
+    #endif
+
+    // with ransac
+    timer.tic();
+    vector<CorrespondencePair_3d3d> data_r;
+    for( int i=0 ; i<uv_X.size() ; i++ )
+    {
+        CorrespondencePair_3d3d _data;
+        _data.a_X = uv_X[i];
+        _data.b_X = uvd_Y[i];
+        data_r.push_back( _data );
+    }
+
+    AlignPointCloudsUmeyamaWithRansac icp_estimator;
+    RelativePose best_rel_pose;
+
+    // set ransac params
+    theia::RansacParameters params;
+    params.error_thresh = 0.1;
+    params.min_inlier_ratio = 0.7;
+    params.max_iterations = 50;
+    params.min_iterations = 5;
+    params.use_mle = true;
+
+    theia::Ransac<AlignPointCloudsUmeyamaWithRansac> ransac_estimator( params, icp_estimator);
+    ransac_estimator.Initialize();
+
+    theia::RansacSummary summary;
+    ransac_estimator.Estimate(data_r, &best_rel_pose, &summary);
+    auto elapsed_time_p3p_ransac = timer.toc_milli();
+
+    uvd_T_uv = Matrix4d::Identity();
+    uvd_T_uv =  best_rel_pose.b_T_a ;
+
+
+    ____P3P_ICP_(
+    cout << TermColor::iGREEN() << "ICP Ransac:";
+    // for( int i=0; i<summary.inliers.size() ; i++ )
+        // cout << "\t" << i<<":"<< summary.inliers[i];
+    cout << "\tnum_iterations=" << summary.num_iterations;
+    cout << "\tconfidence=" << summary.confidence;
+    cout << endl;
+    cout << "best solution (ransac icp ) : "<< PoseManipUtils::prettyprintMatrix4d( best_rel_pose.b_T_a ) << TermColor::RESET() << endl;
+    )
+    p3p__msg += "ICP Ransac;";
+    p3p__msg += "    best solution (b_T_a) : "+ PoseManipUtils::prettyprintMatrix4d( best_rel_pose.b_T_a ) + ";";
+    p3p__msg += "     #iterations="+to_string( summary.num_iterations );
+    p3p__msg += "    confidence="+to_string( summary.confidence ) ;
+    p3p__msg += "    icp_ransac_elapsetime_ms="+to_string( elapsed_time_p3p_ransac ) +";";
+    return summary.confidence;
 
 }
 
@@ -143,7 +197,7 @@ float StaticTheiaPoseCompute::PNP( const std::vector<Vector3d>& w_X, const std::
 
     // Set the ransac parameters.
     theia::RansacParameters params;
-    params.error_thresh = 0.02;
+    params.error_thresh = 0.03;
     params.min_inlier_ratio = 0.7;
     params.max_iterations = 50;
     params.min_iterations = 5;

@@ -116,7 +116,12 @@ void Visualization::publish_processed_loopcandidates()
 
 
         // Publish marker line
-        if( candidate_i.isSet_3d2d__2T1 == false ) { cout << "[Visualization::publish_processed_loopcandidates] _3d2d__2T1 is not set"; exit(1); }
+        if( candidate_i.isSet_3d2d__2T1 == false )
+        {
+            cout << "[Visualization::publish_processed_loopcandidates] _3d2d__2T1 is not set. This means the final pose is not set. This is because the candidate relative poses do not appear to be consistent with each other. Ignoring this ProcessedLoopCandidate" << endl;;
+            continue;
+        }
+
         Matrix4d w_T_2__new = candidate_i.node_1->getPose() * (candidate_i._3d2d__2T1).inverse();
         Vector4d w_t_2__new = w_T_2__new.col(3);
         RosMarkerUtils::add_point_to_marker( w_t_1, marker, true );

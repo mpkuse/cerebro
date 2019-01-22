@@ -132,6 +132,19 @@ void PoseManipUtils::eigenmat_to_rawyprt( const Matrix4d& T, double * ypr, doubl
   t[2] = T(2,3);
 }
 
+void PoseManipUtils::eigenmat_to_rawyprt( const Matrix4d& T, Vector3d& ypr, Vector3d& t)
+{
+    assert( T(3,3) == 1 );
+    Vector3d T_cap_ypr = R2ypr( T.topLeftCorner<3,3>() );
+    ypr(0) = T_cap_ypr(0);
+    ypr(1) = T_cap_ypr(1);
+    ypr(2) = T_cap_ypr(2);
+
+    t(0) = T(0,3);
+    t(1) = T(1,3);
+    t(2) = T(2,3);
+}
+
 Vector3d PoseManipUtils::R2ypr( const Matrix3d& R)
 {
   Eigen::Vector3d n = R.col(0);

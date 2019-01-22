@@ -343,18 +343,18 @@ json Cerebro::foundLoops_as_JSON()
 
 
 
-#define __Cerebro__loopcandi_consumer__(msg) msg;
-// #define __Cerebro__loopcandi_consumer__(msg)  ;
+// #define __Cerebro__loopcandi_consumer__(msg) msg;
+#define __Cerebro__loopcandi_consumer__(msg)  ;
 // ^This will also imshow image-pairs with gms-matches marked.
 
-#define __Cerebro__loopcandi_consumer__IMP( msg ) msg;
-// #define __Cerebro__loopcandi_consumer__IMP( msg ) ;
-// ^Text only printing
+// #define __Cerebro__loopcandi_consumer__IMP( msg ) msg;
+#define __Cerebro__loopcandi_consumer__IMP( msg ) ;
+// ^Important Text only printing
 
 
 // #define __Cerebro__loopcandi_consumer__IMSHOW 0 // will not produce the images (ofcourse will not show as well)
 // #define __Cerebro__loopcandi_consumer__IMSHOW 1 // produce the images and log them, will not imshow
-#define __Cerebro__loopcandi_consumer__IMSHOW 2 // produce the images and imshow them,
+#define __Cerebro__loopcandi_consumer__IMSHOW 2 // produce the images and imshow them, don't log
 void Cerebro::loopcandiate_consumer_thread()
 {
     assert( m_dataManager_available && "You need to set the DataManager in class Cerebro before execution of the run() thread can begin. You can set the dataManager by call to Cerebro::setDataManager()\n");
@@ -398,28 +398,38 @@ void Cerebro::loopcandiate_consumer_thread()
 
             timer.tic() ;
             // bool ___status = process_loop_candidate_imagepair( j, proc_candi );
-            bool ___status = process_loop_candidate_imagepair_consistent_pose_compute( j, proc_candi );
+            bool proc___status = process_loop_candidate_imagepair_consistent_pose_compute( j, proc_candi );
             __Cerebro__loopcandi_consumer__IMP(
                 cout << "\t" << timer.toc_milli() << "(ms) !! process_loop_candidate_imagepair()\n";
             )
 
             // the data is in the `proc_candi` which is put into a vector which is a class variable.
-            if( ___status )
+            if( proc___status )
             {
                 std::lock_guard<std::mutex> lk(m_processedLoops);
-                processedloopcandi_list.push_back(  proc_candi );
-                __Cerebro__loopcandi_consumer__IMP(
-                cout  << "\tAdded to `processedloopcandi_list`"  << endl;
-                )
-
 
                 // publish proc_candi
                 cerebro::LoopEdge loopedge_msg;
-                bool __makemsg_status = proc_candi.makeLoopEdgeMsg( loopedge_msg );
+                // bool __makemsg_status = proc_candi.makeLoopEdgeMsg( loopedge_msg );
+                bool __makemsg_status = proc_candi.makeLoopEdgeMsgWithConsistencyCheck( loopedge_msg );
+
+
                 __Cerebro__loopcandi_consumer__IMP(
                 cout << TermColor::iBLUE() <<  "__makemsg_status: " << __makemsg_status << "  publish loopedge_msg" << TermColor::RESET() << endl;
                 )
-                pub_loopedge.publish( loopedge_msg );
+
+                // publish only if msg was successfully made ==> all the candidate relative poses are consistent.
+                if( __makemsg_status )
+                {
+                    __Cerebro__loopcandi_consumer__IMP( cout << TermColor::GREEN() << "publish loopedge_msg" << TermColor::RESET() << endl; )
+                    pub_loopedge.publish( loopedge_msg );
+                } else {
+                    __Cerebro__loopcandi_consumer__IMP( cout << TermColor::RED() << "not publishing because __makemsg_status was false" << TermColor::RESET() << endl; )
+                }
+
+                // irrespective of where the poses are consistent or not add it to the list.
+                processedloopcandi_list.push_back(  proc_candi );
+                __Cerebro__loopcandi_consumer__IMP(cout  << "\tAdded to `processedloopcandi_list`"  << endl;)
             }
             else {
                 __Cerebro__loopcandi_consumer__IMP( cout << "\tNot added to `processedloopcandi_list`, status was false\n" << endl; )
@@ -716,8 +726,9 @@ bool Cerebro::process_loop_candidate_imagepair_consistent_pose_compute( int ii, 
     cout << p3p__msg << endl;
     )
 
-    __Cerebro__loopcandi_consumer__IMP(
+
     Matrix4d odom_b_T_a = node_2->getPose().inverse() * node_1->getPose();
+    __Cerebro__loopcandi_consumer__IMP(
     cout << TermColor::YELLOW() << "odom_b_T_a = " << PoseManipUtils::prettyprintMatrix4d( odom_b_T_a ) << TermColor::RESET() << endl;
     cout << "|op1 - op2|" << PoseManipUtils::prettyprintMatrix4d( op1__b_T_a.inverse() * op2__b_T_a ) << endl;
     cout << "|op1 - icp|" << PoseManipUtils::prettyprintMatrix4d( op1__b_T_a.inverse() * icp_b_T_a ) << endl;
@@ -729,22 +740,39 @@ bool Cerebro::process_loop_candidate_imagepair_consistent_pose_compute( int ii, 
 
 
     //-----------------------------------------------------------------
-    // Take a desicion about the consistency of pose,
-    // if it looks ok fill up the `ProcessedLoopCandidate`
-    //-----------------------------------------------------------------
     // Fill the output
+    //-----------------------------------------------------------------
+
     proc_candi = ProcessedLoopCandidate( ii, node_1, node_2 );
     proc_candi.idx_from_datamanager_1 = idx_1;
     proc_candi.idx_from_datamanager_2 = idx_2;
     proc_candi.pf_matches = uv.cols();
 
     // final pose
-    proc_candi._3d2d__2T1 = op1__b_T_a;
-    proc_candi.isSet_3d2d__2T1 = true;
-    proc_candi._3d2d__2T1__ransac_confidence = pnp_goodness;
+    // proc_candi._3d2d__2T1 = op1__b_T_a;
+    // proc_candi.isSet_3d2d__2T1 = true;
+    // proc_candi._3d2d__2T1__ransac_confidence = pnp_goodness;
 
-    // no need to log other poses as it is already there in
-    // the debug image and can be regenerated by the standalone version of this code
+
+    // Fill up all the poses which were computed
+    // option-A
+    proc_candi.opX_b_T_a.push_back( op1__b_T_a );
+    proc_candi.opX_goodness.push_back( pnp_goodness );
+    proc_candi.opX_b_T_a_name.push_back( "op1__b_T_a" );
+    proc_candi.opX_b_T_a_debugmsg.push_back( pnp__msg );
+    // Option-B
+    proc_candi.opX_b_T_a.push_back( op2__b_T_a );
+    proc_candi.opX_goodness.push_back( pnp_goodness_optioN_B );
+    proc_candi.opX_b_T_a_name.push_back( "op2__b_T_a" );
+    proc_candi.opX_b_T_a_debugmsg.push_back( pnp__msg_option_B );
+    // Option-C
+    proc_candi.opX_b_T_a.push_back( icp_b_T_a );
+    proc_candi.opX_goodness.push_back( p3p_goodness );
+    proc_candi.opX_b_T_a_name.push_back( "icp_b_T_a" );
+    proc_candi.opX_b_T_a_debugmsg.push_back( p3p__msg );
+
+
+
 
 
 
@@ -775,7 +803,7 @@ bool Cerebro::process_loop_candidate_imagepair_consistent_pose_compute( int ii, 
         ///---------C: Reprojections
         //TODO
 
-    #if __Cerebro__loopcandi_consumer__IMSHOW == 2 || __Cerebro__loopcandi_consumer__IMSHOW == 1
+    #if __Cerebro__loopcandi_consumer__IMSHOW == 1
     proc_candi.debug_images.push_back( dst_feat_matches );
     proc_candi.debug_images_titles.push_back( "apf_matches" );
     proc_candi.debug_images.push_back( dst_disp );
@@ -791,7 +819,7 @@ bool Cerebro::process_loop_candidate_imagepair_consistent_pose_compute( int ii, 
     #endif
 
 
-    return proc_candi.isSet_3d2d__2T1;
+    return true;
 
 }
 

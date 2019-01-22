@@ -7,7 +7,7 @@
 <!-- ### IN LAB -->
 <!-- <arg name="bag_file" default="1.bag" doc="sitting on my desk"/> -->
 <!-- <arg name="bag_file" default="2018-11-20-17-45-55.bag" doc="single loop in lab"/> -->
-<!-- <arg name="bag_file" default="2018-11-20-17-42-54.bag" doc="multiple loops in lab"/> -->
+<arg name="bag_file" default="2018-11-20-17-42-54.bag" doc="multiple loops in lab"/>
 <!-- <arg name="bag_file" default="2018-11-22-12-06-47.bag" doc="drone fly area loopy"/> -->
 <!-- <arg name="bag_file" default="2018-11-22-12-09-21.bag" doc="conference room RI"/> -->
 <!-- <arg name="bag_file" default="2018-11-29-12-37-49.bag" doc="lab rotated loops"/> -->
@@ -25,7 +25,7 @@
 
 
 <!-- ### Kidnap sequences -->
-<arg name="bag_file" default="/kidnap/2019-01-14-17-20-06.bag" doc="lab kidnap"/>
+<!-- <arg name="bag_file" default="/kidnap/2019-01-14-17-20-06.bag" doc="lab kidnap"/> -->
 
 
 <node pkg="rosbag" type="play" name="rosbag" args="$(arg bag_path)/$(arg bag_file) -s 2" output="log"/>
@@ -60,7 +60,7 @@
 </node>
 
 
-<group if="$(loop_closure_enable)" >
+<group if="$(arg loop_closure_enable)" >
     <group unless="$(arg loop_closure_type)">
     <!-- vins-mono default loop closure/pose-graph opt node -->
         <node name="pose_graph" pkg="pose_graph" type="pose_graph" output="screen">
