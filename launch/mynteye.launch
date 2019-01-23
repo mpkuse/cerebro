@@ -7,12 +7,12 @@
 <!-- ### IN LAB -->
 <!-- <arg name="bag_file" default="1.bag" doc="sitting on my desk"/> -->
 <!-- <arg name="bag_file" default="2018-11-20-17-45-55.bag" doc="single loop in lab"/> -->
-<arg name="bag_file" default="2018-11-20-17-42-54.bag" doc="multiple loops in lab"/>
+<!-- <arg name="bag_file" default="2018-11-20-17-42-54.bag" doc="multiple loops in lab"/> -->
 <!-- <arg name="bag_file" default="2018-11-22-12-06-47.bag" doc="drone fly area loopy"/> -->
 <!-- <arg name="bag_file" default="2018-11-22-12-09-21.bag" doc="conference room RI"/> -->
 <!-- <arg name="bag_file" default="2018-11-29-12-37-49.bag" doc="lab rotated loops"/> -->
 <!-- <arg name="bag_file" default="2018-11-29-15-10-24.bag" doc="outside RI"/> -->
-<!-- <arg name="bag_file" default="2019-01-14-18-25-18.bag" doc="lab AR test"/> -->
+<arg name="bag_file" default="2019-01-14-18-25-18.bag" doc="lab AR test"/>
 
 <!-- ### In HKUST Academic block and CYT UG -->
 <!-- <arg name="bag_file" default="2018-11-29-15-13-44.bag" doc="CYT UG floor"/> -->

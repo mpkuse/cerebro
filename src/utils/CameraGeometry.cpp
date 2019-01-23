@@ -944,3 +944,47 @@ void GeometryUtils::idealProjection( const Matrix3d& K, const MatrixXd& c_X, Mat
     // c) uv = K * c_X
     uv = K * uv_normalized;
 }
+
+
+
+void GeometryUtils::idealProjection( const Matrix3d& K, const vector<Vector3d>& c_X, MatrixXd& uv  )
+{
+    assert( c_X.size() > 0 );
+
+    // a) c_X = c_X / c_X.row(2). ==> Z divide
+    // b) perspective_proj = c_X.topRows(3)
+    MatrixXd uv_normalized = MatrixXd::Constant( 3, c_X.size(), 1.0 );
+    // uv_normalized.row(0) = c_X.row(0).array() / c_X.row(2).array();
+    // uv_normalized.row(1) = c_X.row(1).array() / c_X.row(2).array();
+    for( int i=0 ; i<c_X.size() ; i++ ) {
+        uv_normalized.col(i) = c_X[i] / c_X[i](2);
+    }
+
+
+    // c) uv = K * c_X
+    uv = K * uv_normalized;
+}
+
+
+
+void GeometryUtils::idealProjection( const Matrix3d& K, const Matrix4d& w_T_c, const vector<Vector3d>& c_X, MatrixXd& uv  )
+{
+    assert( c_X.size() > 0 );
+    assert( abs(w_T_c(3,3)-1.) < 1.0E-5 );
+
+    // a) c_X = c_X / c_X.row(2). ==> Z divide
+    // b) perspective_proj = c_X.topRows(3)
+    MatrixXd uv_normalized = MatrixXd::Constant( 3, c_X.size(), 1.0 );
+    // uv_normalized.row(0) = c_X.row(0).array() / c_X.row(2).array();
+    // uv_normalized.row(1) = c_X.row(1).array() / c_X.row(2).array();
+    for( int i=0 ; i<c_X.size() ; i++ ) {
+        Vector4d __x;
+        __x << c_X[i], 1.0;
+        __x = w_T_c * __x;
+        uv_normalized.col(i) = __x / __x(2);
+    }
+
+
+    // c) uv = K * c_X
+    uv = K * uv_normalized;
+}

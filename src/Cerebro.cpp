@@ -353,8 +353,8 @@ json Cerebro::foundLoops_as_JSON()
 
 
 // #define __Cerebro__loopcandi_consumer__IMSHOW 0 // will not produce the images (ofcourse will not show as well)
-// #define __Cerebro__loopcandi_consumer__IMSHOW 1 // produce the images and log them, will not imshow
-#define __Cerebro__loopcandi_consumer__IMSHOW 2 // produce the images and imshow them, don't log
+#define __Cerebro__loopcandi_consumer__IMSHOW 1 // produce the images and log them, will not imshow
+// #define __Cerebro__loopcandi_consumer__IMSHOW 2 // produce the images and imshow them, don't log
 void Cerebro::loopcandiate_consumer_thread()
 {
     assert( m_dataManager_available && "You need to set the DataManager in class Cerebro before execution of the run() thread can begin. You can set the dataManager by call to Cerebro::setDataManager()\n");
@@ -676,6 +676,11 @@ bool Cerebro::process_loop_candidate_imagepair_consistent_pose_compute( int ii, 
     //----------------------------------------------------------------------
     //-------------- PNP and P3P
     //----------------------------------------------------------------------
+    Matrix4d odom_b_T_a = node_2->getPose().inverse() * node_1->getPose();
+    proc_candi = ProcessedLoopCandidate( ii, node_1, node_2 );
+    proc_candi.idx_from_datamanager_1 = idx_1;
+    proc_candi.idx_from_datamanager_2 = idx_2;
+    proc_candi.pf_matches = uv.cols();
 
     //----- Option-A:
     __Cerebro__loopcandi_consumer__IMP( cout << TermColor::BLUE() << "Option-A" << TermColor::RESET() << endl; )
@@ -694,6 +699,35 @@ bool Cerebro::process_loop_candidate_imagepair_consistent_pose_compute( int ii, 
     cout << pnp__msg << endl;
     )
 
+    // reprojection debug image for op-1
+    // plot( PI( op1__b_T_a * world_point_uv ) ) on imB
+    #if (__Cerebro__loopcandi_consumer__IMSHOW == 1) || (__Cerebro__loopcandi_consumer__IMSHOW == 2)
+    {
+    MatrixXd PI_world_point_uv, PI_world_point_uv_odom;
+    GeometryUtils::idealProjection( stereogeom->get_K(), op1__b_T_a, world_point_uv, PI_world_point_uv );
+    GeometryUtils::idealProjection( stereogeom->get_K(), odom_b_T_a, world_point_uv, PI_world_point_uv_odom );
+    cv::Mat pi_dst_img;
+    MiscUtils::plot_point_sets( b_imleft_srectified, PI_world_point_uv, pi_dst_img, cv::Scalar(0,255,0), false  );
+    MiscUtils::plot_point_sets( pi_dst_img, PI_world_point_uv_odom, cv::Scalar(255,0,0), false  );
+    MiscUtils::plot_point_sets( pi_dst_img, uv, cv::Scalar(0,0,255), false  );
+    MiscUtils::plot_point_sets( pi_dst_img, uv_d, cv::Scalar(255,0,255), false  );
+    cv::resize(pi_dst_img,pi_dst_img, cv::Size(), 0.5, 0.5 );
+    MiscUtils::append_status_image( pi_dst_img, string( "^this is image b=")+to_string(idx_2)+";plot( PI( op1__b_T_a * world_point_uv ) ) on imB in green;plot( PI( odom__b_T_a * world_point_uv ) ) on imB in blue;plot( uv ) on imB in red;plot( uv_d) on imB in pink");
+
+
+    #if __Cerebro__loopcandi_consumer__IMSHOW == 1
+    proc_candi.debug_images.push_back( pi_dst_img );
+    proc_candi.debug_images_titles.push_back( "reprojection_debug_image_1" );
+    #endif
+
+    #if __Cerebro__loopcandi_consumer__IMSHOW == 2
+    cv::imshow( "plot( PI( op1__b_T_a * world_point_uv ) ) on imB", pi_dst_img );
+    #endif
+    }
+
+    #endif
+
+
     //----- Option-B:
     __Cerebro__loopcandi_consumer__IMP( cout << TermColor::BLUE() << "Option-B" << TermColor::RESET() << endl; )
     std::vector<Eigen::Vector3d> world_point_uv_d;
@@ -711,6 +745,35 @@ bool Cerebro::process_loop_candidate_imagepair_consistent_pose_compute( int ii, 
     cout << pnp__msg_option_B << endl;
     )
 
+
+    // reprojection debug image for op-2
+    // plot( PI( op2__a_T_b * world_point_uv_d ) ) on imA
+    #if (__Cerebro__loopcandi_consumer__IMSHOW == 1) || (__Cerebro__loopcandi_consumer__IMSHOW == 2)
+    {
+    MatrixXd PI_world_point_uvd, PI_world_point_uvd_odom;
+    GeometryUtils::idealProjection( stereogeom->get_K(), op2__a_T_b, world_point_uv_d, PI_world_point_uvd );
+    GeometryUtils::idealProjection( stereogeom->get_K(), odom_b_T_a.inverse(), world_point_uv_d, PI_world_point_uvd_odom );
+    cv::Mat pi_dst_img;
+    MiscUtils::plot_point_sets( a_imleft_srectified, PI_world_point_uvd, pi_dst_img, cv::Scalar(0,255,0), false  );
+    MiscUtils::plot_point_sets( pi_dst_img, PI_world_point_uvd_odom, cv::Scalar(255,0,0), false  );
+    MiscUtils::plot_point_sets( pi_dst_img, uv, cv::Scalar(0,0,255), false  );
+    MiscUtils::plot_point_sets( pi_dst_img, uv_d, cv::Scalar(255,0,255), false  );
+    cv::resize(pi_dst_img,pi_dst_img, cv::Size(), 0.5, 0.5 );
+    MiscUtils::append_status_image( pi_dst_img, string( "^this is image a=")+to_string(idx_1)+";plot( PI( op2__a_T_b * world_point_uv_d ) ) on imA in green;plot( PI( odom__b_T_a * world_point_uv ) ) on imA in blue;plot( uv ) on imA in red;plot( uv_d) on imA in pink");
+
+
+    #if __Cerebro__loopcandi_consumer__IMSHOW == 1
+    proc_candi.debug_images.push_back( pi_dst_img );
+    proc_candi.debug_images_titles.push_back( "reprojection_debug_image_2" );
+    #endif
+
+    #if __Cerebro__loopcandi_consumer__IMSHOW == 2
+    cv::imshow( "plot( PI( op2__a_T_b * world_point_uv_d ) ) on imA", pi_dst_img );
+    #endif
+    }
+
+    #endif
+
     //----- Option-C
     __Cerebro__loopcandi_consumer__IMP( cout << TermColor::BLUE() << "Option-C" << TermColor::RESET() << endl; )
     vector< Vector3d> uv_X;
@@ -727,7 +790,35 @@ bool Cerebro::process_loop_candidate_imagepair_consistent_pose_compute( int ii, 
     )
 
 
-    Matrix4d odom_b_T_a = node_2->getPose().inverse() * node_1->getPose();
+    // reprojection debug image for op-3
+    // plot( PI( icp_b_T_a * world_point_uv ) ) on imB
+    #if (__Cerebro__loopcandi_consumer__IMSHOW == 1) || (__Cerebro__loopcandi_consumer__IMSHOW == 2)
+    {
+    MatrixXd PI_world_point_uv, PI_world_point_uv_odom;
+    GeometryUtils::idealProjection( stereogeom->get_K(), icp_b_T_a, world_point_uv, PI_world_point_uv );
+    GeometryUtils::idealProjection( stereogeom->get_K(), odom_b_T_a, world_point_uv, PI_world_point_uv_odom );
+    cv::Mat pi_dst_img;
+    MiscUtils::plot_point_sets( b_imleft_srectified, PI_world_point_uv, pi_dst_img, cv::Scalar(0,255,0), false  );
+    MiscUtils::plot_point_sets( pi_dst_img, PI_world_point_uv_odom, cv::Scalar(255,0,0), false  );
+    MiscUtils::plot_point_sets( pi_dst_img, uv, cv::Scalar(0,0,255), false  );
+    MiscUtils::plot_point_sets( pi_dst_img, uv_d, cv::Scalar(255,0,255), false  );
+    cv::resize(pi_dst_img,pi_dst_img, cv::Size(), 0.5, 0.5 );
+    MiscUtils::append_status_image( pi_dst_img, string( "^this is image b=")+to_string(idx_2)+";plot( PI( icp_b_T_a * world_point_uv ) ) on imB in green;plot( PI( odom__b_T_a * world_point_uv ) ) on imB in blue;plot( uv ) on imB in red;plot( uv_d) on imB in pink");
+
+
+    #if __Cerebro__loopcandi_consumer__IMSHOW == 1
+    proc_candi.debug_images.push_back( pi_dst_img );
+    proc_candi.debug_images_titles.push_back( "reprojection_debug_image_3" );
+    #endif
+
+    #if __Cerebro__loopcandi_consumer__IMSHOW == 2
+    cv::imshow( "plot( PI( icp_b_T_a * world_point_uv ) ) on imB", pi_dst_img );
+    #endif
+    }
+
+    #endif
+
+
     __Cerebro__loopcandi_consumer__IMP(
     cout << TermColor::YELLOW() << "odom_b_T_a = " << PoseManipUtils::prettyprintMatrix4d( odom_b_T_a ) << TermColor::RESET() << endl;
     cout << "|op1 - op2|" << PoseManipUtils::prettyprintMatrix4d( op1__b_T_a.inverse() * op2__b_T_a ) << endl;
@@ -742,11 +833,6 @@ bool Cerebro::process_loop_candidate_imagepair_consistent_pose_compute( int ii, 
     //-----------------------------------------------------------------
     // Fill the output
     //-----------------------------------------------------------------
-
-    proc_candi = ProcessedLoopCandidate( ii, node_1, node_2 );
-    proc_candi.idx_from_datamanager_1 = idx_1;
-    proc_candi.idx_from_datamanager_2 = idx_2;
-    proc_candi.pf_matches = uv.cols();
 
     // final pose
     // proc_candi._3d2d__2T1 = op1__b_T_a;

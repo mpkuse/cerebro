@@ -51,14 +51,9 @@ bool ProcessedLoopCandidate::makeLoopEdgeMsgWithConsistencyCheck( cerebro::LoopE
         return false;
     }
 
+    ///////////////////////////////////////////////////////////
     // Look at all the options and determine if they are consistent.
-    #if 0
-    Matrix4d odom_b_T_a = node_2->getPose().inverse() * node_1->getPose();
-    cout << TermColor::YELLOW() << "odom_b_T_a = " << PoseManipUtils::prettyprintMatrix4d( odom_b_T_a ) << TermColor::RESET() << endl;
-    cout << "|op1 - op2|" << PoseManipUtils::prettyprintMatrix4d( op1__b_T_a.inverse() * op2__b_T_a ) << endl;
-    cout << "|op1 - icp|" << PoseManipUtils::prettyprintMatrix4d( op1__b_T_a.inverse() * icp_b_T_a ) << endl;
-    cout << "|op2 - icp|" << PoseManipUtils::prettyprintMatrix4d( op2__b_T_a.inverse() * icp_b_T_a ) << endl;
-    #endif
+
 
     // if |del_angle| < 2.0 degrees and |del_translation| < 0.1m then not consistent
     Matrix4d op1__b_T_a = opX_b_T_a[0];
@@ -67,18 +62,60 @@ bool ProcessedLoopCandidate::makeLoopEdgeMsgWithConsistencyCheck( cerebro::LoopE
     Matrix4d op1_m_op2 = op1__b_T_a.inverse() * op2__b_T_a;
     Matrix4d op1_m_icp = op1__b_T_a.inverse() * icp_b_T_a;
     Matrix4d op2_m_icp = op2__b_T_a.inverse() * icp_b_T_a;
-    
+    Vector3d op1_m_op2_ypr, op1_m_op2_tr; // ypr and translation of delta pose
+    Vector3d op1_m_icp_ypr, op1_m_icp_tr;
+    Vector3d op2_m_icp_ypr,op2_m_icp_tr;
+    PoseManipUtils::eigenmat_to_rawyprt( op1_m_op2, op1_m_op2_ypr, op1_m_op2_tr);
+    PoseManipUtils::eigenmat_to_rawyprt( op1_m_icp, op1_m_icp_ypr, op1_m_icp_tr);
+    PoseManipUtils::eigenmat_to_rawyprt( op2_m_icp, op2_m_icp_ypr, op2_m_icp_tr);
+    bool is_consistent_ypr = false, is_consistent_tr=false;
+
+    if( op1_m_op2_ypr.lpNorm<Eigen::Infinity>() < 2.0  &&
+        op1_m_icp_ypr.lpNorm<Eigen::Infinity>() < 2.0  &&
+        op2_m_icp_ypr.lpNorm<Eigen::Infinity>() < 2.0
+    )
+    { is_consistent_ypr = true;}
+
+    if( op1_m_icp_tr.lpNorm<Eigen::Infinity>() < .1  &&
+        op1_m_icp_tr.lpNorm<Eigen::Infinity>() < .1  &&
+        op2_m_icp_tr.lpNorm<Eigen::Infinity>() < .1
+    )
+    { is_consistent_tr = true;}
+
+    #if 1 //just priniting
+    Matrix4d odom_b_T_a = node_2->getPose().inverse() * node_1->getPose();
+    cout << "---" << to_string(idx_from_datamanager_1)+"<=>"+to_string(idx_from_datamanager_2);
+    cout << "[ProcessedLoopCandidate::makeLoopEdgeMsgWithConsistencyCheck]\n" << TermColor::YELLOW() << "odom_b_T_a = " << PoseManipUtils::prettyprintMatrix4d( odom_b_T_a ) << TermColor::RESET() << endl;
+
+    cout << "op1" << "confidence=" << opX_goodness[0]<< " " << PoseManipUtils::prettyprintMatrix4d( op1__b_T_a ) << endl;
+    cout << "op2" << "confidence=" << opX_goodness[1]<< " " << PoseManipUtils::prettyprintMatrix4d( op2__b_T_a ) << endl;
+    cout << "icp" << "confidence=" << opX_goodness[2]<< " " << PoseManipUtils::prettyprintMatrix4d( icp_b_T_a ) << endl;
+
+    cout << "|op1 - op2|" << PoseManipUtils::prettyprintMatrix4d( op1__b_T_a.inverse() * op2__b_T_a ) << endl;
+    cout << "|op1 - icp|" << PoseManipUtils::prettyprintMatrix4d( op1__b_T_a.inverse() * icp_b_T_a ) << endl;
+    cout << "|op2 - icp|" << PoseManipUtils::prettyprintMatrix4d( op2__b_T_a.inverse() * icp_b_T_a ) << endl;
+    cout << TermColor::YELLOW() ;
+    cout << "is_consistent_ypr=" << is_consistent_ypr << "\t" ;
+    cout << "is_consistent_tr=" << is_consistent_tr << "\t";
+    cout << TermColor::RESET() << endl;
+    #endif
 
 
+    ///////////////////////////////// Done with consistency check /////////////////////
 
+    if( pf_matches > 800 || (is_consistent_ypr && is_consistent_tr) ) {
     // put the final pose into `3d2d__2T1`
-    _3d2d__2T1 = opX_b_T_a[0];
-    isSet_3d2d__2T1 = true;
-    _3d2d__2T1__ransac_confidence = opX_goodness[0];
+        _3d2d__2T1 = opX_b_T_a[0];
+        isSet_3d2d__2T1 = true;
+        _3d2d__2T1__ransac_confidence = max( max( opX_goodness[0], opX_goodness[1] ), opX_goodness[2] );
 
-
-    // call the above function,
-    return makeLoopEdgeMsg( msg );
+        // call the above function,
+        return makeLoopEdgeMsg( msg );
+    }
+    else {
+        cout << "[ ProcessedLoopCandidate::makeLoopEdgeMsgWithConsistencyCheck] Insonsistent poses from 3 methods, so don't publish this pose" <<  endl;
+        return false;
+    }
 }
 
 

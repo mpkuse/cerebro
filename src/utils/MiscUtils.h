@@ -61,7 +61,7 @@ public:
 
     // Inplace plotting. Here dont need to specify a separate destination. src is modified.
     static void plot_point_sets( cv::Mat& im, const MatrixXd& pts_set,
-                                            const cv::Scalar& color, bool enable_keypoint_annotation, const string& msg );
+                                            const cv::Scalar& color, bool enable_keypoint_annotation=true, const string& msg=string("") );
 
     // Plotting with annotations specified by VectorXi
     static void plot_point_sets( cv::Mat& im, const MatrixXd& pts_set, cv::Mat& dst,

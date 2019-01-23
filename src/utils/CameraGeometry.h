@@ -292,6 +292,8 @@ public:
     //          it to camera co-ordinates before you pass it to this function.
     // uv : image co-ordinates (xy)
     static void idealProjection( const Matrix3d& K, const MatrixXd& c_X, MatrixXd& uv  );
+    static void idealProjection( const Matrix3d& K, const vector<Vector3d>& c_X, MatrixXd& uv  );
+    static void idealProjection( const Matrix3d& K, const Matrix4d& w_T_c, const vector<Vector3d>& c_X, MatrixXd& uv  );
 
 
     // given a point cloud as 3xN or 4xN matrix, gets colors for each based on the depth

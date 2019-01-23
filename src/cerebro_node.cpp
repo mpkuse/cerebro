@@ -347,7 +347,7 @@ int main( int argc, char ** argv )
     ///////////////////////
     // Actual Logging.  //
     //////////////////////
-    #define __LOGGING__ 0 // make this 1 to enable logging. 0 to disable logging. rememeber to catkin_make after this change
+    #define __LOGGING__ 1 // make this 1 to enable logging. 0 to disable logging. rememeber to catkin_make after this change
     #if __LOGGING__
         // Write json log
         string save_dir = "/Bulk_Data/_tmp/";
