@@ -120,7 +120,7 @@ private:
 
     // This function processes the jth loopcandidate and fills in the ProcessedLoopCandidate.
     // The return status means that some poses were computed. It doesn't mean the poses were consistent.
-    // Infact, nothing about consistency is performed here. It just computes relative poses using 3 indipendent way. 
+    // Infact, nothing about consistency is performed here. It just computes relative poses using 3 indipendent way.
     bool process_loop_candidate_imagepair_consistent_pose_compute( int j, ProcessedLoopCandidate& proc_candi ); //< enhanced version of the above
 
     bool init_stereogeom(); // expected to be called in loopcandiate_consumer_thread. this sets the variable `stereogeom`
@@ -166,4 +166,13 @@ private:
     std::mutex m_wholeImageComputedList;
     vector<ros::Time> wholeImageComputedList; ///< A list of stamps where descriptors are computed and available.
     //--------------- END Descriptor Computation Thread ------------------//
+
+
+    //--------------- kidnaped identification thread ------------------//
+public:
+    void kidnaped_thread( int loop_rate_hz=5);
+    void kidnaped_thread_enable() {b_kidnaped_thread_enable=true;};
+    void kidnaped_thread_disable() {b_kidnaped_thread_enable=false;};
+private:
+    atomic<bool> b_kidnaped_thread_enable;
 };

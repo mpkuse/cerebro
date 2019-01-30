@@ -16,6 +16,10 @@
 float StaticTheiaPoseCompute::P3P_ICP( const vector<Vector3d>& uv_X, const vector<Vector3d>& uvd_Y,
     Matrix4d& uvd_T_uv, string & p3p__msg )
 {
+    if( uv_X.size() < 20 ) {
+        ____P3P_ICP_( cout << "[StaticTheiaPoseCompute::P3P_ICP] Too few input points. You provided " << uv_X.size() << endl; )
+        return -1; // if you give me too few points, i return error.
+    }
 
     // call this theia::AlignPointCloudsUmeyamaWithWeights
     // void AlignPointCloudsUmeyamaWithWeights(
@@ -129,6 +133,10 @@ float StaticTheiaPoseCompute::PNP( const std::vector<Vector3d>& w_X, const std::
     Matrix4d& c_T_w,
     string& pnp__msg )
 {
+    if( w_X.size() < 20 ) {
+        ___P_N_P__( cout << "[StaticTheiaPoseCompute::PNP] Too few input points. You provided " << w_X.size() << endl; )
+        return -1; // if you give me too few points, i return error.
+    }
     pnp__msg = "";
     ElapsedTime timer;
     #if 0

@@ -137,7 +137,7 @@ const ros::Time DataManager::getIMUCamExtrinsicLastUpdated()
 //////////////////////////////// call backs //////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 
-// #define __DATAMANAGER_CALLBACK_PRINT( u ) u
+// #define __DATAMANAGER_CALLBACK_PRINT( u ) u;
 #define __DATAMANAGER_CALLBACK_PRINT( u )
 void DataManager::camera_pose_callback( const nav_msgs::Odometry::ConstPtr msg )
 {
@@ -146,7 +146,7 @@ void DataManager::camera_pose_callback( const nav_msgs::Odometry::ConstPtr msg )
         pose_0_available = true;
     }
     //__DATAMANAGER_CALLBACK_PRINT( cout << "[cerebro/camera_pose_callback]" << msg->header.stamp << endl; )
-    __DATAMANAGER_CALLBACK_PRINT( cout << "[cerebro/camera_pose_callback]" << msg->header.stamp-pose_0 << endl; )
+    __DATAMANAGER_CALLBACK_PRINT( cout << TermColor::BLUE()  <<  "[cerebro/camera_pose_callback]" <<  msg->header.stamp-pose_0 << TermColor::RESET() << endl; )
     // push this to queue. Another thread will associate the data
     pose_buf.push( msg );
     return;
@@ -159,10 +159,11 @@ void DataManager::camera_pose_callback( const nav_msgs::Odometry::ConstPtr msg )
     RawFileIO::write_EigenMatrix( _fname, w_T_c );
 }
 
+// currently not in use.
 void DataManager::keyframe_pose_callback( const nav_msgs::Odometry::ConstPtr msg )
 {
     //__DATAMANAGER_CALLBACK_PRINT( cout << "[cerebro/camera_pose_callback]" << msg->header.stamp << endl; )
-    __DATAMANAGER_CALLBACK_PRINT( cout << "[cerebro/keyframe_pose_callback]" << msg->header.stamp-pose_0 << endl; )
+    __DATAMANAGER_CALLBACK_PRINT( cout << TermColor::iBLUE() << "[cerebro/keyframe_pose_callback]" << msg->header.stamp-pose_0 << TermColor::RESET() << endl; )
     // push this to queue. Another thread will associate the data
     kf_pose_buf.push( msg );
 }
@@ -171,7 +172,7 @@ void DataManager::keyframe_pose_callback( const nav_msgs::Odometry::ConstPtr msg
 void DataManager::raw_image_callback( const sensor_msgs::ImageConstPtr& msg )
 {
     //__DATAMANAGER_CALLBACK_PRINT( cout << "[cerebro/raw_image_callback]" << msg->header.stamp << endl; )
-    __DATAMANAGER_CALLBACK_PRINT( cout << "[cerebro/raw_image_callback]" << msg->header.stamp-pose_0 << endl; )
+    __DATAMANAGER_CALLBACK_PRINT( cout << TermColor::GREEN() << "[cerebro/raw_image_callback]" << msg->header.stamp-pose_0 << TermColor::RESET() << endl; )
     img_buf.push( msg );
     return;
 
@@ -250,10 +251,12 @@ void DataManager::extrinsic_cam_imu_callback( const nav_msgs::Odometry::ConstPtr
 void DataManager::ptcld_callback( const sensor_msgs::PointCloud::ConstPtr msg )
 {
     // __DATAMANAGER_CALLBACK_PRINT( cout << "[cerebro/ptcld_callback]" << msg->header.stamp << endl; )
-    __DATAMANAGER_CALLBACK_PRINT( cout << "[cerebro/ptcld_callback]" << msg->header.stamp - pose_0 << endl; )
+    __DATAMANAGER_CALLBACK_PRINT( cout << TermColor::YELLOW() << "[cerebro/ptcld_callback]" << msg->header.stamp - pose_0 << TermColor::RESET() << endl; )
     ptcld_buf.push( msg );
     return;
 
+    #if 0
+    // For debugging incoming ptcld.
     int npts = msg->points.size();
     MatrixXd ptcld = MatrixXd::Zero(3, npts );
     for( int i=0 ; i<npts ; i++ )
@@ -265,6 +268,7 @@ void DataManager::ptcld_callback( const sensor_msgs::PointCloud::ConstPtr msg )
     char _fname[100];
     sprintf( _fname, "/Bulk_Data/_tmp/%lf.pointcloud", msg->header.stamp.toSec() );
     RawFileIO::write_EigenMatrix( _fname, ptcld );
+    #endif
 }
 
 
@@ -339,6 +343,7 @@ std::string DataManager::metaDataAsJson()
         buffer << "\"isUnVnAvailable\":" << it->second->isUnVnAvailable() << ",\n";
         buffer << "\"isUVAvailable\":" << it->second->isUVAvailable() << ",\n";
         buffer << "\"isFeatIdsAvailable\":" << it->second->isFeatIdsAvailable() << ",\n";
+        buffer << "\"getNumberOfSuccessfullyTrackedFeatures\":" << it->second->getNumberOfSuccessfullyTrackedFeatures() << ",\n";
         buffer << "\"isWholeImageDescriptorAvailable\":" << it->second->isWholeImageDescriptorAvailable() << ",\n";
 
         // image
@@ -608,8 +613,55 @@ string DataManager::print_queue_size( int verbose=1 )
 /////////////////////////// Thread mains /////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 
+void DataManager::trial_thread()
+{
+    cout << TermColor::GREEN() << "Start DataManager::trial_thread "<< TermColor::RESET() << endl;
+    cout << "HI\n ";
+    ros::Rate looprate(10);
+    while( b_trial_thread )
+    {
+        cout << "trial_thread\n";
+
+        auto S = data_map.begin(); //.lower_bound( lb );
+        auto E = data_map.end();
+        cout << "S=" << S->first << "E=" << E->first <<  endl;
+        for( auto it = S ; it != E ; it++ )
+        {
+            #if 1
+            if( it->second->isImageAvailable() ) {
+                cout << TermColor::GREEN();
+            } else { cout << TermColor::BLUE() ; }
+
+            if( it->second->isPoseAvailable() && it->second->getNumberOfSuccessfullyTrackedFeatures() < 0 ) {
+                cout << "A" << it->second->getNumberOfSuccessfullyTrackedFeatures() << ",";
+            }
+            if( !it->second->isPoseAvailable() && it->second->getNumberOfSuccessfullyTrackedFeatures() < 0 ) {
+                cout << "B" << it->second->getNumberOfSuccessfullyTrackedFeatures() << ",";  // this means there thise node has no pose and no tracked features data
+            }
+            if( it->second->isPoseAvailable() && ! (it->second->getNumberOfSuccessfullyTrackedFeatures() < 0 ) ) {
+                cout << "C" << it->second->getNumberOfSuccessfullyTrackedFeatures() << ",";
+            }
+            if( !it->second->isPoseAvailable() && ! (it->second->getNumberOfSuccessfullyTrackedFeatures() < 0 )  ){
+                cout << "D"; // has no pose data but has tracked features. Pose actually takes some time to arrive. tracked features will be avaiaable first,
+            }
+            cout << TermColor::RESET() ;
+            #endif
+        }
+        cout << endl;
+
+
+
+        looprate.sleep();
+    }
+
+    cout << TermColor::RED() << "END DataManager::trial_thread "<< TermColor::RESET() << endl;
+}
+
 // #define _12335_print( str ) cout << "[data_association_thread]" << str;
 #define _12335_print( str ) ;
+
+// #define __DataManager__data_association_thread__( msg ) msg;
+#define __DataManager__data_association_thread__( msg ) ;
 void DataManager::data_association_thread( int max_loop_rate_in_hz )
 {
     assert( max_loop_rate_in_hz > 0 && max_loop_rate_in_hz < 200 && "[DataManager::data_association_thread] I am expecting the loop rate to be between 1-50" );
@@ -648,6 +700,7 @@ void DataManager::data_association_thread( int max_loop_rate_in_hz )
             }
             else {
                 assert( false && "[DataManager::data_association_thread] attempting to set additional image into datanode. However that datanode is not found in the map. This cannot be happening\n");
+                __DataManager__data_association_thread__( cout << TermColor:RED() << "[DataManager::data_association_thread] attempting to set additional image_1 into datanode. However that datanode is not found in the map. This cannot be happening." << TermColor::RESET() << endl ; )
             }
         }
 
@@ -665,6 +718,7 @@ void DataManager::data_association_thread( int max_loop_rate_in_hz )
              }
              else {
                  assert( false && "[DataManager::data_association_thread] data_map does not seem to contain the t of pose_msg. This cannot be happening\n");
+                 __DataManager__data_association_thread__(cout << TermColor::RED() << "[DataManager::data_association_thread] data_map does not seem to contain the t of pose_msg. This cannot be happening" << TermColor::RESET() << endl;)
              }
          }
 
@@ -678,14 +732,24 @@ void DataManager::data_association_thread( int max_loop_rate_in_hz )
             // find the DataNode with this timestamp
             if( data_map.count( t ) > 0 ) {
                 // a Node seem to exist with this t.
+
+                //NOte: the ``/vins_estimator/keyframe_point`` and ``/feature_tracker/feature``
+                // are in different formats so be careful. vins_estimator/keyframe_point has n channels. while feature_tracker/feature has just 5 channels.
+                // but they both convey the same info, so be careful what exact you want.
+                #if 0
                 data_map.at( t )->setPointCloudFromMsg( ptcld_msg );
                 data_map.at( t )->setUnVnFromMsg( ptcld_msg );
                 data_map.at( t )->setUVFromMsg( ptcld_msg );
                 data_map.at( t )->setTrackedFeatIdsFromMsg( ptcld_msg );
                 data_map.at( t )->setAsKeyFrame();
+                #else
+                data_map.at( t )->setNumberOfSuccessfullyTrackedFeatures( ptcld_msg->points.size() );
+                data_map.at( t )->setAsKeyFrame();
+                #endif
             }
             else {
                 assert( false && "[DataManager::data_association_thread] data_map does not seem to contain the t of ptcld_msg. This cannot be happening\n");
+                __DataManager__data_association_thread__(cout << TermColor::RED() << "[DataManager::data_association_thread] data_map does not seem to contain the t of ptcld_msg. This cannot be happening." << TermColor::RESET() << endl ;)
             }
         }
 

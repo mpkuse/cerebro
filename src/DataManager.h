@@ -187,4 +187,13 @@ private:
     atomic<bool> b_data_association_thread;
 
 
+public:
+    // Just a trial thread
+    void trial_thread();
+    void trial_thread_enable() { b_trial_thread = true; }
+    void trial_thread_disable() { b_trial_thread = false; }
+
+private:
+    atomic<bool> b_trial_thread;
+
 };

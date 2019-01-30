@@ -35,6 +35,8 @@ bool ProcessedLoopCandidate::makeLoopEdgeMsg(  cerebro::LoopEdge& msg )
     return true;
 }
 
+// #define __ProcessedLoopCandidate_makeLoopEdgeMsgWithConsistencyCheck( msg )  msg;
+#define __ProcessedLoopCandidate_makeLoopEdgeMsgWithConsistencyCheck( msg ) ;
 bool ProcessedLoopCandidate::makeLoopEdgeMsgWithConsistencyCheck( cerebro::LoopEdge& msg )
 {
     if( opX_b_T_a.size() != 3 ) {
@@ -83,6 +85,7 @@ bool ProcessedLoopCandidate::makeLoopEdgeMsgWithConsistencyCheck( cerebro::LoopE
     { is_consistent_tr = true;}
 
     #if 1 //just priniting
+    __ProcessedLoopCandidate_makeLoopEdgeMsgWithConsistencyCheck(
     Matrix4d odom_b_T_a = node_2->getPose().inverse() * node_1->getPose();
     cout << "---" << to_string(idx_from_datamanager_1)+"<=>"+to_string(idx_from_datamanager_2);
     cout << "[ProcessedLoopCandidate::makeLoopEdgeMsgWithConsistencyCheck]\n" << TermColor::YELLOW() << "odom_b_T_a = " << PoseManipUtils::prettyprintMatrix4d( odom_b_T_a ) << TermColor::RESET() << endl;
@@ -98,6 +101,7 @@ bool ProcessedLoopCandidate::makeLoopEdgeMsgWithConsistencyCheck( cerebro::LoopE
     cout << "is_consistent_ypr=" << is_consistent_ypr << "\t" ;
     cout << "is_consistent_tr=" << is_consistent_tr << "\t";
     cout << TermColor::RESET() << endl;
+    )
     #endif
 
 

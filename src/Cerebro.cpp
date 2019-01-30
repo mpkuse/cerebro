@@ -595,7 +595,7 @@ bool Cerebro::make_3d_2d_collection__using__pfmatches_and_disparity( const Matri
     return true;
 
     if( c < 30 ) {
-        cout << TermColor::RED() << "too few valid 3d points between frames" <<  TermColor::RESET() << endl;
+        cout << TermColor::RED() << "[ Cerebro::make_3d_2d_collection__using__pfmatches_and_disparity]too few valid 3d points between frames" <<  TermColor::RESET() << endl;
         return false;
     }
 
@@ -665,8 +665,10 @@ bool Cerebro::process_loop_candidate_imagepair_consistent_pose_compute( int ii, 
     string msg_pf_matches = to_string( timer.toc_milli() )+" (ms) elapsed time for point_feature_matches computation";
     __Cerebro__loopcandi_consumer__( cout << msg_pf_matches << endl; )
     if( uv.cols() < 150 ) {
-        cout << TermColor::RED() << "too few gms matches between " << idx_1 << " and " << idx_2;
-        cout << " contains pf_matches=" << uv.cols() << "thresh=150" << TermColor::RESET() << endl;
+        __Cerebro__loopcandi_consumer__IMP(
+        cout << TermColor::RED() << "[Cerebro::process_loop_candidate_imagepair_consistent_pose_compute]too few gms matches between node#" << idx_1 << " and node#" << idx_2;
+        cout << " contains pf_matches=" << uv.cols() << ", thresh=150, so I am rejecting this loopcandidate." << TermColor::RESET() << endl;
+        )
         return false;
     }
 
@@ -1345,4 +1347,122 @@ bool Cerebro::process_loop_candidate_imagepair( int ii, ProcessedLoopCandidate& 
 
 
 
+}
+
+//////////// END pose computation //////////////////////////////
+
+///////////////////////////////////////////////////////////
+//////////////////////// KIDNAP ///////////////////////////
+///////////////////////////////////////////////////////////
+
+// Kidnap identification thread. This thread monitors dataManager->getDataMapRef().size
+// for every new node added if there are zero tracked features means that, I have
+// been kidnaped.
+
+void Cerebro::kidnaped_thread( int loop_rate_hz )
+{
+    if( loop_rate_hz <= 0 || loop_rate_hz >= 30 ) {
+        cout << TermColor::RED() << "[Cerebro::kidnaped_thead] Invalid loop_rate_hz. Expected to be between [1,30]\n" << TermColor::RESET() << endl;
+        return;
+    }
+
+    cout << TermColor::GREEN() << "Start  Cerebro::kipnaped_thead\n" << TermColor::RESET() << endl;
+
+    ros::Rate loop_rate( loop_rate_hz );
+    int prev_count = 0, new_count = 0;
+    ros::Time last_known_keyframe;
+
+    // TODO: Move both of these to class variables and make them atomic. is_kidnapped_start is valid only when is_kidnapped==true
+    bool is_kidnapped = false;
+    bool is_kidnapped_more_than_n_sec = false;
+    ros::Time is_kidnapped_start;
+
+    while( b_kidnaped_thread_enable ) {
+        // Book Keeping
+        prev_count = new_count;
+        loop_rate.sleep();
+
+
+
+        auto data_map = dataManager->getDataMapRef(); //< map< ros::Time, DataNode*>
+        new_count = data_map.size();
+
+        if( new_count <= prev_count ) {
+            cout << "[Cerebro::kidnaped_thread]Nothing new\n";
+            continue;
+        }
+
+        ros::Time lb = data_map.rbegin()->first - ros::Duration(5, 0); // look at recent 5sec.
+        // auto S = data_map.begin();
+        auto S = data_map.lower_bound( lb );
+        auto E = data_map.end();
+        // cout << "S=" << S->first << "E=" << E->first <<  endl;
+        for( auto it = S ; it != E ; it++ )
+        {
+
+            #if 0
+            if( it->second->isImageAvailable() ) {
+                cout << TermColor::GREEN();
+            } else { cout << TermColor::BLUE() ; }
+
+            if( it->second->isPoseAvailable() && it->second->getNumberOfSuccessfullyTrackedFeatures() < 0 ) {
+                cout << "A";
+            }
+            if( !it->second->isPoseAvailable() && it->second->getNumberOfSuccessfullyTrackedFeatures() < 0 ) {
+                cout << "B";
+            }
+            if( it->second->isPoseAvailable() && ! (it->second->getNumberOfSuccessfullyTrackedFeatures() < 0 ) ) {
+                cout << "C";
+            }
+            if( !it->second->isPoseAvailable() && ! (it->second->getNumberOfSuccessfullyTrackedFeatures() < 0 )  ){
+                cout << "D";
+            }
+            cout << TermColor::RESET() ;
+            #endif
+
+
+            int n_feats = it->second->getNumberOfSuccessfullyTrackedFeatures();
+            if( it->first <= last_known_keyframe ||  n_feats < 0 )
+                continue;
+
+            last_known_keyframe = it->first;
+
+            if( is_kidnapped==false && n_feats < 50  ) {
+                is_kidnapped = true;
+                is_kidnapped_start = it->first;
+
+                cout << TermColor::RED() << "I am kidnapped t=" << it->first << TermColor::RESET() << endl;
+                cout << "I think so because the number of tracked features (from feature tracker) have fallen to only " << n_feats << ", the threshold was 50. However, I will wait for 2 sec to declare kidnapped to vins_estimator." << endl;
+            }
+
+            if( is_kidnapped && !is_kidnapped_more_than_n_sec && (it->first - is_kidnapped_start) > ros::Duration(2.0) )
+            {
+                cout << "Kidnapped for more than 2 sec\n";
+                is_kidnapped_more_than_n_sec = true;
+
+                // publish False
+                cout << "PUBLISH FALSE\n";
+            }
+
+            if( is_kidnapped && n_feats > 50 ) {
+                cout << TermColor::GREEN() << "Looks like i have been unkidnapped t=" << it->first << TermColor::RESET() << endl;
+
+                if( is_kidnapped_more_than_n_sec )
+                {
+                    // publish true to vins_estimator to indicate that it may resume the estimation with a new co-ordinate system.
+                    // Publish True
+                    cout << "PUBLISH TRUE\n";
+                }
+                is_kidnapped = false;
+                is_kidnapped_more_than_n_sec = false;
+
+            }
+        }
+        // cout << endl;
+
+
+    }
+
+
+    cout << TermColor::RED() << "Cerebro::kipnaped_thead Ends\n" << TermColor::RESET() << endl;
 }

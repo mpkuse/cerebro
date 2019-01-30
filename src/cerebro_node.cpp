@@ -242,7 +242,8 @@ int main( int argc, char ** argv )
 
     // [D]
     // PointCloud (all): has 5 channels
-    string ptcld_topic = string("/vins_estimator/keyframe_point");
+    // string ptcld_topic = string("/vins_estimator/keyframe_point");
+    string ptcld_topic = string("/feature_tracker/feature");
     ROS_INFO( "Subscribe to ptcld_topic: %s", ptcld_topic.c_str() );
     ros::Subscriber sub_ptcld = nh.subscribe( ptcld_topic, 1000, &DataManager::ptcld_callback, &dataManager );
 
@@ -260,6 +261,9 @@ int main( int argc, char ** argv )
     // Data associate thread: looks at the callback buffers and sets the data in the std::map
     dataManager.data_association_thread_enable();
     std::thread t1( &DataManager::data_association_thread, &dataManager, 50 );
+
+    // dataManager.trial_thread_enable();
+    // std::thread dm_trial_th( &DataManager::trial_thread, &dataManager );
     // TODO Another thread in class dataManager which will deallocate images in nonkeyframes.
 
 
@@ -278,10 +282,14 @@ int main( int argc, char ** argv )
 
 
     // [C.1]
-    // loopcandidates consumer
+    // loopcandidates consumer - This also computes the relative pose between the candidates
     cer.loopcandidate_consumer_enable();
     std::thread loopcandidate_consumer_th( &Cerebro::loopcandiate_consumer_thread, &cer ); // runs @1hz
 
+    // [C.2]
+    // Kidnap Identification Thread
+    cer.kidnaped_thread_enable();
+    std::thread kidnap_th( &Cerebro::kidnaped_thread, &cer, 5 );
 
     // [D]
     // Visualization
@@ -297,15 +305,19 @@ int main( int argc, char ** argv )
     ros::spin();
 
     dataManager.data_association_thread_disable();
+    // dataManager.trial_thread_disable();
     cer.run_thread_disable();
     cer.descriptor_computer_thread_disable();
     cer.loopcandidate_consumer_disable();
+    cer.kidnaped_thread_disable();
     viz.run_thread_disable();
 
     t1.join(); cout << "t1.join()\n";
+    // dm_trial_th.join(); cout << "t1_trial.join()\n";
     t2.join(); cout << "t2.join()\n";
     desc_th.join(); cout << "desc_th.join()\n";
     loopcandidate_consumer_th.join(); cout << "loopcandidate_consumer_th.join()\n";
+    kidnap_th.join(); cout << "kidnap_th.join()\n";
     t3.join(); cout << "t3.join()\n";
 
 
@@ -347,7 +359,7 @@ int main( int argc, char ** argv )
     ///////////////////////
     // Actual Logging.  //
     //////////////////////
-    #define __LOGGING__ 1 // make this 1 to enable logging. 0 to disable logging. rememeber to catkin_make after this change
+    #define __LOGGING__ 0 // make this 1 to enable logging. 0 to disable logging. rememeber to catkin_make after this change
     #if __LOGGING__
         // Write json log
         string save_dir = "/Bulk_Data/_tmp/";

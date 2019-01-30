@@ -45,11 +45,12 @@ using namespace Eigen;
 
 #include "utils/PoseManipUtils.h"
 #include "utils/MiscUtils.h"
-
+#include "utils/TermColor.h"
 class DataNode
 {
 public:
-    DataNode( ros::Time stamp ): stamp(stamp)  { is_key_frame = false; }
+    DataNode( ros::Time stamp ): stamp(stamp)
+    { is_key_frame = false; m_image=false; m_wTc=false;}
 
     void setImageFromMsg( const sensor_msgs::ImageConstPtr msg ); ///< this sets the primary image
     void setImageFromMsg( const sensor_msgs::ImageConstPtr msg, short cam_id ); ///< this sets additional image. multiple additional images by Node is possible by using ids
@@ -63,6 +64,11 @@ public:
 
     void setAsKeyFrame() { is_key_frame = true; }
     void unsetAsKeyFrame() { is_key_frame = false; }
+
+    // This is intended to indicate the number of tracked features from /feature_tracker.
+    // TODO: In the future if need be implement to save the tracked points. For now I am not retaining those
+    void setNumberOfSuccessfullyTrackedFeatures( int n );
+    int getNumberOfSuccessfullyTrackedFeatures();
 
 
     bool isKeyFrame()  const{ return (bool)is_key_frame; }
@@ -113,7 +119,8 @@ private:
     // Raw Image
     cv::Mat image;
     ros::Time t_image;
-    bool m_image=false; // TODO better make this atomic<bool>
+    // bool m_image=false; // TODO better make this atomic<bool>
+    std::atomic<bool> m_image;
 
     // Additional Raw Images
     std::map<short,cv::Mat> all_images;
@@ -124,32 +131,38 @@ private:
     Matrix4d wTc;
     MatrixXd wTc_covariance; // 6x6
     ros::Time t_wTc;
-    bool m_wTc=false;
+    // bool m_wTc=false;
+    std::atomic<bool> m_wTc;
 
 
     // point cloud (3d data)
     MatrixXd ptcld;
     ros::Time t_ptcld;
-    bool m_ptcld=false;
+    std::atomic<bool> m_ptcld;
+    std::atomic<bool> m_ptcld_zero_pts;
 
 
     // unvn - imaged points in normalized cords
     MatrixXd unvn;
     ros::Time t_unvn;
-    bool m_unvn=false;
+    std::atomic<bool> m_unvn;
+    std::atomic<bool> m_unvn_zero_pts;
 
 
     // uv - imaged points in observed cords.
     MatrixXd uv;
     ros::Time t_uv;
-    bool m_uv=false;
+    std::atomic<bool> m_uv;
+    std::atomic<bool> m_uv_zero_pts;
 
 
     // tracked feat ids
     VectorXi tracked_feat_ids;
     ros::Time t_tracked_feat_ids;
-    bool m_tracked_feat_ids = false;
+    std::atomic<bool> m_tracked_feat_ids;
+    std::atomic<bool> m_tracked_feat_ids_zero_pts;
 
+    int numberOfSuccessfullyTrackedFeatures = -1;
 
     // Whole Image Descriptor
     VectorXd img_desc;

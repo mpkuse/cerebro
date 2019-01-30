@@ -18,6 +18,8 @@ Panels:
         - /Cerebro1/Marker1/Namespaces1
         - /AR_demo1
         - /AR_demo1/AR_image_odm1/Status1
+        - /Solve Pose Graph Opt1
+        - /Solve Pose Graph Opt1/Marker1
         - /Solve Pose Graph Opt1/Marker1/Namespaces1
         - /Solve Pose Graph Opt1/Debug Node Marker1/Namespaces1
       Splitter Ratio: 0.62647754
@@ -107,7 +109,7 @@ Visualization Manager:
           Buffer Length: 1
           Class: rviz/Path
           Color: 255; 85; 255
-          Enabled: false
+          Enabled: true
           Head Diameter: 0.300000012
           Head Length: 0.200000003
           Length: 0.300000012
@@ -124,15 +126,15 @@ Visualization Manager:
           Shaft Length: 0.100000001
           Topic: /vins_estimator/path
           Unreliable: false
-          Value: false
+          Value: true
         - Class: rviz/MarkerArray
-          Enabled: false
+          Enabled: true
           Marker Topic: /vins_estimator/camera_pose_visual
           Name: Visual
           Namespaces:
-            {}
+            CameraPoseVisualization: true
           Queue Size: 100
-          Value: false
+          Value: true
         - Alpha: 1
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
@@ -316,11 +318,7 @@ Visualization Manager:
           Marker Topic: /cerebro_node/viz/framedata
           Name: Marker
           Namespaces:
-            cam_pose_pt: true
-            cam_pose_txt: true
-            loopcandidates_line: false
-            processed_loopcandidates_line: true
-            processed_loopcandidates_new_position_of_2: false
+            {}
           Queue Size: 100
           Value: true
         - Class: rviz/Image
@@ -389,8 +387,7 @@ Visualization Manager:
           Marker Topic: /keyframe_pose_graph_slam_node/viz/visualization_marker
           Name: Marker
           Namespaces:
-            opt_kf_pose_linestrip: true
-            opt_kf_pose_linestrip_cam_visual: true
+            {}
           Queue Size: 100
           Value: true
         - Class: rviz/Marker
@@ -427,24 +424,24 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 17.1901855
+      Distance: 36.4027405
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.0599999987
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.0259195454
-        Y: 5.43390369
-        Z: -1.59885764
+        X: 2.79111719
+        Y: 4.81131697
+        Z: -3.18353772
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.0500000007
       Name: Current View
       Near Clip Distance: 0.00999999978
-      Pitch: 1.27979636
+      Pitch: 1.56979632
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 0.300502419
+      Yaw: 1.73550093
     Saved:
       - Class: rviz/Orbit
         Distance: 49.6446877

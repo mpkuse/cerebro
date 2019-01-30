@@ -55,6 +55,13 @@ void DataNode::setPointCloudFromMsg( const sensor_msgs::PointCloudConstPtr msg )
     std::lock_guard<std::mutex> lk(m);
 
     int n_pts = msg->points.size() ;
+    if( n_pts == 0 ) {
+        // cout << TermColor::RED() << "[DataNode::setPointCloudFromMsg]npts=0" << TermColor::RESET() << endl;
+        t_ptcld = msg->header.stamp;
+        m_ptcld = true;
+        m_ptcld_zero_pts = true;
+        return ;
+    }
     assert( n_pts > 0 && "[DataNode::setPointCloudFromMsg] The input pointcloud msg contains zero 3d points, ie. msg->points\n");
 
     ptcld = MatrixXd::Zero( 4, n_pts );
@@ -75,6 +82,13 @@ void DataNode::setUnVnFromMsg( const sensor_msgs::PointCloudConstPtr msg )
     std::lock_guard<std::mutex> lk(m);
 
     int n_pts = msg->channels.size() ;
+    if( n_pts == 0 ) {
+        // cout << TermColor::RED() << "[DataNode::setUnVnFromMsg]npts=0" << TermColor::RESET() << endl;
+        t_unvn = msg->header.stamp;
+        m_unvn = true;
+        m_unvn_zero_pts = true;
+        return ;
+    }
     assert( n_pts > 0 && "[DataNode::setUnVnFromMsg] The input pointcloud msg contains zero unvn points, ie. msg->channels\n");
 
     unvn = MatrixXd::Zero( 3, n_pts );
@@ -94,6 +108,13 @@ void DataNode::setUVFromMsg( const sensor_msgs::PointCloudConstPtr msg )
     std::lock_guard<std::mutex> lk(m);
 
     int n_pts = msg->channels.size() ;
+    if( n_pts == 0 ) {
+        // cout << TermColor::RED() << "[DataNode::setUVFromMsg]npts=0" << TermColor::RESET() << endl;
+        t_uv = msg->header.stamp;
+        m_uv = true;
+        m_uv_zero_pts = true;
+        return ;
+    }
     assert( n_pts > 0 && "[DataNode::setUVFromMsg] The input pointcloud msg contains zero uv points, ie. msg->channels\n");
 
     uv = MatrixXd::Zero( 3, n_pts );
@@ -112,6 +133,13 @@ void DataNode::setTrackedFeatIdsFromMsg( const sensor_msgs::PointCloudConstPtr m
     std::lock_guard<std::mutex> lk(m);
 
     int n_pts = msg->channels.size() ;
+    if( n_pts == 0 ) {
+        // cout << TermColor::RED() << "[DataNode::setTrackedFeatIdsFromMsg]npts=0" << TermColor::RESET() << endl;
+        t_tracked_feat_ids = msg->header.stamp;
+        m_tracked_feat_ids = true;
+        m_tracked_feat_ids_zero_pts = true;
+        return ;
+    }
     assert( n_pts > 0 && "[DataNode::setTrackedFeatIdsFromMsg] The input pointcloud msg contains zero tracked feature point ids, ie. msg->channels\n");
 
     tracked_feat_ids = VectorXi::Zero( n_pts );
@@ -121,6 +149,18 @@ void DataNode::setTrackedFeatIdsFromMsg( const sensor_msgs::PointCloudConstPtr m
 
     t_tracked_feat_ids = msg->header.stamp;
     m_tracked_feat_ids = true;
+}
+
+void DataNode::setNumberOfSuccessfullyTrackedFeatures( int n )
+{
+    std::lock_guard<std::mutex> lk(m);
+    numberOfSuccessfullyTrackedFeatures = n;
+}
+
+int DataNode::getNumberOfSuccessfullyTrackedFeatures()
+{
+    std::lock_guard<std::mutex> lk(m);
+    return numberOfSuccessfullyTrackedFeatures;
 }
 
 
@@ -180,7 +220,12 @@ const VectorXi& DataNode::getFeatIds() {
 
  int DataNode::nPts() {
      std::lock_guard<std::mutex> lk(m);
+     #if 0
+     if( m_tracked_feat_ids == false || m_tracked_feat_ids_zero_pts == true )
+        return 0;
      return tracked_feat_ids.size();
+     #endif
+
  }
 
  const ros::Time DataNode::getT() {
