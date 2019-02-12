@@ -74,11 +74,12 @@
     </group>
 
     <group if="$(arg loop_closure_type)" >
-    <!-- Cerebro -->
-        <node name="cerebro_node" pkg="cerebro" type="cerebro_node" output="screen">
+        <!-- Cerebro -->
+        <node name="cerebro_node" pkg="cerebro" type="cerebro_node" output="log">
            <param name="config_file" type="string" value="$(arg config_path)" />
         </node>
 
+        <!-- KERAS SERVER -->
         <node name="whole_image_desc_compute_server" pkg="cerebro" type="whole_image_desc_compute_server.py" output="log">
            <param name="config_file" type="string" value="$(arg config_path)" />
         </node>
@@ -86,7 +87,7 @@
 
     <!-- Graph-based Pose Graph Optimization Solver -->
     <!-- rosrun solve_keyframe_pose_graph keyframe_pose_graph_slam -->
-        <node name="keyframe_pose_graph_slam_node" pkg="solve_keyframe_pose_graph" type="keyframe_pose_graph_slam" output="log" >
+        <node name="keyframe_pose_graph_slam_node" pkg="solve_keyframe_pose_graph" type="keyframe_pose_graph_slam" output="screen" >
         </node>
     </group>
 </group>

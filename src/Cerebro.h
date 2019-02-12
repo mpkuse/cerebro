@@ -12,6 +12,7 @@
 
 #include <ros/ros.h>
 #include <ros/package.h>
+#include <std_msgs/Bool.h>
 #include <iostream>
 #include <vector>
 
@@ -173,6 +174,17 @@ public:
     void kidnaped_thread( int loop_rate_hz=5);
     void kidnaped_thread_enable() {b_kidnaped_thread_enable=true;};
     void kidnaped_thread_disable() {b_kidnaped_thread_enable=false;};
+
+    bool is_kidnapped();  // gives the current (kidnap) status. threadsafe
+    bool kidnap_info( int i, ros::Time& start_, ros::Time& end_ ); //< returns true if i was a valid kidnap index. return false if it was an invalid index, ie. such kidnap didnt exist
+    json kidnap_info_as_json();
+    int n_kidnaps(); //< will with return length of `start_of_kidnap` current state has to be inferred by call to `is_kidnapped()`
+
 private:
     atomic<bool> b_kidnaped_thread_enable;
+
+    std::mutex mutex_kidnap;
+    atomic< bool > state_is_kidnapped;
+    vector< ros::Time > start_of_kidnap;
+    vector< ros::Time > end_of_kidnap;
 };

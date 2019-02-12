@@ -482,6 +482,10 @@ int main( int argc, char ** argv )
         json jsonout_obj = cer.foundLoops_as_JSON();
         RawFileIO::write_string( save_dir+"/loopcandidates_liverun.json", jsonout_obj.dump(4) );
 
+        // Save kidnap info
+        json json_kidnap_info = cer.kidnap_info_as_json();
+        RawFileIO::write_string( save_dir+"/kidnap_info.json", json_kidnap_info.dump(4) );
+
 
 
         // Save matching images from ProcessedLoopCandidate

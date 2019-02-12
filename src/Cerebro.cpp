@@ -1357,8 +1357,9 @@ bool Cerebro::process_loop_candidate_imagepair( int ii, ProcessedLoopCandidate& 
 
 // Kidnap identification thread. This thread monitors dataManager->getDataMapRef().size
 // for every new node added if there are zero tracked features means that, I have
-// been kidnaped.
-
+// been kidnaped. It however declares kidnap only after 2 sec of kidnaped
+// #define __Cerebro__kidnaped_thread__( msg ) msg;
+#define __Cerebro__kidnaped_thread__( msg ) ;
 void Cerebro::kidnaped_thread( int loop_rate_hz )
 {
     if( loop_rate_hz <= 0 || loop_rate_hz >= 30 ) {
@@ -1367,6 +1368,20 @@ void Cerebro::kidnaped_thread( int loop_rate_hz )
     }
 
     cout << TermColor::GREEN() << "Start  Cerebro::kipnaped_thead\n" << TermColor::RESET() << endl;
+
+    // Setup Publisher for sending kidnaped message to
+    // a) vins_estimator and b) pose_graph solver
+    string pub_topic_test = "/feature_tracker/rcvd_flag";
+    ROS_INFO( "Cerebro Kidnap thread : Publisher pub_topic_test: %s", pub_topic_test.c_str() );
+    ros::Publisher rcvd_flag_pub = nh.advertise<std_msgs::Bool>(pub_topic_test, 1000);
+    // We publish std_msgs::Header to the pose-graph-solver.
+    // The purpose is that, this will serve as carrier of timestamp according to which
+    // we can eliminate the odometry edges from the cost function.
+    string pub_topic_header = "/feature_tracker/rcvd_flag_header";
+    ROS_INFO( "Cerebro Kidnap thread : Publisher pub_topic_header: %s", pub_topic_header.c_str() );
+    ros::Publisher kidnap_indicator_header_pub = nh.advertise<std_msgs::Header>(pub_topic_header, 1000);
+
+
 
     ros::Rate loop_rate( loop_rate_hz );
     int prev_count = 0, new_count = 0;
@@ -1388,7 +1403,7 @@ void Cerebro::kidnaped_thread( int loop_rate_hz )
         new_count = data_map.size();
 
         if( new_count <= prev_count ) {
-            cout << "[Cerebro::kidnaped_thread]Nothing new\n";
+            __Cerebro__kidnaped_thread__(cout << "[Cerebro::kidnaped_thread]Nothing new\n";)
             continue;
         }
 
@@ -1431,27 +1446,60 @@ void Cerebro::kidnaped_thread( int loop_rate_hz )
                 is_kidnapped = true;
                 is_kidnapped_start = it->first;
 
+                __Cerebro__kidnaped_thread__(
                 cout << TermColor::RED() << "I am kidnapped t=" << it->first << TermColor::RESET() << endl;
                 cout << "I think so because the number of tracked features (from feature tracker) have fallen to only " << n_feats << ", the threshold was 50. However, I will wait for 2 sec to declare kidnapped to vins_estimator." << endl;
+                )
             }
 
             if( is_kidnapped && !is_kidnapped_more_than_n_sec && (it->first - is_kidnapped_start) > ros::Duration(2.0) )
             {
-                cout << "Kidnapped for more than 2 sec\n";
+                __Cerebro__kidnaped_thread__(
+                cout << "Kidnapped for more than 2 sec. I am quite confident that I have been kidnapped\n";
+                cout << "PUBLISH FALSE\n";
+                )
                 is_kidnapped_more_than_n_sec = true;
 
-                // publish False
-                cout << "PUBLISH FALSE\n";
+                // publish False (bool msg)
+                rcvd_flag_pub.publish( false );
+
+                // publish header message
+                std_msgs::Header header_msg;
+                header_msg.stamp = is_kidnapped_start;
+                header_msg.frame_id = "kidnapped";
+                kidnap_indicator_header_pub.publish( header_msg );
+
+
+                {// these braces are Important here, for the threadsafety lock_gaurd
+                    std::lock_guard<std::mutex> lk(mutex_kidnap);
+                    this->state_is_kidnapped = true;
+                    start_of_kidnap.push_back( it->first );
+                }
             }
 
             if( is_kidnapped && n_feats > 50 ) {
+                __Cerebro__kidnaped_thread__(
                 cout << TermColor::GREEN() << "Looks like i have been unkidnapped t=" << it->first << TermColor::RESET() << endl;
+                )
 
                 if( is_kidnapped_more_than_n_sec )
                 {
                     // publish true to vins_estimator to indicate that it may resume the estimation with a new co-ordinate system.
                     // Publish True
-                    cout << "PUBLISH TRUE\n";
+                    __Cerebro__kidnaped_thread__( cout << "PUBLISH TRUE\n"; )
+                    rcvd_flag_pub.publish( true );
+
+                    // publish header msg
+                    std_msgs::Header header_msg;
+                    header_msg.stamp =  it->first ;
+                    header_msg.frame_id = "unkidnapped";
+                    kidnap_indicator_header_pub.publish( header_msg );
+
+                    { // these braces are Important here, for the threadsafety lock_gaurd
+                        std::lock_guard<std::mutex> lk(mutex_kidnap);
+                        this->state_is_kidnapped = false;
+                        end_of_kidnap.push_back( it->first );
+                    }
                 }
                 is_kidnapped = false;
                 is_kidnapped_more_than_n_sec = false;
@@ -1466,3 +1514,46 @@ void Cerebro::kidnaped_thread( int loop_rate_hz )
 
     cout << TermColor::RED() << "Cerebro::kipnaped_thead Ends\n" << TermColor::RESET() << endl;
 }
+
+
+bool Cerebro::kidnap_info( int i, ros::Time& start_, ros::Time& end_ )
+{
+    std::lock_guard<std::mutex> lk(mutex_kidnap);
+    if( i>=0 && i<start_of_kidnap.size() ) {
+        start_ = start_of_kidnap[i];
+        end_ = end_of_kidnap[i];
+        return true;
+    }
+    else {
+        start_ = ros::Time();
+        end_ = ros::Time();
+        return false;
+    }
+}
+
+json Cerebro::kidnap_info_as_json()
+{
+    std::lock_guard<std::mutex> lk(mutex_kidnap);
+    json json_obj;
+    json_obj["meta_info"]["state_is_kidnapped"] = (bool) state_is_kidnapped;
+    json_obj["meta_info"]["len_start_of_kidnap"] = start_of_kidnap.size();
+    json_obj["meta_info"]["len_end_of_kidnap"] = end_of_kidnap.size();
+    for( int i=0 ; i<start_of_kidnap.size() ; i++ )
+    {
+        json tmp;
+        tmp["start_of_kidnap_sec"] = start_of_kidnap[i].sec;
+        tmp["start_of_kidnap_nsec"] = start_of_kidnap[i].nsec;
+        tmp["end_of_kidnap_sec"] = end_of_kidnap[i].sec;
+        tmp["end_of_kidnap_nsec"] = end_of_kidnap[i].nsec;
+        json_obj["info"].push_back( tmp );
+    }
+    return json_obj;
+}
+
+int Cerebro::n_kidnaps() //< will with return length of `start_of_kidnap` current state has to be inferred by call to `is_kidnapped()`
+{
+    std::lock_guard<std::mutex> lk(mutex_kidnap);
+    return start_of_kidnap.size();
+}
+
+bool Cerebro::is_kidnapped(){ state_is_kidnapped; }
