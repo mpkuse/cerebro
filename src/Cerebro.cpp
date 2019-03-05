@@ -65,7 +65,7 @@ void Cerebro::descrip_N__dot__descrip_0_N()
     assert( this->descriptor_size> 0 );
 
     int LOCALITY_THRESH = 8;
-    float DOT_PROD_THRESH = 0.88;
+    float DOT_PROD_THRESH = 0.87;
 
     int l=0, last_l=0;
     int last_processed=0;

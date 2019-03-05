@@ -22,7 +22,7 @@ find_package(Threads)
 find_package(Eigen3 REQUIRED)
 find_package(Ceres REQUIRED)
 find_package(OpenCV 3 REQUIRED)
-#set( CMAKE_CXX_FLAGS "-fpermissive -std=c++11 -O3" )
+#set( CMAKE_CXX_FLAGS "-fpermissive -std=c++11 -O3 -Wall -Wextra -pedantic" )
 
 find_package(Theia REQUIRED)
 include_directories(${THEIA_INCLUDE_DIRS})
