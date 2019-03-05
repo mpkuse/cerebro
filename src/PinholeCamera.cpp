@@ -19,7 +19,7 @@ PinholeCamera::PinholeCamera( string config_file )
   fs["camera_name"] >> config_camera_name;   cout << "config_camera_name:" << config_camera_name << endl;
   fs["image_width"] >> config_image_width;   cout << "config_image_width:" << config_image_width << endl;
   fs["image_height"] >> config_image_height; cout << "config_image_height:" << config_image_height << endl;
-  assert( model_type == "PINHOLE" && "The class PinholeCamera is designed only for PINHOLE camera model. In this config_file: "+config_file + " the camera model was "+model_type+" this was not expected\n" );
+  // assert( config_model_type == "PINHOLE" && (bool)"The class PinholeCamera is designed only for PINHOLE camera model. In this config_file: "+config_file + " the camera model was "+config_model_type+" this was not expected\n" );
 
   fs["projection_parameters"]["fx"] >> _fx;
   fs["projection_parameters"]["fy"] >> _fy;

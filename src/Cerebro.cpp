@@ -217,7 +217,7 @@ void Cerebro::descriptor_computer_thread()
             desc_size = int( srv.response.desc.size() );
         }
     }
-    assert( nrow > 0 && ncols > 0 && desc_size > 0 );
+    assert( nrows > 0 && ncols > 0 && desc_size > 0 );
     cout << "[Cerebro::descriptor_computer_thread] nrows=" << nrows << "  ncols=" << ncols << "  desc_size=" << desc_size << endl;
     this->descriptor_size = int(desc_size);
     descriptor_size_available = true;
@@ -608,8 +608,8 @@ bool Cerebro::process_loop_candidate_imagepair_consistent_pose_compute( int ii, 
     ros::Time t_prev = std::get<1>(u);
     double score = std::get<2>(u);
 
-    assert( data_map.count( t_curr ) > 0 && data_map.count( t_prev ) > 0  && "One or both of the timestamps in foundloops where not in the data_map. This cannot be happening...fatal...\n" );
     auto data_map = dataManager->getDataMapRef();
+    assert( data_map.count( t_curr ) > 0 && data_map.count( t_prev ) > 0  && "One or both of the timestamps in foundloops where not in the data_map. This cannot be happening...fatal...\n" );
     int idx_1 = std::distance( data_map.begin(), data_map.find( t_curr )  );
     int idx_2 = std::distance( data_map.begin(), data_map.find( t_prev )  );
 
@@ -918,8 +918,8 @@ bool Cerebro::process_loop_candidate_imagepair( int ii, ProcessedLoopCandidate& 
     ros::Time t_prev = std::get<1>(u);
     double score = std::get<2>(u);
 
-    assert( data_map.count( t_curr ) > 0 && data_map.count( t_prev ) > 0  && "One or both of the timestamps in foundloops where not in the data_map. This cannot be happening...fatal...\n" );
     auto data_map = dataManager->getDataMapRef();
+    assert( data_map.count( t_curr ) > 0 && data_map.count( t_prev ) > 0  && "One or both of the timestamps in foundloops where not in the data_map. This cannot be happening...fatal...\n" );
     int idx_1 = std::distance( data_map.begin(), data_map.find( t_curr )  );
     int idx_2 = std::distance( data_map.begin(), data_map.find( t_prev )  );
 
@@ -1461,7 +1461,9 @@ void Cerebro::kidnaped_thread( int loop_rate_hz )
                 is_kidnapped_more_than_n_sec = true;
 
                 // publish False (bool msg)
-                rcvd_flag_pub.publish( false );
+                std_msgs::Bool bool_msg; bool_msg.data = false;
+                rcvd_flag_pub.publish( bool_msg );
+                // rcvd_flag_pub.publish( false );
 
                 // publish header message
                 std_msgs::Header header_msg;
@@ -1487,7 +1489,9 @@ void Cerebro::kidnaped_thread( int loop_rate_hz )
                     // publish true to vins_estimator to indicate that it may resume the estimation with a new co-ordinate system.
                     // Publish True
                     __Cerebro__kidnaped_thread__( cout << "PUBLISH TRUE\n"; )
-                    rcvd_flag_pub.publish( true );
+                    std_msgs::Bool bool_msg; bool_msg.data = true;
+                    rcvd_flag_pub.publish( bool_msg );
+                    // rcvd_flag_pub.publish( true );
 
                     // publish header msg
                     std_msgs::Header header_msg;
