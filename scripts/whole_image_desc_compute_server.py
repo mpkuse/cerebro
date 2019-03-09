@@ -15,6 +15,9 @@ import scipy.io
 import keras
 from keras_helpers import *
 
+import rospkg
+THIS_PKG_BASE_PATH = rospkg.RosPack().get_path('cerebro')
+
 
 class SampleGPUComputer:
     def __init__(self):
@@ -225,8 +228,8 @@ class NetVLADImageDescriptor:
         # model_file = '/app_learning/cartwheel_train/models.keras/mobilenet_conv7_quash_chnls_allpairloss/core_model.keras'
         # model_type = 'mobilenet_conv7_quash_chnls_allpairloss'
 
-        model_file = '/app_learning/cartwheel_train/models.keras/mobilenet_conv7_allpairloss/core_model.keras'
-        model_type = 'mobilenet_conv7_allpairloss'
+        #model_file = '/app_learning/cartwheel_train/models.keras/mobilenet_conv7_allpairloss/core_model.keras'
+        #model_type = 'mobilenet_conv7_allpairloss'
 
         # model_file = '/app_learning/cartwheel_train/models.keras/mobilenet_new/pw13_quash_chnls_k16_allpairloss/core_model.1800.keras'
         # model_type = 'pw13_quash_chnls_k16_allpairloss'
@@ -236,6 +239,9 @@ class NetVLADImageDescriptor:
 
         # model_file = '/app_learning/cartwheel_train/models.keras/mobilenet_new/pw13_quash_chnls_k16_allpairloss/core_model.800.keras'
         # model_type = 'pw13_quash_chnls_k16_allpairloss'
+
+        model_file = THIS_PKG_BASE_PATH+'/scripts/keras.models/mobilenet_conv7_allpairloss.keras'
+        model_type = 'mobilenet_conv7_allpairloss'
 
         print 'model_file: ', model_file
         model.load_weights( model_file )
