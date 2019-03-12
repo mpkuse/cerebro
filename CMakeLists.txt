@@ -1,9 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(cerebro)
 
-## Find catkin macros and libraries
-## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
-## is used, also find other catkin packages
+# Catkin components
 find_package(catkin REQUIRED COMPONENTS
   cv_bridge
   image_transport
@@ -30,10 +28,10 @@ include_directories(${THEIA_INCLUDE_DIRS})
 find_package(Boost REQUIRED COMPONENTS filesystem program_options system)
 include_directories(${Boost_INCLUDE_DIRS})
 
-## Uncomment this if the package has a setup.py. This macro ensures
-## modules and global scripts declared therein get installed
-## See http://ros.org/doc/api/catkin/html/user_guide/setup_dot_py.html
-# catkin_python_setup()
+
+
+option(COMPILE_UNIT_TEST "Compile unit tests" OFF) #OFF by default. catkin_make -DCOMPILE_UNIT_TEST=ON will compile it. OFF will skip it
+
 
 ################################################
 ## Declare ROS messages, services and actions ##
@@ -62,8 +60,6 @@ include_directories(${Boost_INCLUDE_DIRS})
 ## Generate messages in the 'msg' folder
 add_message_files(
   FILES
-#   Message1.msg
-#   Message2.msg
     LoopEdge.msg
 )
 
@@ -71,16 +67,8 @@ add_message_files(
 add_service_files(
    FILES
    WholeImageDescriptorCompute.srv
-#   Service1.srv
-#   Service2.srv
  )
 
-## Generate actions in the 'action' folder
-# add_action_files(
-#   FILES
-#   Action1.action
-#   Action2.action
-# )
 
 ## Generate added messages and services with any dependencies listed here
  generate_messages(
@@ -89,25 +77,7 @@ add_service_files(
    sensor_msgs
  )
 
-################################################
-## Declare ROS dynamic reconfigure parameters ##
-################################################
 
-## To declare and build dynamic reconfigure parameters within this
-## package, follow these steps:
-## * In the file package.xml:
-##   * add a build_depend and a run_depend tag for "dynamic_reconfigure"
-## * In this file (CMakeLists.txt):
-##   * add "dynamic_reconfigure" to
-##     find_package(catkin REQUIRED COMPONENTS ...)
-##   * uncomment the "generate_dynamic_reconfigure_options" section below
-##     and list every .cfg file to be processed
-
-## Generate dynamic reconfigure parameters in the 'cfg' folder
-# generate_dynamic_reconfigure_options(
-#   cfg/DynReconf1.cfg
-#   cfg/DynReconf2.cfg
-# )
 
 ###################################
 ## catkin specific configuration ##
@@ -119,7 +89,7 @@ add_service_files(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
+  INCLUDE_DIRS include
 #  LIBRARIES cerebro
 #  CATKIN_DEPENDS cv_bridge image_transport roscpp rospy std_msgs
 #  DEPENDS system_lib
@@ -140,15 +110,6 @@ include_directories(
   ${OpenCV_INCLUDE_DIRS}
 )
 
-## Declare a C++ library
-# add_library(cerebro
-#   src/${PROJECT_NAME}/cerebro.cpp
-# )
-
-## Add cmake target dependencies of the library
-## as an example, code may need to be generated before libraries
-## either from message generation or dynamic reconfigure
-# add_dependencies(cerebro ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 include_directories(
     src/utils/camodocal/include
@@ -175,7 +136,6 @@ FILE( GLOB KuseUtilsSources
         src/utils/RawFileIO.cpp
         src/utils/MiscUtils.cpp
         src/utils/CameraGeometry.cpp
-
         src/utils/PointFeatureMatching.cpp
         src/utils/GMSMatcher/gms_matcher.cpp
 )
@@ -197,46 +157,11 @@ add_executable(
         ${CamodocalCameraModelSources}
 )
 
-
-## Unit Tests
-add_executable (
-    unittest_termcolor
-        src/unittest/unittest_termcolor.cpp
-)
-
-add_executable (
-    unittest_rosservice_client
-        src/unittest/unittest_rosservice_client.cpp
-)
-
-add_executable (
-    unittest_camodocal_proj
-        src/unittest/unittest_camodocal_proj.cpp
-        ${KuseUtilsSources}
-        ${CamodocalCameraModelSources}
-)
+# this is needed to indicate this this executable depends on the messages of the pkg.
+add_dependencies(cerebro_node cerebro_generate_messages_cpp)
 
 
-add_executable (
-    unittest_camera_geom_class_usage
-        src/unittest/unittest_camera_geom_class_usage.cpp
-        ${KuseUtilsSources}
-        ${CamodocalCameraModelSources}
-)
 
-
-add_executable (
-    unittest_theia
-        src/unittest/unittest_theia.cpp
-        ${KuseUtilsSources}
-        ${CamodocalCameraModelSources}
-)
-
-## Add cmake target dependencies of the executable
-## same as for the library above
-# add_dependencies(cerebro_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-
-## Specify libraries to link a library or executable target against
 target_link_libraries(cerebro_node
   ${catkin_LIBRARIES}
   ${OpenCV_LIBRARIES}
@@ -246,37 +171,86 @@ target_link_libraries(cerebro_node
   ${THEIA_LIBRARIES}
 )
 
-target_link_libraries(unittest_rosservice_client
-  ${catkin_LIBRARIES}
-  ${OpenCV_LIBRARIES}
-  ${CMAKE_THREAD_LIBS_INIT}
-  ${CERES_LIBRARIES}
-)
+if(COMPILE_UNIT_TEST)
+    #add some compilation flags
 
 
-target_link_libraries(unittest_camodocal_proj
-  ${catkin_LIBRARIES}
-  ${OpenCV_LIBRARIES}
-  ${CMAKE_THREAD_LIBS_INIT}
-  ${CERES_LIBRARIES}
-)
+    ## Unit Tests
+    add_executable (
+        unittest_termcolor
+            src/unittest/unittest_termcolor.cpp
+    )
 
-target_link_libraries(unittest_camera_geom_class_usage
-  ${catkin_LIBRARIES}
-  ${OpenCV_LIBRARIES}
-  ${CMAKE_THREAD_LIBS_INIT}
-  ${CERES_LIBRARIES}
-)
+    add_executable (
+        unittest_rosservice_client
+            src/unittest/unittest_rosservice_client.cpp
+    )
+
+    add_executable (
+        unittest_camodocal_proj
+            src/unittest/unittest_camodocal_proj.cpp
+            ${KuseUtilsSources}
+            ${CamodocalCameraModelSources}
+    )
+
+
+    add_executable (
+        unittest_camera_geom_class_usage
+            src/unittest/unittest_camera_geom_class_usage.cpp
+            ${KuseUtilsSources}
+            ${CamodocalCameraModelSources}
+    )
+
+
+    add_executable (
+        unittest_theia
+            src/unittest/unittest_theia.cpp
+            ${KuseUtilsSources}
+            ${CamodocalCameraModelSources}
+    )
 
 
 
-target_link_libraries(unittest_theia
-  ${catkin_LIBRARIES}
-  ${OpenCV_LIBRARIES}
-  ${CMAKE_THREAD_LIBS_INIT}
-  ${CERES_LIBRARIES}
-  ${THEIA_LIBRARIES}
-)
+    target_link_libraries(unittest_rosservice_client
+      ${catkin_LIBRARIES}
+      ${OpenCV_LIBRARIES}
+      ${CMAKE_THREAD_LIBS_INIT}
+      ${CERES_LIBRARIES}
+    )
+
+
+    target_link_libraries(unittest_camodocal_proj
+      ${catkin_LIBRARIES}
+      ${OpenCV_LIBRARIES}
+      ${CMAKE_THREAD_LIBS_INIT}
+      ${CERES_LIBRARIES}
+    )
+
+    target_link_libraries(unittest_camera_geom_class_usage
+      ${catkin_LIBRARIES}
+      ${OpenCV_LIBRARIES}
+      ${CMAKE_THREAD_LIBS_INIT}
+      ${CERES_LIBRARIES}
+    )
+
+
+
+    target_link_libraries(unittest_theia
+      ${catkin_LIBRARIES}
+      ${OpenCV_LIBRARIES}
+      ${CMAKE_THREAD_LIBS_INIT}
+      ${CERES_LIBRARIES}
+      ${THEIA_LIBRARIES}
+    )
+
+
+else()
+    #add some other compilation flags
+endif(COMPILE_UNIT_TEST)
+unset(COMPILE_UNIT_TEST CACHE) # <---- this is the important!!
+
+
+
 #############
 ## Install ##
 #############

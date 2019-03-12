@@ -343,18 +343,21 @@ json Cerebro::foundLoops_as_JSON()
 
 
 
-// #define __Cerebro__loopcandi_consumer__(msg) msg;
-#define __Cerebro__loopcandi_consumer__(msg)  ;
+#define __Cerebro__loopcandi_consumer__(msg) msg;
+// #define __Cerebro__loopcandi_consumer__(msg)  ;
 // ^This will also imshow image-pairs with gms-matches marked.
 
-// #define __Cerebro__loopcandi_consumer__IMP( msg ) msg;
-#define __Cerebro__loopcandi_consumer__IMP( msg ) ;
+#define __Cerebro__loopcandi_consumer__IMP( msg ) msg;
+// #define __Cerebro__loopcandi_consumer__IMP( msg ) ;
 // ^Important Text only printing
 
 
 // #define __Cerebro__loopcandi_consumer__IMSHOW 0 // will not produce the images (ofcourse will not show as well)
 #define __Cerebro__loopcandi_consumer__IMSHOW 1 // produce the images and log them, will not imshow
 // #define __Cerebro__loopcandi_consumer__IMSHOW 2 // produce the images and imshow them, don't log
+
+// Just uncomment it to use the standard ransac and pnp+icp consistency checking procedure.
+// #define __Cerebro__loopcandi_consumer__no_pose_consistency_check
 void Cerebro::loopcandiate_consumer_thread()
 {
     assert( m_dataManager_available && "You need to set the DataManager in class Cerebro before execution of the run() thread can begin. You can set the dataManager by call to Cerebro::setDataManager()\n");
@@ -397,8 +400,11 @@ void Cerebro::loopcandiate_consumer_thread()
             ProcessedLoopCandidate proc_candi;
 
             timer.tic() ;
-            // bool ___status = process_loop_candidate_imagepair( j, proc_candi );
+            #ifdef __Cerebro__loopcandi_consumer__no_pose_consistency_check
+            bool proc___status = process_loop_candidate_imagepair( j, proc_candi );
+            #else
             bool proc___status = process_loop_candidate_imagepair_consistent_pose_compute( j, proc_candi );
+            #endif
             __Cerebro__loopcandi_consumer__IMP(
                 cout << "\t" << timer.toc_milli() << "(ms) !! process_loop_candidate_imagepair()\n";
             )
@@ -410,8 +416,11 @@ void Cerebro::loopcandiate_consumer_thread()
 
                 // publish proc_candi
                 cerebro::LoopEdge loopedge_msg;
-                // bool __makemsg_status = proc_candi.makeLoopEdgeMsg( loopedge_msg );
+                #ifdef __Cerebro__loopcandi_consumer__no_pose_consistency_check
+                bool __makemsg_status = proc_candi.makeLoopEdgeMsg( loopedge_msg );
+                #else
                 bool __makemsg_status = proc_candi.makeLoopEdgeMsgWithConsistencyCheck( loopedge_msg );
+                #endif
 
 
                 __Cerebro__loopcandi_consumer__IMP(
@@ -662,7 +671,7 @@ bool Cerebro::process_loop_candidate_imagepair_consistent_pose_compute( int ii, 
     ElapsedTime timer;
     timer.tic();
     StaticPointFeatureMatching::gms_point_feature_matches(a_imleft_srectified, b_imleft_srectified, uv, uv_d );
-    string msg_pf_matches = to_string( timer.toc_milli() )+" (ms) elapsed time for point_feature_matches computation";
+    string msg_pf_matches = to_string( timer.toc_milli() )+" (ms) elapsed time for point_feature_matches computation and resulted in " + std::to_string(uv.cols()) + " number of point correspondences" ;
     __Cerebro__loopcandi_consumer__( cout << msg_pf_matches << endl; )
     if( uv.cols() < 150 ) {
         __Cerebro__loopcandi_consumer__IMP(
