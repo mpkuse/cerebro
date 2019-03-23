@@ -385,7 +385,7 @@ void StereoGeometry::do_stereo_rectification_of_undistorted_images(
 
 
 void StereoGeometry::do_stereo_rectification_of_raw_images(
-        const cv::Mat imleft_raw, const cv::Mat imright_raw,
+        const cv::Mat& imleft_raw, const cv::Mat& imright_raw,
         cv::Mat& imleft_srectified, cv::Mat& imright_srectified )
 {
     cv::Mat imleft_undistorted, imright_undistorted;

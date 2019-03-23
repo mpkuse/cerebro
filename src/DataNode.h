@@ -68,7 +68,7 @@ public:
     // This is intended to indicate the number of tracked features from /feature_tracker.
     // TODO: In the future if need be implement to save the tracked points. For now I am not retaining those
     void setNumberOfSuccessfullyTrackedFeatures( int n );
-    int getNumberOfSuccessfullyTrackedFeatures();
+    int getNumberOfSuccessfullyTrackedFeatures() const;
 
 
     bool isKeyFrame()  const{ return (bool)is_key_frame; }
@@ -81,23 +81,23 @@ public:
     bool isFeatIdsAvailable() const { return m_tracked_feat_ids; }
 
 
-    const cv::Mat& getImage() ; //< this will give out the default image.
-    const cv::Mat& getImage(short cam_id); // this will give out the image of the cam_id. cam_id=0 will have issues. if you want the default camera image do not pass any argument, which will result in the above call.
-    const Matrix4d& getPose();
-    const MatrixXd& getPoseCovariance(); //6x6 matrix
-    const MatrixXd& getPointCloud(); // returns a 4xN matrix
-    const MatrixXd& getUnVn(); // returns a 3xN matrix
-    const MatrixXd& getUV(); // returns a 3xN matrix
-    const VectorXi& getFeatIds(); // return a N-vector
-    int nPts();
+    const cv::Mat& getImage() const; //< this will give out the default image.
+    const cv::Mat& getImage(short cam_id) const ; // this will give out the image of the cam_id. cam_id=0 will have issues. if you want the default camera image do not pass any argument, which will result in the above call.
+    const Matrix4d& getPose() const ;
+    const MatrixXd& getPoseCovariance() const ; //6x6 matrix
+    const MatrixXd& getPointCloud() const ; // returns a 4xN matrix
+    const MatrixXd& getUnVn() const ; // returns a 3xN matrix
+    const MatrixXd& getUV() const ; // returns a 3xN matrix
+    const VectorXi& getFeatIds() const; // return a N-vector
+    int nPts() const;
 
-    const ros::Time getT();
-    const ros::Time getT_image();
-    const ros::Time getT_image(short cam_id);
-    const ros::Time getT_pose();
-    const ros::Time getT_ptcld();
-    const ros::Time getT_unvn();
-    const ros::Time getT_uv();
+    const ros::Time getT() const;
+    const ros::Time getT_image() const;
+    const ros::Time getT_image(short cam_id) const;
+    const ros::Time getT_pose() const;
+    const ros::Time getT_ptcld() const;
+    const ros::Time getT_unvn() const ;
+    const ros::Time getT_uv() const ;
 
     // Whole Image descriptors setter and getter
     void setWholeImageDescriptor( VectorXd vec );
@@ -107,11 +107,11 @@ public:
 
 
     void prettyPrint();
-
+    void deallocate_all_images();
 
 private:
     const ros::Time stamp;
-    std::mutex m;
+    mutable std::mutex m;
 
     // bool is_key_frame = false;
     std::atomic<bool> is_key_frame;

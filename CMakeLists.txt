@@ -29,6 +29,20 @@ find_package(Boost REQUIRED COMPONENTS filesystem program_options system)
 include_directories(${Boost_INCLUDE_DIRS})
 
 
+#----------START gperftools
+# install : sudo apt-get install google-perftools libgoogle-perftools-dev
+# get cmake file: https://raw.githubusercontent.com/vast-io/vast/master/cmake/FindGperftools.cmake
+# save to '/usr/local/lib/cmake'
+#list(APPEND CMAKE_MODULE_PATH "/usr/local/lib/cmake")
+#find_package(Gperftools REQUIRED)
+#message( "----- GPERF")
+#message( "----- "${GPERFTOOLS_LIBRARIES} )
+set (CMAKE_CXX_FLAGS " -Wl,-no-as-needed")
+#set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_BUILD_TYPE Release)
+#set(CMAKE_BUILD_TYPE RelWithDebInfo)
+
+#----------END GPERFTOOLS
 
 option(COMPILE_UNIT_TEST "Compile unit tests" OFF) #OFF by default. catkin_make -DCOMPILE_UNIT_TEST=ON will compile it. OFF will skip it
 
@@ -169,6 +183,8 @@ target_link_libraries(cerebro_node
   ${CERES_LIBRARIES}
   ${Boost_LIBRARIES}
   ${THEIA_LIBRARIES}
+
+  #${GPERFTOOLS_LIBRARIES}
 )
 
 if(COMPILE_UNIT_TEST)

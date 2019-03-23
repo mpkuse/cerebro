@@ -5,8 +5,8 @@ void DataNode::setImageFromMsg( const sensor_msgs::ImageConstPtr msg )
 {
     std::lock_guard<std::mutex> lk(m);
 
-    // image = cv_bridge::toCvShare(msg, "bgr8" )->image
-    this->image = cv_bridge::toCvCopy(msg, "bgr8" )->image;
+    this->image = cv_bridge::toCvShare(msg, "bgr8" )->image;
+    // this->image = cv_bridge::toCvCopy(msg, "bgr8" )->image;
 
     // TODO: Make sure the image is valid
     assert( image.rows > 0 && image.cols > 0 && !image.empty() && "In DataNode::setImageFromMsg image that is being set from sensor_msgs::Image is invalid.");
@@ -20,7 +20,8 @@ void DataNode::setImageFromMsg( const sensor_msgs::ImageConstPtr msg, short cam_
 {
     std::lock_guard<std::mutex> lk(m);
 
-    cv::Mat __image = cv_bridge::toCvCopy(msg, "bgr8" )->image;
+    cv::Mat __image = cv_bridge::toCvShare(msg, "bgr8" )->image;
+    // cv::Mat __image = cv_bridge::toCvCopy(msg, "bgr8" )->image;
     this->all_images[cam_id] = __image;
 
 
@@ -32,7 +33,25 @@ void DataNode::setImageFromMsg( const sensor_msgs::ImageConstPtr msg, short cam_
 
 }
 
+void DataNode::deallocate_all_images()
+{
+    std::lock_guard<std::mutex> lk(m);
 
+    // deallocate main image
+    if( m_image ) {
+        image.release();
+        image.deallocate();
+        t_image = ros::Time();
+        m_image = false;
+    }
+
+    // deallocate other images with cam_id
+    for( auto it=all_images.begin() ; it!=all_images.end() ; it++ ) {
+        it->second.release();
+    }
+    all_images.clear();
+    t_all_images.clear();
+}
 
 void DataNode::setPoseFromMsg( const nav_msgs::OdometryConstPtr msg )
 {
@@ -154,10 +173,11 @@ void DataNode::setTrackedFeatIdsFromMsg( const sensor_msgs::PointCloudConstPtr m
 void DataNode::setNumberOfSuccessfullyTrackedFeatures( int n )
 {
     std::lock_guard<std::mutex> lk(m);
+    assert( n >= 0 && "[DataNode::setNumberOfSuccessfullyTrackedFeatures] you cannot set a negative value");
     numberOfSuccessfullyTrackedFeatures = n;
 }
 
-int DataNode::getNumberOfSuccessfullyTrackedFeatures()
+int DataNode::getNumberOfSuccessfullyTrackedFeatures() const
 {
     std::lock_guard<std::mutex> lk(m);
     return numberOfSuccessfullyTrackedFeatures;
@@ -165,60 +185,65 @@ int DataNode::getNumberOfSuccessfullyTrackedFeatures()
 
 
 
-const cv::Mat& DataNode::getImage() {
+const cv::Mat& DataNode::getImage() const {
     std::lock_guard<std::mutex> lk(m);
     assert( isImageAvailable() && "[DataNode::getImage] you requested the image before setting it");
     return this->image;
 }
 
 
-const cv::Mat& DataNode::getImage(short cam_id) {
+const cv::Mat& DataNode::getImage(short cam_id) const {
     std::lock_guard<std::mutex> lk(m);
     assert( isImageAvailable(cam_id) && "[DataNode::getImage with cam_id] you requested the image before setting it");
-    return this->all_images[cam_id];
+    // return this->all_images[cam_id];
+    return this->all_images.at(cam_id);
 }
 
-const Matrix4d& DataNode::getPose() {
+const Matrix4d& DataNode::getPose() const{
     std::lock_guard<std::mutex> lk(m);
     assert( m_wTc && "[DataNode::getPose] you requested the pose before setting it");
+    #if 0
+    if( !m_wTc ) { cout << "ASSERT ERROR " << "[DataNode::getPose]  you requested the pose before setting it\n"; }
+    #endif
     return wTc;
 }
 
 
-const MatrixXd& DataNode::getPoseCovariance() {
+const MatrixXd& DataNode::getPoseCovariance() const {
     std::lock_guard<std::mutex> lk(m);
     assert( m_wTc && "[DataNode::getPoseCovariance] you requested the pose-cov before setting it");
+
     return wTc_covariance;
 }
 
-const MatrixXd& DataNode::getPointCloud() {
+const MatrixXd& DataNode::getPointCloud() const {
     std::lock_guard<std::mutex> lk(m);
     assert( m_ptcld && "[DataNode::getPointCloud] you requested the pointcloud before setting it");
     return ptcld;
 }
 
-const MatrixXd& DataNode::getUnVn() {
+const MatrixXd& DataNode::getUnVn() const {
      // returns a 3xN matrix
      std::lock_guard<std::mutex> lk(m);
      assert( m_unvn && "[DataNode::getUnVn] you requested UnVn before setting it.\n" );
      return unvn;
  }
 
-const MatrixXd& DataNode::getUV() {
+const MatrixXd& DataNode::getUV() const {
      // returns a 3xN matrix
      std::lock_guard<std::mutex> lk(m);
      assert( m_unvn && "[DataNode::getUV] you requested UnVn before setting it.\n" );
      return uv;
  }
 
-const VectorXi& DataNode::getFeatIds() {
+const VectorXi& DataNode::getFeatIds() const  {
      // return a N-vector
      std::lock_guard<std::mutex> lk(m);
      assert( m_unvn && "[DataNode::getFeatIds] you requested UnVn before setting it.\n" );
      return tracked_feat_ids;
  }
 
- int DataNode::nPts() {
+ int DataNode::nPts() const {
      std::lock_guard<std::mutex> lk(m);
      #if 0
      if( m_tracked_feat_ids == false || m_tracked_feat_ids_zero_pts == true )
@@ -228,36 +253,37 @@ const VectorXi& DataNode::getFeatIds() {
 
  }
 
- const ros::Time DataNode::getT() {
+ const ros::Time DataNode::getT() const {
      std::lock_guard<std::mutex> lk(m);
      return stamp;
  }
- const ros::Time DataNode::getT_image() {
+ const ros::Time DataNode::getT_image() const {
      std::lock_guard<std::mutex> lk(m);
      assert( isImageAvailable() );
      return t_image;
  }
- const ros::Time DataNode::getT_image(short cam_id) {
+ const ros::Time DataNode::getT_image(short cam_id) const {
      std::lock_guard<std::mutex> lk(m);
      assert( isImageAvailable(cam_id) );
-     return t_all_images[cam_id];
+    //  return t_all_images[cam_id];
+     return t_all_images.at(cam_id);
  }
 
 
 
- const ros::Time DataNode::getT_pose() {
+ const ros::Time DataNode::getT_pose() const {
      std::lock_guard<std::mutex> lk(m);
      return t_wTc;
  }
- const ros::Time DataNode::getT_ptcld() {
+ const ros::Time DataNode::getT_ptcld() const {
      std::lock_guard<std::mutex> lk(m);
      return t_ptcld;
  }
- const ros::Time DataNode::getT_unvn() {
+ const ros::Time DataNode::getT_unvn() const {
      std::lock_guard<std::mutex> lk(m);
      return t_unvn;
  }
- const ros::Time DataNode::getT_uv() {
+ const ros::Time DataNode::getT_uv() const {
      std::lock_guard<std::mutex> lk(m);
      return t_uv;
  }

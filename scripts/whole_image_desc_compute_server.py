@@ -321,18 +321,19 @@ if True: # read from param `config_file`
 
     else:
         config_file = rospy.get_param('~config_file')
-        print 'config_file: ', config_file
+        print '++++++++\n++++++++ config_file: ', config_file
         if not os.path.isfile(config_file):
             print 'FATAL...cannot find config_file: ', config_file
             rospy.logerr( '[whole_image_descriptor_compute_server]FATAL...cannot find config_file: '+ config_file )
             quit()
 
 
-        print 'READ opencv-yaml file: ', config_file
+        print '++++++++ READ opencv-yaml file: ', config_file
         fs = cv2.FileStorage(config_file, cv2.FILE_STORAGE_READ)
         fs_image_width = int(  fs.getNode( "image_width" ).real() )
         fs_image_height = int( fs.getNode( "image_height" ).real() )
-        print 'opencv-yaml:: image_width=', fs_image_width, '   image_height=', fs_image_height
+        print '++++++++ opencv-yaml:: image_width=', fs_image_width, '   image_height=', fs_image_height
+        print '++++++++'
 
 
 ##

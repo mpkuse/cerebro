@@ -30,14 +30,16 @@
 <!-- <arg name="bag_file" default="/kidnap/2019-02-14-12-00-21.bag" doc="3 kidnaps in lab. This gives the chained case for pose computation between worlds"/> -->
 <!-- <arg name="bag_file" default="/kidnap/2019-02-14-13-00-25.bag" doc="3 kidnaps in lab; bit of bad bag"/> -->
 <!-- <arg name="bag_file" default="/kidnap/2019-02-14-17-19-29.bag" doc="4 kidnaps in lab"/> -->
-<arg name="bag_file" default="/kidnap/2019-02-21-17-10-30.bag" doc="0:-; 1:-; 2:merge(0), merge(1). 2nd merges with both 0 and 1."/>
+<!-- <arg name="bag_file" default="/kidnap/2019-02-21-17-10-30.bag" doc="0:-; 1:-; 2:merge(0), merge(1). 2nd merges with both 0 and 1."/> -->
 <!-- <arg name="bag_file" default="/kidnap/2019-02-21-17-38-58.bag" doc="0:-; 1:-; 2:merge(0), merge(1). 2nd merges with both 0 and 1."/> -->
 <!-- <arg name="bag_file" default="/kidnap/2019-02-22-11-03-38.bag" doc="run;kidnap;rotated run"/> -->
 <!-- <arg name="bag_file" default="/kidnap/2019-03-07-14-58-00.bag" doc="2 independent runs"/> -->
+<!-- <arg name="bag_file" default="/kidnap/2019-03-14-16-12-22.bag" doc="7 kidnaps. 0:; 1:; all next merges with 1. Final merge with 0 and 3."/> -->
+<arg name="bag_file" default="/kidnap/2019-03-14-16-36-58.bag" doc="10 kidnaps. 0; 1; merge everything with 1. finall all merge to zero. very complicated dependence structure of the walk,"/>
 
 
 
-<node pkg="rosbag" type="play" name="rosbag" args="$(arg bag_path)/$(arg bag_file) -s 2" output="log"/>
+<node pkg="rosbag" type="play" name="rosbag" args="$(arg bag_path)/$(arg bag_file) -s 1" output="log"/>
 
 <!-- ############################# DONE BAGS #######################################  -->
 
@@ -72,7 +74,7 @@
 <group if="$(arg loop_closure_enable)" >
     <group unless="$(arg loop_closure_type)">
     <!-- vins-mono default loop closure/pose-graph opt node -->
-        <node name="pose_graph" pkg="pose_graph" type="pose_graph" output="screen">
+        <node name="pose_graph" pkg="pose_graph" type="pose_graph" output="log">
             <param name="config_file" type="string" value="$(arg config_path)" />
             <param name="visualization_shift_x" type="int" value="0" />
             <param name="visualization_shift_y" type="int" value="0" />
@@ -83,7 +85,7 @@
 
     <group if="$(arg loop_closure_type)" >
         <!-- Cerebro -->
-        <node name="cerebro_node" pkg="cerebro" type="cerebro_node" output="screen">
+        <node name="cerebro_node" pkg="cerebro" type="cerebro_node" output="log">
            <param name="config_file" type="string" value="$(arg config_path)" />
         </node>
 
@@ -95,7 +97,7 @@
 
     <!-- Graph-based Pose Graph Optimization Solver -->
     <!-- rosrun solve_keyframe_pose_graph keyframe_pose_graph_slam -->
-        <node name="keyframe_pose_graph_slam_node" pkg="solve_keyframe_pose_graph" type="keyframe_pose_graph_slam" output="log" >
+        <node name="keyframe_pose_graph_slam_node" pkg="solve_keyframe_pose_graph" type="keyframe_pose_graph_slam" output="screen" >
         </node>
     </group>
 </group>

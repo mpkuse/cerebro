@@ -40,20 +40,29 @@ void Visualization::setVizPublishers( const string base_topic_name )
     imagepaire_pub = nh.advertise<sensor_msgs::Image>(imagepaire_pub_topic, 1000);
 }
 
-void Visualization::run( const int looprate )
+void Visualization::run( const int looprate    )
 {
     assert( m_dataManager_available && "You need to set the DataManager in class Visualization before execution of the run() thread can begin. You can set the dataManager by call to Visualization::setDataManager()\n");
     assert( b_run_thread && "you need to call run_thread_enable() before run() can start executing\n" );
     assert( looprate > 0  && "[ Visualization::run] looprate need to be postive\n");
 
+    bool bpub_framepositions = false;
+    bool bpub_loopcandidates = false;
+    bool bpub_processed_loopcandidates = true;
+
     ros::Rate rate( looprate );
     while( b_run_thread )
     {
         // cout << "Visualization::run() " << dataManager->getDataMapRef().size() <<endl;
-        this->publish_frames();
-        this->publish_loopcandidates();
+        if( bpub_framepositions )
+            this->publish_frames();
+
+        if( bpub_loopcandidates )
+            this->publish_loopcandidates(); //< this publishes marker
         // this->publish_test_string();
-        this->publish_processed_loopcandidates();
+
+        if( bpub_processed_loopcandidates )
+            this->publish_processed_loopcandidates(); //< this publoshes the image-pair as image.
 
         rate.sleep();
     }
@@ -90,6 +99,7 @@ void Visualization::publish_processed_loopcandidates()
     int loop_start = prev_count;
     int loop_end = new_count;
     bool publish_image = true;
+    bool publish_loop_line_marker = false;
     // if( rand()%100 < 2 ) {
         // loop_start=0;
         // publish_image=false;
@@ -105,6 +115,8 @@ void Visualization::publish_processed_loopcandidates()
         cout << "isPoseAvailable: " << candidate_i.node_1->isPoseAvailable() << endl;
         )
 
+
+        if( publish_loop_line_marker ) {
         Vector4d w_t_1 = candidate_i.node_1->getPose().col(3);
         Vector4d w_t_2 = candidate_i.node_2->getPose().col(3);
         RosMarkerUtils::add_point_to_marker( w_t_1, marker, true );
@@ -130,6 +142,7 @@ void Visualization::publish_processed_loopcandidates()
         marker.ns = "processed_loopcandidates_new_position_of_2";
         marker.id = i;
         framedata_pub.publish( marker );
+        }
 
 
         // publish image

@@ -1,0 +1,11 @@
+%YAML:1.0
+---
+    # this is computed for euric using body_T_cam0 and body_T_cam1.
+transform:
+   q_x: -0.00704531
+   q_y: 0.000179855
+   q_z: -0.00115733
+   q_w: 0.999974
+   t_x: -110.074
+   t_y: 0.399122
+   t_z: -0.853703

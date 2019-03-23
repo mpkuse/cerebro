@@ -24,12 +24,17 @@ using namespace std;
 #include "GMSMatcher/gms_matcher.h"
 #include "ElapsedTime.h"
 
+#include <sensor_msgs/Image.h>
+#include <cv_bridge/cv_bridge.h>
+
 
 class MiscUtils
 {
 public:
     static string type2str(int type);
     static string cvmat_info( const cv::Mat& mat );
+    static cv::Mat getImageFromMsg(const sensor_msgs::ImageConstPtr &img_msg);
+
     static std::vector<std::string>
     split( std::string const& original, char separator );
 

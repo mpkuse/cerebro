@@ -161,7 +161,9 @@ void Cerebro::descrip_N__dot__descrip_0_N()
 
         }
         else {
+            __Cerebro__run__(
             cout << "[Cerebro::descrip_N__dot__descrip_0_N] do nothing. not seen enough yet.\n";
+            )
         }
 
 
@@ -231,7 +233,7 @@ void Cerebro::descriptor_computer_thread()
     {
         auto data_map = dataManager->getDataMapRef();
         if( data_map.begin() == data_map.end() ) {
-            ROS_INFO( "nothing to compute descriptor\n" );
+            __Cerebro__descriptor_computer_thread( cout << "nothing to compute descriptor\n" );
             std::this_thread::sleep_for( std::chrono::milliseconds( 1000 )  );
             continue;
         }
@@ -241,13 +243,19 @@ void Cerebro::descriptor_computer_thread()
         for( auto it = S; it != E ; it++ ) {
             //descriptor does not exisit at this stamp, so compute it.
             // Here I compute the whole image descriptor only at keyframes, you may try something like, if the pose is available compute it.
-            if( it->second->isWholeImageDescriptorAvailable() == false && it->second->isKeyFrame() )  {
+            if( it->second->isWholeImageDescriptorAvailable() == false && it->second->isKeyFrame()  )
+            {
+                if( it->second->getNumberOfSuccessfullyTrackedFeatures() < 20 )
+                {
+                    __Cerebro__descriptor_computer_thread( cout << "[Cerebro::descriptor_computer_thread] skip computing whole-image-descriptor for this image because it appears to be a kidnapped image frame.\n" ; )
+                    continue;
+                }
 
                 __Cerebro__descriptor_computer_thread(ElapsedTime _time);
                 __Cerebro__descriptor_computer_thread(_time.tic());
 
                 // use it->second->getImage() to compute descriptor. call the service
-                const cv::Mat image_curr = it->second->getImage();
+                const cv::Mat& image_curr = it->second->getImage();
                 sensor_msgs::ImagePtr image_msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", image_curr).toImageMsg();
                 image_msg->header.stamp = ros::Time( it->first );
                 cerebro::WholeImageDescriptorCompute srv; //service message
@@ -296,7 +304,7 @@ const int Cerebro::foundLoops_count() const
 const std::tuple<ros::Time, ros::Time, double> Cerebro::foundLoops_i( int i) const
 {
     std::lock_guard<std::mutex> lk(m_foundLoops);
-    assert( i >= 0 && i<foundLoops.size() );
+    assert( i >= 0 && i<foundLoops.size() && "[Cerebro::foundLoops_i] you requested a loop on in range\n");
     return foundLoops[i];
 }
 
@@ -343,20 +351,20 @@ json Cerebro::foundLoops_as_JSON()
 
 
 
-#define __Cerebro__loopcandi_consumer__(msg) msg;
-// #define __Cerebro__loopcandi_consumer__(msg)  ;
+// #define __Cerebro__loopcandi_consumer__(msg) msg;
+#define __Cerebro__loopcandi_consumer__(msg)  ;
 // ^This will also imshow image-pairs with gms-matches marked.
 
-#define __Cerebro__loopcandi_consumer__IMP( msg ) msg;
-// #define __Cerebro__loopcandi_consumer__IMP( msg ) ;
+// #define __Cerebro__loopcandi_consumer__IMP( msg ) msg;
+#define __Cerebro__loopcandi_consumer__IMP( msg ) ;
 // ^Important Text only printing
 
 
-// #define __Cerebro__loopcandi_consumer__IMSHOW 0 // will not produce the images (ofcourse will not show as well)
-#define __Cerebro__loopcandi_consumer__IMSHOW 1 // produce the images and log them, will not imshow
+#define __Cerebro__loopcandi_consumer__IMSHOW 0 // will not produce the images (ofcourse will not show as well)
+// #define __Cerebro__loopcandi_consumer__IMSHOW 1 // produce the images and log them, will not imshow
 // #define __Cerebro__loopcandi_consumer__IMSHOW 2 // produce the images and imshow them, don't log
 
-// Just uncomment it to use the standard ransac and pnp+icp consistency checking procedure.
+// Just uncomment it to disable consistency check.
 // #define __Cerebro__loopcandi_consumer__no_pose_consistency_check
 void Cerebro::loopcandiate_consumer_thread()
 {
@@ -366,8 +374,10 @@ void Cerebro::loopcandiate_consumer_thread()
 
     // init StereoGeometry
     bool stereogeom_status = init_stereogeom();
-    if( !stereogeom_status )
+    if( !stereogeom_status ) {
+        assert( false && "[Cerebro::loopcandiate_consumer_thread()] cannot init_stereogeom\n");
         return;
+    }
     // stereogeom->set_K( 375.0, 375.0, 376.0, 240.0 ); // set this to something sensible, best is to use left camera's K
 
 
@@ -466,7 +476,7 @@ const ProcessedLoopCandidate& Cerebro::processedLoops_i( int i ) const
 {
     std::lock_guard<std::mutex> lk(m_processedLoops);
 
-    assert( i>=0 && i< processedloopcandi_list.size() );
+    assert( i>=0 && i< processedloopcandi_list.size() && "[processedLoops_i] input i is not in the correct range" );
     if( i>=0 && i< processedloopcandi_list.size() ) {
         return processedloopcandi_list[ i ];
     }
@@ -518,8 +528,8 @@ bool Cerebro::retrive_stereo_pair( DataNode* node, cv::Mat& left_image, cv::Mat&
         cout << TermColor::RED() << "[Cerebro::retrive_stereo_pair] Either of the node images (stereo-pair was not available). This is probably not fatal, this loopcandidate will be skipped." << TermColor::RESET() << endl;
         return false;
     }
-    cv::Mat bgr_left_image = node->getImage();
-    cv::Mat bgr_right_image = node->getImage(1);
+    const cv::Mat& bgr_left_image = node->getImage();
+    const cv::Mat& bgr_right_image = node->getImage(1);
 
     if( bgr2gray ) {
 
@@ -626,9 +636,16 @@ bool Cerebro::process_loop_candidate_imagepair_consistent_pose_compute( int ii, 
     DataNode * node_2 = data_map.find( t_prev )->second;
 
 
+
+
     __Cerebro__loopcandi_consumer__IMP(
     cout << TermColor::BLUE() << "{"<<ii <<  "} process: "<< idx_1 << "<--->" << idx_2 << TermColor::RESET() << endl;
     )
+
+    // if( node_1->getNumberOfSuccessfullyTrackedFeatures() < 20 || node_2->getNumberOfSuccessfullyTrackedFeatures() < 20 ) {
+        // __Cerebro__loopcandi_consumer__IMP( "[Cerebro::process_loop_candidate_imagepair_consistent_pose_compute] skip processing this pair because it is a kidnaped node\n" );
+        // return false;
+    // }
 
     cv::Mat a_imleft_raw, a_imright_raw;
     bool ret_status_a = retrive_stereo_pair( node_1, a_imleft_raw, a_imright_raw );
@@ -704,7 +721,7 @@ bool Cerebro::process_loop_candidate_imagepair_consistent_pose_compute( int ii, 
     Matrix4d op1__b_T_a; string pnp__msg;
     float pnp_goodness = StaticTheiaPoseCompute::PNP( world_point_uv, feature_position_uv_d, op1__b_T_a, pnp__msg  );
     __Cerebro__loopcandi_consumer__IMP(
-    cout << TermColor::YELLOW() << pnp_goodness << " op1__b_T_a = " << PoseManipUtils::prettyprintMatrix4d( op1__b_T_a ) << TermColor::RESET() << endl;
+    cout << TermColor::YELLOW() << "pnp_goodness=" << pnp_goodness << " op1__b_T_a = " << PoseManipUtils::prettyprintMatrix4d( op1__b_T_a ) << TermColor::RESET() << endl;
     )
     __Cerebro__loopcandi_consumer__(
     cout << pnp__msg << endl;
@@ -829,6 +846,11 @@ bool Cerebro::process_loop_candidate_imagepair_consistent_pose_compute( int ii, 
 
     #endif
 
+    // if( isnan( op1__b_T_a  ) ) {
+    if( op1__b_T_a != op1__b_T_a  || op2__b_T_a != op2__b_T_a || icp_b_T_a != icp_b_T_a ) {
+        __Cerebro__loopcandi_consumer__IMP( cout << "=======++++ one of the 3 ways had inf or nan in them. This is bad, so skip this loop candidate.\n"; );
+        return false;
+    }
 
     __Cerebro__loopcandi_consumer__IMP(
     cout << TermColor::YELLOW() << "odom_b_T_a = " << PoseManipUtils::prettyprintMatrix4d( odom_b_T_a ) << TermColor::RESET() << endl;
@@ -1367,8 +1389,8 @@ bool Cerebro::process_loop_candidate_imagepair( int ii, ProcessedLoopCandidate& 
 // Kidnap identification thread. This thread monitors dataManager->getDataMapRef().size
 // for every new node added if there are zero tracked features means that, I have
 // been kidnaped. It however declares kidnap only after 2 sec of kidnaped
-// #define __Cerebro__kidnaped_thread__( msg ) msg;
-#define __Cerebro__kidnaped_thread__( msg ) ;
+#define __Cerebro__kidnaped_thread__( msg ) msg;
+// #define __Cerebro__kidnaped_thread__( msg ) ;
 void Cerebro::kidnaped_thread( int loop_rate_hz )
 {
     if( loop_rate_hz <= 0 || loop_rate_hz >= 30 ) {
@@ -1401,6 +1423,11 @@ void Cerebro::kidnaped_thread( int loop_rate_hz )
     bool is_kidnapped_more_than_n_sec = false;
     ros::Time is_kidnapped_start;
 
+
+    // Related to handling to playing multiple bags one-after-another.
+    bool first_data_received = false;
+    bool waiting_for_next_bag_to_start = false;
+
     while( b_kidnaped_thread_enable ) {
         // Book Keeping
         prev_count = new_count;
@@ -1413,6 +1440,28 @@ void Cerebro::kidnaped_thread( int loop_rate_hz )
 
         if( new_count <= prev_count ) {
             __Cerebro__kidnaped_thread__(cout << "[Cerebro::kidnaped_thread]Nothing new\n";)
+
+            #if 1
+            // Handling for multiple bags. The idea is, if no new messages then publish false and stop the vins_estimator.
+            if( first_data_received ) {
+                cout << "[Cerebro::kidnaped_thread] looks like a bag has ended and we are waiting for the next bag to start\n";
+
+                if( waiting_for_next_bag_to_start == false ) {
+                    cout << TermColor::RED() << "[Cerebro::kidnaped_thread] PUBLISH FALSE (t= " << data_map.rbegin()->first << " to indicate the vins_estimator to stop.\n" << TermColor::RESET();
+                    // publish False (bool msg)
+                    std_msgs::Bool bool_msg; bool_msg.data = false;
+                    rcvd_flag_pub.publish( bool_msg );
+
+                    // publish header message
+                    std_msgs::Header header_msg;
+                    header_msg.stamp = data_map.rbegin()->first;
+                    header_msg.frame_id = "kidnapped";
+                    kidnap_indicator_header_pub.publish( header_msg );
+
+                }
+                waiting_for_next_bag_to_start = true;
+            }
+            #endif
             continue;
         }
 
@@ -1420,9 +1469,33 @@ void Cerebro::kidnaped_thread( int loop_rate_hz )
         // auto S = data_map.begin();
         auto S = data_map.lower_bound( lb );
         auto E = data_map.end();
-        // cout << "S=" << S->first << "E=" << E->first <<  endl;
+        __Cerebro__kidnaped_thread__( cout << "S=" << S->first << "  E=" << E->first <<  endl; )
+
         for( auto it = S ; it != E ; it++ )
         {
+            #if 1
+            // Handling for multiple bags. The idea is, if no new messages then publish false and stop the vins_estimator.
+            // If new messages are seen after stopiing vins_estimator, this is an indicator of new bag playing.
+            if(first_data_received && waiting_for_next_bag_to_start ) {
+                // this means a new bag has started. So, publish true
+                cout << TermColor::GREEN() << "Looks to me that a new bag has started. PUBLISH TRUE with t=" << S->first << TermColor::RESET() << endl;
+
+                // publish true to vins_estimator to indicate that it may resume the estimation with a new co-ordinate system.
+                // Publish True
+                __Cerebro__kidnaped_thread__( cout << "PUBLISH TRUE\n"; )
+                std_msgs::Bool bool_msg; bool_msg.data = true;
+                rcvd_flag_pub.publish( bool_msg );
+                // rcvd_flag_pub.publish( true );
+
+                // publish header msg
+                std_msgs::Header header_msg;
+                header_msg.stamp =  S->first ;
+                header_msg.frame_id = "unkidnapped";
+                kidnap_indicator_header_pub.publish( header_msg );
+            }
+            first_data_received = true;
+            waiting_for_next_bag_to_start = false;
+            #endif
 
             #if 0
             if( it->second->isImageAvailable() ) {
@@ -1451,20 +1524,30 @@ void Cerebro::kidnaped_thread( int loop_rate_hz )
 
             last_known_keyframe = it->first;
 
-            if( is_kidnapped==false && n_feats < 50  ) {
+            const int THRESH_N_FEATS = 24;
+            const ros::Duration WAIT_BEFORE_DECLARING_AS_KIDNAP = ros::Duration(3.0);
+            if( is_kidnapped==false && n_feats < THRESH_N_FEATS  ) {
                 is_kidnapped = true;
                 is_kidnapped_start = it->first;
 
                 __Cerebro__kidnaped_thread__(
                 cout << TermColor::RED() << "I am kidnapped t=" << it->first << TermColor::RESET() << endl;
-                cout << "I think so because the number of tracked features (from feature tracker) have fallen to only " << n_feats << ", the threshold was 50. However, I will wait for 2 sec to declare kidnapped to vins_estimator." << endl;
+                cout << "I think so because the number of tracked features (from feature tracker) have fallen to only "
+                     << n_feats << ", the threshold was " << THRESH_N_FEATS
+                     << ". However, I will wait for " << WAIT_BEFORE_DECLARING_AS_KIDNAP << " sec to declare kidnapped to vins_estimator." << endl;
                 )
             }
 
-            if( is_kidnapped && !is_kidnapped_more_than_n_sec && (it->first - is_kidnapped_start) > ros::Duration(2.0) )
+            __Cerebro__kidnaped_thread__(
+            if( is_kidnapped ) {
+                    cout << "is_kidnapped=true t=" << it->first << "  n_feats=" << n_feats << endl;
+            }
+            )
+
+            if( is_kidnapped && !is_kidnapped_more_than_n_sec && (it->first - is_kidnapped_start) > WAIT_BEFORE_DECLARING_AS_KIDNAP )
             {
                 __Cerebro__kidnaped_thread__(
-                cout << "Kidnapped for more than 2 sec. I am quite confident that I have been kidnapped\n";
+                cout << "Kidnapped for more than " << WAIT_BEFORE_DECLARING_AS_KIDNAP << "sec. I am quite confident that I have been kidnapped\n";
                 cout << "PUBLISH FALSE\n";
                 )
                 is_kidnapped_more_than_n_sec = true;
@@ -1481,14 +1564,15 @@ void Cerebro::kidnaped_thread( int loop_rate_hz )
                 kidnap_indicator_header_pub.publish( header_msg );
 
 
-                {// these braces are Important here, for the threadsafety lock_gaurd
-                    std::lock_guard<std::mutex> lk(mutex_kidnap);
-                    this->state_is_kidnapped = true;
-                    start_of_kidnap.push_back( it->first );
-                }
+                //---> This bit has been moved to `Cerebro::kidnap_header_callback`
+                // {// these braces are Important here, for the threadsafety lock_gaurd
+                //     std::lock_guard<std::mutex> lk(mutex_kidnap);
+                //     this->state_is_kidnapped = true;
+                //     start_of_kidnap.push_back( it->first );
+                // }
             }
 
-            if( is_kidnapped && n_feats > 50 ) {
+            if( is_kidnapped && n_feats > THRESH_N_FEATS ) {
                 __Cerebro__kidnaped_thread__(
                 cout << TermColor::GREEN() << "Looks like i have been unkidnapped t=" << it->first << TermColor::RESET() << endl;
                 )
@@ -1508,11 +1592,12 @@ void Cerebro::kidnaped_thread( int loop_rate_hz )
                     header_msg.frame_id = "unkidnapped";
                     kidnap_indicator_header_pub.publish( header_msg );
 
-                    { // these braces are Important here, for the threadsafety lock_gaurd
-                        std::lock_guard<std::mutex> lk(mutex_kidnap);
-                        this->state_is_kidnapped = false;
-                        end_of_kidnap.push_back( it->first );
-                    }
+                    //--->  This bit has been moved to `Cerebro::kidnap_header_callback`
+                    // { // these braces are Important here, for the threadsafety lock_gaurd
+                    //     std::lock_guard<std::mutex> lk(mutex_kidnap);
+                    //     this->state_is_kidnapped = false;
+                    //     end_of_kidnap.push_back( it->first );
+                    // }
                 }
                 is_kidnapped = false;
                 is_kidnapped_more_than_n_sec = false;
@@ -1570,3 +1655,56 @@ int Cerebro::n_kidnaps() //< will with return length of `start_of_kidnap` curren
 }
 
 bool Cerebro::is_kidnapped(){ state_is_kidnapped; }
+
+
+#define __CEREBRO_kidnap_callbacks(msg) msg;
+// #define __CEREBRO_kidnap_callbacks(msg) ;
+
+void Cerebro::kidnap_bool_callback( const std_msgs::BoolConstPtr& rcvd_bool )
+{
+    return; // ignore this.
+    __CEREBRO_kidnap_callbacks( cout << TermColor::iCYAN() << "[Cerebro::kidnap_bool_callback] msg=" << (bool)rcvd_bool->data << TermColor::RESET() << endl; )
+}
+
+void Cerebro::kidnap_header_callback( const std_msgs::HeaderConstPtr& rcvd_header )
+{
+    __CEREBRO_kidnap_callbacks(
+    cout << TermColor::iCYAN() << "[Cerebro::kidnap_header_callback]" ;
+    cout << rcvd_header->stamp << ":" << rcvd_header->frame_id ;
+    cout << TermColor::RESET() << endl;
+    )
+
+    if( rcvd_header->frame_id == "kidnapped" ) {
+        std::lock_guard<std::mutex> lk(mutex_kidnap);
+        this->state_is_kidnapped = true;
+        start_of_kidnap.push_back( rcvd_header->stamp );
+        __CEREBRO_kidnap_callbacks(
+        cout << TermColor::iCYAN() << "start_of_kidnap.push_back("<< rcvd_header->stamp << ")" << TermColor::RESET() << endl;
+        )
+        return;
+    }
+
+    if( rcvd_header->frame_id == "unkidnapped" ) {
+        std::lock_guard<std::mutex> lk(mutex_kidnap);
+        this->state_is_kidnapped = false;
+        end_of_kidnap.push_back( rcvd_header->stamp );
+        __CEREBRO_kidnap_callbacks(
+        cout << TermColor::iCYAN() << "end_of_kidnap.push_back("<< rcvd_header->stamp << ")" << TermColor::RESET() << endl;
+        )
+        return;
+    }
+
+    assert( false && "in Cerebro::kidnap_header_callback. rcvd_header->frame_id is something other than `kidnapped` or `unkidnapped`.");
+
+}
+
+
+void PUBLISH__TRUE( const ros::Time _t )
+{
+
+}
+
+void PUBLISH__FALSE( const ros::Time _t )
+{
+
+}

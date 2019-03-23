@@ -143,6 +143,7 @@ public:
     void camera_pose_callback( const nav_msgs::Odometry::ConstPtr msg ); ///< w_T_c. pose of camera in the world-cordinate system. All the cameras. only a subset of this will be keyframes
     void keyframe_pose_callback( const nav_msgs::Odometry::ConstPtr msg ); //X /// pose of imu at keyframes. Use it just as a marker, dont use the poses.
 
+
     void raw_image_callback( const sensor_msgs::ImageConstPtr& msg );
     void raw_image_callback_1( const sensor_msgs::ImageConstPtr& msg );
 
@@ -152,15 +153,20 @@ public:
 
 
 private:
+    double last_image_time=-1;
 
     // callback-buffers
-    // std::queue<sensor_msgs::ImageConstPtr> img_buf;
-    // std::queue<nav_msgs::OdometryConstPtr> pose_buf;
-    // std::queue<nav_msgs::OdometryConstPtr> kf_pose_buf;
-    // std::queue<sensor_msgs::PointCloudConstPtr> ptcld_buf;
-    // std::queue<sensor_msgs::PointCloudConstPtr> trackedfeat_buf;
-    // std::queue<nav_msgs::OdometryConstPtr> extrinsic_cam_imu_buf;
-
+    // set this to zero to use SafeQueue. Make this to 1 to use std queue
+    #define ___USE_STD_QUEUES 1
+    #if ___USE_STD_QUEUES
+    std::queue<sensor_msgs::ImageConstPtr> img_buf;
+    std::queue<sensor_msgs::ImageConstPtr> img_1_buf;
+    std::queue<nav_msgs::OdometryConstPtr> pose_buf;
+    std::queue<nav_msgs::OdometryConstPtr> kf_pose_buf;
+    std::queue<sensor_msgs::PointCloudConstPtr> ptcld_buf;
+    std::queue<sensor_msgs::PointCloudConstPtr> trackedfeat_buf;
+    std::queue<nav_msgs::OdometryConstPtr> extrinsic_cam_imu_buf;
+    #else
     SafeQueue<sensor_msgs::ImageConstPtr> img_buf;
     SafeQueue<sensor_msgs::ImageConstPtr> img_1_buf;
     SafeQueue<nav_msgs::OdometryConstPtr> pose_buf;
@@ -168,6 +174,7 @@ private:
     SafeQueue<sensor_msgs::PointCloudConstPtr> ptcld_buf;
     SafeQueue<sensor_msgs::PointCloudConstPtr> trackedfeat_buf;
     SafeQueue<nav_msgs::OdometryConstPtr> extrinsic_cam_imu_buf;
+    #endif
 
 
     string print_queue_size(int verbose );
@@ -195,5 +202,16 @@ public:
 
 private:
     atomic<bool> b_trial_thread;
+
+
+public:
+    // Thread to deallocate images which have no pose info (aka useless images)
+    void clean_up_useless_images_thread();
+    void clean_up_useless_images_thread_enable() { b_clean_up_useless_images_thread = true; }
+    void clean_up_useless_images_thread_disable() { b_clean_up_useless_images_thread = false; }
+
+private:
+    atomic<bool> b_clean_up_useless_images_thread;
+
 
 };

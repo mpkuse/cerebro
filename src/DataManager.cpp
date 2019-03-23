@@ -117,6 +117,7 @@ vector< std::pair<int,int> > DataManager::getCameraRelPoseKeys()
 const Matrix4d& DataManager::getIMUCamExtrinsic()
 {
     std::lock_guard<std::mutex> lk(global_vars_mutex);
+    assert( imu_T_cam_available && "[DataManager::getIMUCamExtrinsic] you request the value before setting it\n");
     return imu_T_cam;
 }
 
@@ -138,32 +139,29 @@ const ros::Time DataManager::getIMUCamExtrinsicLastUpdated()
 //////////////////////////////////////////////////////////////////////////////
 
 // #define __DATAMANAGER_CALLBACK_PRINT( u ) u;
-#define __DATAMANAGER_CALLBACK_PRINT( u )
+#define __DATAMANAGER_CALLBACK_PRINT( u ) ;
+
 void DataManager::camera_pose_callback( const nav_msgs::Odometry::ConstPtr msg )
 {
     if( pose_0_available == false ) { //record the 1st pose
         pose_0 = msg->header.stamp;
         pose_0_available = true;
     }
-    //__DATAMANAGER_CALLBACK_PRINT( cout << "[cerebro/camera_pose_callback]" << msg->header.stamp << endl; )
-    __DATAMANAGER_CALLBACK_PRINT( cout << TermColor::BLUE()  <<  "[cerebro/camera_pose_callback]" <<  msg->header.stamp-pose_0 << TermColor::RESET() << endl; )
+
+    // __DATAMANAGER_CALLBACK_PRINT( cout << TermColor::BLUE()  <<  "[cerebro/camera_pose_callback del]" <<  msg->header.stamp-pose_0 << TermColor::RESET() << endl; )
+    __DATAMANAGER_CALLBACK_PRINT( cout << TermColor::BLUE()  <<  "[cerebro/camera_pose_callback]" <<  msg->header.stamp << "\t" << msg->header.stamp-pose_0 << TermColor::RESET() << endl; )
     // push this to queue. Another thread will associate the data
     pose_buf.push( msg );
     return;
 
-    Matrix4d w_T_c;
-    PoseManipUtils::geometry_msgs_Pose_to_eigenmat( msg->pose.pose, w_T_c );
-    cout << "w_T_c:\n"<< w_T_c << endl;
-    char _fname[100];
-    sprintf( _fname, "/Bulk_Data/_tmp/%lf.wTc", msg->header.stamp.toSec() );
-    RawFileIO::write_EigenMatrix( _fname, w_T_c );
+
 }
 
 // currently not in use.
 void DataManager::keyframe_pose_callback( const nav_msgs::Odometry::ConstPtr msg )
 {
-    //__DATAMANAGER_CALLBACK_PRINT( cout << "[cerebro/camera_pose_callback]" << msg->header.stamp << endl; )
-    __DATAMANAGER_CALLBACK_PRINT( cout << TermColor::iBLUE() << "[cerebro/keyframe_pose_callback]" << msg->header.stamp-pose_0 << TermColor::RESET() << endl; )
+    //__DATAMANAGER_CALLBACK_PRINT( cout << "[cerebro/camera_pose_callback del]" << msg->header.stamp - pose_0 << endl; )
+    __DATAMANAGER_CALLBACK_PRINT( cout << TermColor::iBLUE() << "[cerebro/keyframe_pose_callback]" << msg->header.stamp << "\t" << msg->header.stamp-pose_0 << TermColor::RESET() << endl; )
     // push this to queue. Another thread will associate the data
     kf_pose_buf.push( msg );
 }
@@ -171,37 +169,44 @@ void DataManager::keyframe_pose_callback( const nav_msgs::Odometry::ConstPtr msg
 
 void DataManager::raw_image_callback( const sensor_msgs::ImageConstPtr& msg )
 {
-    //__DATAMANAGER_CALLBACK_PRINT( cout << "[cerebro/raw_image_callback]" << msg->header.stamp << endl; )
-    __DATAMANAGER_CALLBACK_PRINT( cout << TermColor::GREEN() << "[cerebro/raw_image_callback]" << msg->header.stamp-pose_0 << TermColor::RESET() << endl; )
+    // __DATAMANAGER_CALLBACK_PRINT( cout << TermColor::GREEN() << "[cerebro/raw_image_callback del]" << msg->header.stamp-pose_0 << TermColor::RESET() << endl; )
+    __DATAMANAGER_CALLBACK_PRINT( cout << TermColor::GREEN() << "[cerebro/raw_image_callback]" << msg->header.stamp << "\t" << msg->header.stamp-pose_0 << TermColor::RESET() << endl; )
+
+
+    if( this->last_image_time >= 0 && (msg->header.stamp.toSec() - this->last_image_time > 1.0 || msg->header.stamp.toSec() < this->last_image_time) )
+    {
+        cout << TermColor::iBLUE()
+        << "+++++++++++++[DataManager::raw_image_callback] "
+        << " curr_image.stamp - prev_image.stamp > 1.0.\n"
+        << "This means an unstable stream or more usually means a new bag has started with --skip-empty in rosbagplay.\n"
+        << "I will publish a FALSE t=" << 10000 << " then wait for 500ms and publish TRUE t=" << 10000
+        << " TODO Complete this implementation and verify correctness."
+        << TermColor::RESET() << endl;
+
+
+
+
+    }
+
+
     img_buf.push( msg );
+    this->last_image_time = msg->header.stamp.toSec();
     return;
 
-
-    // TODO: Remove this code.
-    try{
-        char _fname[100];
-        sprintf( _fname, "/Bulk_Data/_tmp/%lf.png", msg->header.stamp.toSec() );
-        cv::imwrite( _fname, cv_bridge::toCvShare(msg, "bgr8" )->image  );
-        // cv::imshow( "view", cv_bridge::toCvShare(msg, "bgr8" )->image );
-        // cv::waitKey(30);
-    }
-    catch( cv_bridge::Exception& e )
-    {
-        ROS_ERROR( "cannot convery from %s to 'bgr8' ", msg->encoding.c_str() );
-    }
 }
 
 void DataManager::raw_image_callback_1( const sensor_msgs::ImageConstPtr& msg )
 {
-    __DATAMANAGER_CALLBACK_PRINT( cout << "[cerebro/raw_image_callback_1]" << msg->header.stamp-pose_0 << endl; )
+    // __DATAMANAGER_CALLBACK_PRINT( cout << "[cerebro/raw_image_callback_1 del]" << msg->header.stamp-pose_0 << endl; )
+    __DATAMANAGER_CALLBACK_PRINT( cout << "[cerebro/raw_image_callback_1]" << msg->header.stamp << "\t" << msg->header.stamp-pose_0 << endl; )
     img_1_buf.push( msg );
     return;
 }
 
 void DataManager::extrinsic_cam_imu_callback( const nav_msgs::Odometry::ConstPtr msg )
 {
-    //__DATAMANAGER_CALLBACK_PRINT( cout << "[cerebro/extrinsic_cam_imu_callback]" << msg->header.stamp << endl; )
-    __DATAMANAGER_CALLBACK_PRINT( cout << "[cerebro/extrinsic_cam_imu_callback]" << msg->header.stamp-pose_0 << endl; )
+    // __DATAMANAGER_CALLBACK_PRINT( cout << "[cerebro/extrinsic_cam_imu_callback del]" << msg->header.stamp-pose_0 << endl; )
+    __DATAMANAGER_CALLBACK_PRINT( cout << "[cerebro/extrinsic_cam_imu_callback]" << msg->header.stamp << "\t" << msg->header.stamp-pose_0 << endl; )
     extrinsic_cam_imu_buf.push( msg );
 }
 
@@ -251,30 +256,17 @@ void DataManager::extrinsic_cam_imu_callback( const nav_msgs::Odometry::ConstPtr
 void DataManager::ptcld_callback( const sensor_msgs::PointCloud::ConstPtr msg )
 {
     // __DATAMANAGER_CALLBACK_PRINT( cout << "[cerebro/ptcld_callback]" << msg->header.stamp << endl; )
-    __DATAMANAGER_CALLBACK_PRINT( cout << TermColor::YELLOW() << "[cerebro/ptcld_callback]" << msg->header.stamp - pose_0 << TermColor::RESET() << endl; )
+    __DATAMANAGER_CALLBACK_PRINT( cout << TermColor::YELLOW() << "[cerebro/ptcld_callback]" << msg->header.stamp  << "\t" << msg->header.stamp-pose_0 << TermColor::RESET() << endl; )
     ptcld_buf.push( msg );
     return;
 
-    #if 0
-    // For debugging incoming ptcld.
-    int npts = msg->points.size();
-    MatrixXd ptcld = MatrixXd::Zero(3, npts );
-    for( int i=0 ; i<npts ; i++ )
-    {
-        ptcld(0,i) = msg->points[i].x;
-        ptcld(1,i) = msg->points[i].y;
-        ptcld(2,i) = msg->points[i].z;
-    }
-    char _fname[100];
-    sprintf( _fname, "/Bulk_Data/_tmp/%lf.pointcloud", msg->header.stamp.toSec() );
-    RawFileIO::write_EigenMatrix( _fname, ptcld );
-    #endif
 }
 
 
+// currently not in use
 void DataManager::tracked_feat_callback( const sensor_msgs::PointCloud::ConstPtr msg )
 {
-    __DATAMANAGER_CALLBACK_PRINT( cout << "[cerebro/tracked_feat_callback]" << msg->header.stamp << endl; )
+    __DATAMANAGER_CALLBACK_PRINT( cout << "[cerebro/tracked_feat_callback]" << msg->header.stamp << "\t" << msg->header.stamp-pose_0 << endl; )
     trackedfeat_buf.push( msg );
 }
 
@@ -624,22 +616,30 @@ void DataManager::trial_thread()
 
         auto S = data_map.begin(); //.lower_bound( lb );
         auto E = data_map.end();
-        cout << "S=" << S->first << "E=" << E->first <<  endl;
+        cout << "S=" << S->first << "  E=" << E->first <<  endl;
         for( auto it = S ; it != E ; it++ )
         {
             #if 1
-            if( it->second->isImageAvailable() ) {
+            if( it->second->isImageAvailable() && it->second->isImageAvailable(1) ) {
                 cout << TermColor::GREEN();
-            } else { cout << TermColor::BLUE() ; }
+            } else {
+                if( it->second->isImageAvailable() )
+                    cout << TermColor::CYAN() ;
+                else
+                    cout << TermColor::BLUE() ;
+            }
 
             if( it->second->isPoseAvailable() && it->second->getNumberOfSuccessfullyTrackedFeatures() < 0 ) {
-                cout << "A" << it->second->getNumberOfSuccessfullyTrackedFeatures() << ",";
+                cout << "A" ;
+                // cout << it->second->getNumberOfSuccessfullyTrackedFeatures() << ",";
             }
             if( !it->second->isPoseAvailable() && it->second->getNumberOfSuccessfullyTrackedFeatures() < 0 ) {
-                cout << "B" << it->second->getNumberOfSuccessfullyTrackedFeatures() << ",";  // this means there thise node has no pose and no tracked features data
+                cout << "B" ;
+                // cout << it->second->getNumberOfSuccessfullyTrackedFeatures() << ",";  // this means there thise node has no pose and no tracked features data
             }
             if( it->second->isPoseAvailable() && ! (it->second->getNumberOfSuccessfullyTrackedFeatures() < 0 ) ) {
-                cout << "C" << it->second->getNumberOfSuccessfullyTrackedFeatures() << ",";
+                cout << "C" ;
+                // cout << it->second->getNumberOfSuccessfullyTrackedFeatures() << ",";
             }
             if( !it->second->isPoseAvailable() && ! (it->second->getNumberOfSuccessfullyTrackedFeatures() < 0 )  ){
                 cout << "D"; // has no pose data but has tracked features. Pose actually takes some time to arrive. tracked features will be avaiaable first,
@@ -657,11 +657,50 @@ void DataManager::trial_thread()
     cout << TermColor::RED() << "END DataManager::trial_thread "<< TermColor::RESET() << endl;
 }
 
+
+// #define ___clean_up_cout(msg) msg;
+#define ___clean_up_cout(msg) ;
+void DataManager::clean_up_useless_images_thread()
+{
+
+    cout << TermColor::GREEN() << "Start DataManager::clean_up_useless_images_thread "<< TermColor::RESET() << endl;
+    ros::Rate looprate(0.3);
+    // data_association_thread_disable();
+    while( b_clean_up_useless_images_thread )
+    {
+        looprate.sleep();
+
+        if( data_map.begin() == data_map.end() ) {
+            cout << TermColor::CYAN() << "[clean_up_useless_images_thread] no nodes" << TermColor::RESET() << endl;
+            continue;
+        }
+
+        auto S = data_map.begin();
+        auto E = data_map.upper_bound( data_map.rbegin()->first - ros::Duration( 3.0 ) );
+        int q=0;
+        ___clean_up_cout( cout << S->first << " to " << E->first << endl; )
+        for( auto it = data_map.begin() ; it->first < E->first ; it++ ) {
+            if( it->second->isImageAvailable() && !it->second->isKeyFrame() ) {
+                ___clean_up_cout(
+                    cout << TermColor::CYAN() << "deallocate_all_images with t=" << it->first << " " << q++ << TermColor::RESET() << endl;
+                )
+                it->second->deallocate_all_images();
+            }
+            else {
+                ___clean_up_cout( cout << TermColor::YELLOW() << "not deallocate coz t=" << it->first << " is a keyframe (has pose info)" << q++ << TermColor::RESET() << endl; )
+            }
+        }
+    }
+    cout << TermColor::RED() << "END DataManager::clean_up_useless_images_thread "<< TermColor::RESET() << endl;
+
+}
+
 // #define _12335_print( str ) cout << "[data_association_thread]" << str;
 #define _12335_print( str ) ;
 
 // #define __DataManager__data_association_thread__( msg ) msg;
 #define __DataManager__data_association_thread__( msg ) ;
+
 void DataManager::data_association_thread( int max_loop_rate_in_hz )
 {
     assert( max_loop_rate_in_hz > 0 && max_loop_rate_in_hz < 200 && "[DataManager::data_association_thread] I am expecting the loop rate to be between 1-50" );
@@ -682,8 +721,15 @@ void DataManager::data_association_thread( int max_loop_rate_in_hz )
 
         // deqeue all raw images and make DataNodes of each of them, s
         while( img_buf.size() > 0 ) {
+            #if ___USE_STD_QUEUES
+            sensor_msgs::ImageConstPtr img_msg = img_buf.front();
+            img_buf.pop();
+            #else
             sensor_msgs::ImageConstPtr img_msg = img_buf.pop();
-            // cout << "Added a DataNode in data_map with poped() rawimage t=" << img_msg->header.stamp - pose_0 << endl;
+            #endif
+            __DataManager__data_association_thread__(
+                cout << TermColor::GREEN() << ">>>>>>>>> Added a new DataNode in data_map with poped() rawimage t=" << img_msg->header.stamp << " #####> ie." << img_msg->header.stamp - pose_0 << TermColor::RESET() << endl;
+            )
             DataNode * n = new DataNode( img_msg->header.stamp );
             n->setImageFromMsg( img_msg );
 
@@ -692,24 +738,48 @@ void DataManager::data_association_thread( int max_loop_rate_in_hz )
 
         // dequeue additional raw images
         while( img_1_buf.size() > 0 ) {
+            #if ___USE_STD_QUEUES
+            sensor_msgs::ImageConstPtr img_1_msg = img_1_buf.front();
+            img_1_buf.pop();
+            #else
             sensor_msgs::ImageConstPtr img_1_msg = img_1_buf.pop();
+            #endif
             ros::Time t = img_1_msg->header.stamp;
 
+            __DataManager__data_association_thread__(
+            cout << ">> Attempt adding poped() img_1_msg in data_map with t=" << img_1_msg->header.stamp << " ie. #####> " << img_1_msg->header.stamp-pose_0 << endl;
+            )
             if( data_map.count(t) > 0 ) {
                 data_map.at( t )->setImageFromMsg( img_1_msg, 1 );
             }
             else {
-                assert( false && "[DataManager::data_association_thread] attempting to set additional image into datanode. However that datanode is not found in the map. This cannot be happening\n");
-                __DataManager__data_association_thread__( cout << TermColor:RED() << "[DataManager::data_association_thread] attempting to set additional image_1 into datanode. However that datanode is not found in the map. This cannot be happening." << TermColor::RESET() << endl ; )
+                // assert( false && "[DataManager::data_association_thread] attempting to set additional image into datanode. However that datanode is not found in the map. This cannot be happening\n");
+                __DataManager__data_association_thread__(
+                    cout << TermColor::RED() << "[DataManager::data_association_thread]";
+                    cout << "attempting to set additional image_1 with t=" << t << " aka " << t-pose_0 <<  " into datanode. ";
+                    cout << "However that datanode is not found in the map. This cannot be happening, but might happen when `image_1` preceeds (even a few milis) than `image`.";
+                    cout << TermColor::RESET() << endl ;
+
+                cout << TermColor::CYAN() << "pushing this image_1 again to the queue\n" << TermColor::RESET();
+                )
+                img_1_buf.push( img_1_msg );
+                break;
             }
         }
 
 
         // dequeue all poses and set them to data_map
         while( pose_buf.size() > 0 ) {
-             nav_msgs::Odometry::ConstPtr pose_msg = pose_buf.pop();
+            #if ___USE_STD_QUEUES
+            nav_msgs::Odometry::ConstPtr pose_msg = pose_buf.front();
+            pose_buf.pop();
+            #else
+            nav_msgs::Odometry::ConstPtr pose_msg = pose_buf.pop();
+            #endif
              ros::Time t = pose_msg->header.stamp;
-            //  cout << "Attempt adding poped() pose in data_map with t=" << pose_msg->header.stamp -pose_0 << endl;
+             __DataManager__data_association_thread__(
+             cout << ">> Attempt adding poped() pose in data_map with t=" << pose_msg->header.stamp << " ie. #####> " << pose_msg->header.stamp -pose_0 << endl;
+             )
 
              // find the DataNode with this timestamp
              if( data_map.count( t ) > 0 ) {
@@ -717,17 +787,55 @@ void DataManager::data_association_thread( int max_loop_rate_in_hz )
                  data_map.at( t )->setPoseFromMsg( pose_msg );
              }
              else {
+
+                 // try range search
+                 // t-delta <= x <= t+delta. x is the map key.
+
+                 __DataManager__data_association_thread__( cout << "\tsince the key was not found in data_map do range_search\n"; )
+                 auto __it = data_map.begin();
+                 for( __it = data_map.begin() ; __it != data_map.end() ; __it++ ) {
+                     ros::Duration diff =  __it->first-t;
+                     if( (diff.sec == 0  &&  abs(diff.nsec) < 1000000) || (diff.sec == -1  &&  diff.nsec > (1000000000-1000000) )  )
+                        break;
+                 }
+
+                 if( __it == data_map.end() ) {
+                     __DataManager__data_association_thread__( cout << TermColor::RED() << "\trange search failed AAA\n");
+                     assert( false && "\tnot fouind\n");
+                     exit(2);
+                 }
+
+                __DataManager__data_association_thread__(
+                 cout << "\tfind pose->t=" << t << " in data_map\n";
+                 std::cout << "\tinsert at position " << (__it->first) << '\n';
+                )
+
+                if( true )
+                 {
+                     data_map.at( __it->first )->setPoseFromMsg( pose_msg );
+                 }
+                 else {
+
+                 __DataManager__data_association_thread__(cout << TermColor::RED() << "[DataManager::data_association_thread] data_map does not seem to contain the t of pose_msg. This cannot be happening...fatal quit" << TermColor::RESET() << endl;)
                  assert( false && "[DataManager::data_association_thread] data_map does not seem to contain the t of pose_msg. This cannot be happening\n");
-                 __DataManager__data_association_thread__(cout << TermColor::RED() << "[DataManager::data_association_thread] data_map does not seem to contain the t of pose_msg. This cannot be happening" << TermColor::RESET() << endl;)
+                 exit(2);
+                }
              }
          }
 
 
         // dequeue all point clouds (these are at keyframes)
         while( ptcld_buf.size() > 0 ) {
+            #if ___USE_STD_QUEUES
+            sensor_msgs::PointCloudConstPtr ptcld_msg = ptcld_buf.front();
+            ptcld_buf.pop();
+            #else
             sensor_msgs::PointCloudConstPtr ptcld_msg = ptcld_buf.pop();
+            #endif
             ros::Time t = ptcld_msg->header.stamp;
-            // cout << "Attempt adding poped() pointcloud in data_map at t=" << t - pose_0 << endl;
+            __DataManager__data_association_thread__(
+            cout << ">> Attempt adding poped() pointcloud in data_map at t=" << t << " ie. #####> " <<  t - pose_0 << endl;
+            )
 
             // find the DataNode with this timestamp
             if( data_map.count( t ) > 0 ) {
@@ -743,13 +851,52 @@ void DataManager::data_association_thread( int max_loop_rate_in_hz )
                 data_map.at( t )->setTrackedFeatIdsFromMsg( ptcld_msg );
                 data_map.at( t )->setAsKeyFrame();
                 #else
+                // cout << "setNumberOfSuccessfullyTrackedFeatures " << t << " " << ptcld_msg->points.size() << endl;
                 data_map.at( t )->setNumberOfSuccessfullyTrackedFeatures( ptcld_msg->points.size() );
                 data_map.at( t )->setAsKeyFrame();
                 #endif
             }
             else {
-                assert( false && "[DataManager::data_association_thread] data_map does not seem to contain the t of ptcld_msg. This cannot be happening\n");
-                __DataManager__data_association_thread__(cout << TermColor::RED() << "[DataManager::data_association_thread] data_map does not seem to contain the t of ptcld_msg. This cannot be happening." << TermColor::RESET() << endl ;)
+                // try range search
+                // t-delta <= x <= t+delta. x is the map key.
+                __DataManager__data_association_thread__( cout << "\tsince the key was not found in data_map do range_search\n"; )
+
+                auto __it = data_map.begin();
+                for( __it = data_map.begin() ; __it != data_map.end() ; __it++ ) {
+                    ros::Duration diff =  __it->first-t;
+                    if( (diff.sec == 0  &&  abs(diff.nsec) < 1000000) || (diff.sec == -1  &&  diff.nsec > (1000000000-1000000) )  )
+                       break;
+                }
+
+                if( __it == data_map.end() ) {
+                    __DataManager__data_association_thread__( cout << TermColor::RED() << "\trange search failed BBB\n");
+                    assert( false && "\tnot fouind\n");
+                    exit(2);
+                }
+
+               __DataManager__data_association_thread__(
+                cout << "\tfind ptcld->t=" << t << " in data_map\n";
+                std::cout << "\tinsert ptcld at position " << (__it->first) << '\n';
+               )
+
+
+               if( true ) {
+                   #if 0
+                   data_map.at( t )->setPointCloudFromMsg( ptcld_msg );
+                   data_map.at( t )->setUnVnFromMsg( ptcld_msg );
+                   data_map.at( t )->setUVFromMsg( ptcld_msg );
+                   data_map.at( t )->setTrackedFeatIdsFromMsg( ptcld_msg );
+                   data_map.at( t )->setAsKeyFrame();
+                   #else
+                   data_map.at( __it->first )->setNumberOfSuccessfullyTrackedFeatures( ptcld_msg->points.size() );
+                   data_map.at( __it->first )->setAsKeyFrame();
+                   #endif
+               }
+               else {
+                    __DataManager__data_association_thread__(cout << TermColor::RED() << "[DataManager::data_association_thread] data_map does not seem to contain the t of ptcld_msg. This cannot be happening." << TermColor::RESET() << endl ;)
+                    assert( false && "[DataManager::data_association_thread] data_map does not seem to contain the t of ptcld_msg. This cannot be happening\n");
+                    exit(2);
+                }
             }
         }
 
@@ -759,7 +906,12 @@ void DataManager::data_association_thread( int max_loop_rate_in_hz )
         nav_msgs::OdometryConstPtr __msg;
         while( extrinsic_cam_imu_buf.size() > 0 ) {
             // dump all
+            #if ___USE_STD_QUEUES
+            __msg = extrinsic_cam_imu_buf.front();
+            extrinsic_cam_imu_buf.pop();
+            #else
             __msg = extrinsic_cam_imu_buf.pop();
+            #endif
             flag = true;
         }
         if( flag ) {

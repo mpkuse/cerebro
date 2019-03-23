@@ -180,6 +180,17 @@ public:
     json kidnap_info_as_json();
     int n_kidnaps(); //< will with return length of `start_of_kidnap` current state has to be inferred by call to `is_kidnapped()`
 
+    // kidnap callbacks
+    void kidnap_bool_callback( const std_msgs::BoolConstPtr& rcvd_header ) ;
+    void kidnap_header_callback( const std_msgs::HeaderConstPtr& rcvd_header ) ;
+
+    // publish true and publish false.
+    // The timestamps indicate the start of kidnap and end of kidnap respectively.
+    // each of the function will publish messages on '/feature_tracker/rcvd_flag'
+    // and on '/feature_tracker/rcvd_flag_header'
+    void PUBLISH__TRUE( const ros::Time _t );
+    void PUBLISH__FALSE( const ros::Time _t );
+
 private:
     atomic<bool> b_kidnaped_thread_enable;
 

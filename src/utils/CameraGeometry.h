@@ -105,7 +105,7 @@ public:
     // Given raw image pair return stereo-rectified pair. This is a 2 step process
     // raw --> undistorted --> stereo rectified
     void do_stereo_rectification_of_raw_images(
-        const cv::Mat imleft_raw, const cv::Mat imright_raw,
+        const cv::Mat& imleft_raw, const cv::Mat& imright_raw,
         cv::Mat& imleft_srectified, cv::Mat& imright_srectified );
 
 

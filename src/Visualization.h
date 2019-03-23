@@ -43,7 +43,7 @@ public:
     // This is supposed to be run in a separate thread.
     void run_thread_enable() { b_run_thread = true; }
     void run_thread_disable() { b_run_thread = false; }
-    void run( const int looprate );
+    void run( const int looprate  );
 
 private:
     ros::NodeHandle nh;

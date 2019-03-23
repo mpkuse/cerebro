@@ -57,9 +57,58 @@ int main( int argc, char ** argv )
       exit(1);
     }
 
+    cv::FileStorage fs(config_file, cv::FileStorage::READ);
+    if( !fs.isOpened() )
+    {
+        ROS_ERROR_STREAM( "[cerebro_node] cannot open config_file: "<< config_file << "\nThe file seems to be stated on the cmdline but it cannot be opened, possibly file is not found on the stated path or it does not have read permission\n...fatal...quit()\n" );
+        exit(1);
+    }
+
+
+
+    // --- Get yaml config for primary camera. (cam0) ---//
     camodocal::CameraPtr abstract_camera;
-    abstract_camera = camodocal::CameraFactory::instance()->generateCameraFromYamlFile(config_file);
-    assert( abstract_camera && "Even after loading yaml the camera seem invalid. Something wrong\n");
+    // abstract_camera = camodocal::CameraFactory::instance()->generateCameraFromYamlFile(config_file);
+    // assert( abstract_camera && "Even after loading yaml the camera seem invalid. Something wrong\n");
+    {
+        string cam0_calib;
+        if( !fs["cam0_calib"].isString() )
+        {
+            ROS_WARN_STREAM( "[cerebro_node] cannot find key `cam0_calib` in config_file=" << config_file  );
+        }
+        else {
+            fs["cam0_calib"] >> cam0_calib;
+            ROS_INFO(  "cam0_calib : %s", cam0_calib.c_str() );
+
+            vector<string> ___path = MiscUtils::split( config_file, '/' );
+            // does::> $(python) '/'.join( ___path[0:-1] )
+            string ___cam0_path = string("");
+            for( int _i = 0 ; _i<___path.size()-1 ; _i++ ) {
+                ___cam0_path += ___path[_i] + "/";
+            }
+            ___cam0_path += "/"+cam0_calib;
+            cout << "cam0_fullpath=" << ___cam0_path << endl;
+
+
+            // check if file exists - depends on boost
+            if ( !boost::filesystem::exists( ___cam0_path ) )
+            {
+              std::cout << "[cerebro_node] Can't find my file for primary camera: " << ___cam0_path << std::endl;
+              ROS_ERROR_STREAM( "[cerebro_node] Can't find my file for primary camera" << ___cam0_path );
+              exit(1);
+            }
+
+            // Make Abstract Camera
+            // camodocal::CameraPtr abstract_camera_1;
+            cout << TermColor::GREEN() << "Load file : " << ___cam0_path << TermColor::RESET() << endl;
+            abstract_camera = camodocal::CameraFactory::instance()->generateCameraFromYamlFile(___cam0_path);
+            assert( abstract_camera && "Even after loading yaml the camera seem invalid. Something wrong\n");
+
+
+            // dataManager.setAbstractCamera( abstract_camera_1, 1 );
+        }
+    }
+
 
 
 
@@ -93,48 +142,45 @@ int main( int argc, char ** argv )
 
     // [B]
     // Raw Image (all). The topic's name is in the config_file
-    cv::FileStorage fs(config_file, cv::FileStorage::READ);
-    if( !fs.isOpened() )
-    {
-        ROS_ERROR_STREAM( "[cerebro_node] cannot open config_file: "<< config_file << "\nThe file seems to be stated on the cmdline but it cannot be opened, possibly file is not found on the stated path or it does not have read permission\n...fatal...quit()\n" );
-        exit(1);
-    }
-    string raw_image_topic;
-    if( !fs["image_topic"].isString() )
-    {
-        ROS_ERROR_STREAM( "[cerebro_node] cannot find key 'image_topic' in config_file("<< config_file << ")\n...fatal...quit" );
-        exit(1);
-    }
-    fs["image_topic"] >> raw_image_topic;
-    ROS_INFO( "Subscribe to raw_image_topic: %s", raw_image_topic.c_str() );
-    ros::Subscriber sub_image = nh.subscribe( raw_image_topic, 100, &DataManager::raw_image_callback, &dataManager );
 
+    string raw_image_topic;
+    if( !fs["image0_topic"].isString() )
+    {
+        ROS_ERROR_STREAM( "[cerebro_node] cannot find key 'image0_topic' in config_file("<< config_file << ")\n...fatal...quit" );
+        exit(1);
+    }
+    fs["image0_topic"] >> raw_image_topic;
+    ROS_INFO( "Subscribe to raw_image_topic: %s", raw_image_topic.c_str() );
+    ros::Subscriber sub_image = nh.subscribe( raw_image_topic, 10, &DataManager::raw_image_callback, &dataManager );
 
     // [B.1]
     // Additional Image topic (stereo pair)
     string raw_image_topic_1;
     ros::Subscriber sub_image_1;
-    if( !fs["image_topic_1"].isString() )
+    if( !fs["image1_topic"].isString() )
     {
-        ROS_WARN_STREAM( "[cerebro_node] cannot find key `image_topic_1` in config_file=" << config_file << ". This was optional so nothing to worry if you don't need the stereo pair" );
+        ROS_WARN_STREAM( "[cerebro_node] cannot find key `image1_topic` in config_file=" << config_file << ". This was optional so nothing to worry if you don't need the stereo pair" );
+        exit(1);
     }
     else {
-        fs["image_topic_1"] >> raw_image_topic_1;
+        fs["image1_topic"] >> raw_image_topic_1;
         ROS_INFO( "Subscribe to image_topic_1: %s", raw_image_topic_1.c_str() );
-        sub_image_1 = nh.subscribe( raw_image_topic_1, 100, &DataManager::raw_image_callback_1, &dataManager );
+        sub_image_1 = nh.subscribe( raw_image_topic_1, 10, &DataManager::raw_image_callback_1, &dataManager );
     }
+
 
 
     // [B.2]
     // Additional Cameras (yaml)
     string camera_yaml_1;
-    if( !fs["camera_yaml_1"].isString() )
+    if( !fs["cam1_calib"].isString() )
     {
-        ROS_WARN_STREAM( "[cerebro_node] cannot find key `camera_yaml_1` in config_file=" << config_file << ". This was optional so nothing to worry if you don't need the 2nd camera" );
+        ROS_WARN_STREAM( "[cerebro_node] cannot find key `cam1_calib` in config_file=" << config_file << ". This was optional so nothing to worry if you don't need the 2nd camera" );
+        exit(1);
     }
     else {
-        fs["camera_yaml_1"] >> camera_yaml_1;
-        ROS_INFO(  "camera_yaml_1 : %s", camera_yaml_1.c_str() );
+        fs["cam1_calib"] >> camera_yaml_1;
+        ROS_INFO(  "cam1_calib : %s", camera_yaml_1.c_str() );
 
         vector<string> ___path = MiscUtils::split( config_file, '/' );
         // does::> $(python) '/'.join( ___path[0:-1] )
@@ -169,6 +215,42 @@ int main( int argc, char ** argv )
     if(  !fs["extrinsic_1_T_0"].isString() )
     {
         ROS_WARN_STREAM( "[cerebro_node] cannot find key `extrinsic_1_T_0` in config file=" << config_file << " this was not needed for monocular camera, but needed for a stereo camera" );
+        cout << TermColor::RED() <<  "[cerebro_node] cannot find key `extrinsic_1_T_0` in config file=" << config_file << " this was not needed for monocular camera, but needed for a stereo camera" << TermColor::RESET() << endl;
+        // exit(1);
+
+
+        #if 1
+        // look for the existence of `body_T_cam0` and `body_T_cam1`
+        cout << TermColor::YELLOW() << "Since, the key `extrinsic_1_T_0`, I am looking for the existence of `body_T_cam0` and `body_T_cam1`" << TermColor::RESET() << endl;
+
+        if( fs["body_T_cam0"].empty() || fs["body_T_cam1"].empty() ) {
+            cout << TermColor::RED() << "Either of the keys `body_T_cam0` or `body_T_cam1` cannot be found in config file. FATAL ERROR\n" << TermColor::RESET() ;
+            exit(1);
+        }
+
+
+        cout << TermColor::iGREEN() <<  "The keys `body_T_cam0` and `body_T_cam1` exists, compute extrinsic_1_T_0 from these two as ` ee_body_T_cam1.inverse() * ee_body_T_cam0;`\n" << TermColor::RESET() ;
+        cv::Mat body_T_cam0, body_T_cam1;
+        fs["body_T_cam0"] >> body_T_cam0;
+        fs["body_T_cam1"] >> body_T_cam1;
+        Matrix4d ee_body_T_cam0, ee_body_T_cam1;
+        cv::cv2eigen( body_T_cam0,  ee_body_T_cam0 );
+        cv::cv2eigen( body_T_cam1,  ee_body_T_cam1 );
+
+        Matrix4d cam1_T_cam0 = ee_body_T_cam1.inverse() * ee_body_T_cam0;
+        cout << "Matrix4d cam1_T_cam0 = " << PoseManipUtils::prettyprintMatrix4d(cam1_T_cam0) << endl;
+        {
+        cout << "raw matrix of cam1_T_cam0:\n" << cam1_T_cam0 << "----" <<  endl;
+
+        double q_xyzw[5], t_xyz[5];
+        PoseManipUtils::eigenmat_to_raw_xyzw( cam1_T_cam0, q_xyzw, t_xyz );
+        cout << "q_xyzw: " << q_xyzw[0] << "," << q_xyzw[1] << "," << q_xyzw[2] << "," << q_xyzw[3] << endl;
+        cout << " t_xyz: " << t_xyz[0] << "," << t_xyz[1] << "," << t_xyz[2]  << endl;
+        }
+        dataManager.setCameraRelPose( cam1_T_cam0, std::make_pair(1,0) );
+
+        #endif
+
     }
     else {
         // Extract the fname from the config_file
@@ -199,6 +281,10 @@ int main( int argc, char ** argv )
 
         cout << TermColor::GREEN() << "successfully opened file "<< ___extrinsic_1_T_0_path << TermColor::RESET() << endl;
         cv::FileNode n = fs["transform"];
+        if( n.empty() ) {
+            cout << TermColor::RED() << "I was looking for the key `transform` in the file but it doesnt seem to exist. FATAL ERROR" << TermColor::RESET() << endl;
+            exit(1);
+        }
         Vector4d q_xyzw;
         q_xyzw << (double)n["q_x"] , (double)n["q_y"] ,(double) n["q_z"] ,(double) n["q_w"];
 
@@ -214,6 +300,7 @@ int main( int argc, char ** argv )
         PoseManipUtils::raw_xyzw_to_eigenmat( q_xyzw, tr_xyz/1000., _1_T_0 ); cout << "translation divided by 1000 to convert from mm (in file) to meters (as needed)\n";
         // cout << TermColor::iBLUE() << "_1_T_0:\n" <<  _1_T_0  << TermColor::RESET() << endl;
         cout << TermColor::iBLUE() << "_1_T_0: " << PoseManipUtils::prettyprintMatrix4d( _1_T_0 ) << TermColor::RESET() << endl;
+        cout << "_1_T_0:\n" << _1_T_0 << endl;
 
 
         dataManager.setCameraRelPose( _1_T_0, std::make_pair(1,0) );
@@ -232,7 +319,6 @@ int main( int argc, char ** argv )
 
 
 
-
     // [C]
     // imu_T_cam : imu camera extrinsic calib. Will store this just in case there is a need
     string extrinsic_cam_imu_topic = string("/vins_estimator/extrinsic");
@@ -242,8 +328,8 @@ int main( int argc, char ** argv )
 
     // [D]
     // PointCloud (all): has 5 channels
-    // string ptcld_topic = string("/vins_estimator/keyframe_point");
-    string ptcld_topic = string("/feature_tracker/feature");
+    string ptcld_topic = string("/vins_estimator/keyframe_point");
+    // string ptcld_topic = string("/feature_tracker/feature");
     ROS_INFO( "Subscribe to ptcld_topic: %s", ptcld_topic.c_str() );
     ros::Subscriber sub_ptcld = nh.subscribe( ptcld_topic, 1000, &DataManager::ptcld_callback, &dataManager );
 
@@ -255,40 +341,79 @@ int main( int argc, char ** argv )
 
 
 
+
+
     //--- Start Threads ---//
 
     // [A]
     // Data associate thread: looks at the callback buffers and sets the data in the std::map
     dataManager.data_association_thread_enable();
-    std::thread t1( &DataManager::data_association_thread, &dataManager, 50 );
+    std::thread t1( &DataManager::data_association_thread, &dataManager, 15 );
 
-    // dataManager.trial_thread_enable();
-    // std::thread dm_trial_th( &DataManager::trial_thread, &dataManager );
-    // TODO Another thread in class dataManager which will deallocate images in nonkeyframes.
+    dataManager.trial_thread_enable();
+    dataManager.trial_thread_disable();
+    std::thread dm_trial_th( &DataManager::trial_thread, &dataManager );
+
+    // [A.1] Another thread in class dataManager which will deallocate images in nonkeyframes.
+    dataManager.clean_up_useless_images_thread_enable();
+    dataManager.clean_up_useless_images_thread_disable();
+    std::thread dm_cleanup_th( &DataManager::clean_up_useless_images_thread, &dataManager );
+
+
+    Cerebro cer( nh );
+    cer.setDataManager( &dataManager );
+    cer.setPublishers( "/cerebro" );
+
+    // [B.00]
+    // Kidnap message. There are two kinds of kidnap messages
+    // a. Bool b. Header. Look at the documentation of the kidnaped thread to know the details.
+    // This has been done only for compatibility. I (mpkuse) prefer the Header because it
+    // can also contain the timestamp when kidnap started and ended.
+    string kidnap_bool_topic = "/feature_tracker/rcvd_flag";
+    ROS_INFO( "Subscribe to kidnap_bool_topic: %s", kidnap_bool_topic.c_str() );
+    ros::Subscriber sub_kidnap_bool = nh.subscribe( kidnap_bool_topic, 1000, &Cerebro::kidnap_bool_callback, &cer );
+
+    string kidnap_header_topic = "/feature_tracker/rcvd_flag_header";
+    ROS_INFO( "Subscribe to kidnap_header_topic: %s", kidnap_header_topic.c_str() );
+    ros::Subscriber sub_kidnap_header = nh.subscribe( kidnap_header_topic, 1000, &Cerebro::kidnap_header_callback, &cer );
 
 
     // [B]
     // Cerebro threads
-    Cerebro cer( nh );
-    cer.setDataManager( &dataManager );
-    cer.setPublishers( "/cerebro" );
+    //      This thread looks at `wholeImageComputedList`, if there is something new
+    //      in it (new descriptors) it does dot(  0-->T-50, T ), dot(  0-->T-50, T-1 )
+    //      and dot(  0-->T-50, T-2 ). If threshold-test and locality-test both
+    //      comeout to be +ve it declares 'loop found' and queues up this pair into the
+    //      list `foundLoops`
     cer.run_thread_enable();
-    std::thread t2( &Cerebro::run, &cer );
+    // cer.run_thread_disable();
+    std::thread t2( &Cerebro::run, &cer ); //< descrip_N__dot__descrip_0_N. runs @ 10hz
+
 
     // [C]
     // Descriptor Computation Thread.
+    //      It monitors data_map. If new keyframes are available then
+    //      it queries the ros-service with the image to get the whole-image-descriptor.
+    //      This whole image descriptor is stored in `node->setWholeImageDescriptor`
+    //      and the index of computation stored in `wholeImageComputedList`.
     cer.descriptor_computer_thread_enable();
+    // cer.descriptor_computer_thread_disable();
     std::thread desc_th( &Cerebro::descriptor_computer_thread, &cer ); //runs @20hz
 
 
     // [C.1]
-    // loopcandidates consumer - This also computes the relative pose between the candidates
+    // loopcandidates consumer
+    //      Monitors the list `foundLoops` aka the putative loop candidates.
+    //      If new candidates are present in the list it computes the relative-pose
+    //      using GMSMatcher and theia-sfm's pnp. The depth is computed from stereogeom (class StereoGeometry)
     cer.loopcandidate_consumer_enable();
+    // cer.loopcandidate_consumer_disable();
     std::thread loopcandidate_consumer_th( &Cerebro::loopcandiate_consumer_thread, &cer ); // runs @1hz
 
     // [C.2]
     // Kidnap Identification Thread
     cer.kidnaped_thread_enable();
+    // cer.kidnaped_thread_disable();
     std::thread kidnap_th( &Cerebro::kidnaped_thread, &cer, 5 );
 
     // [D]
@@ -298,28 +423,35 @@ int main( int argc, char ** argv )
     viz.setCerebro( &cer );
     viz.setVizPublishers( "/cerebro_node/viz/" );
     viz.run_thread_enable();
-    std::thread t3( &Visualization::run, &viz, 25 ); //TODO something wrong with the logic in publish. another solution could be we keep #seq in DataNode.
+    std::thread t3( &Visualization::run, &viz, 20 ); //TODO something wrong with the logic in publish. another solution could be we keep #seq in DataNode.
 
 
     fs.release();
+
     ros::spin();
 
     dataManager.data_association_thread_disable();
-    // dataManager.trial_thread_disable();
+    dataManager.trial_thread_disable();
+    dataManager.clean_up_useless_images_thread_disable();
+    #if 1
     cer.run_thread_disable();
     cer.descriptor_computer_thread_disable();
     cer.loopcandidate_consumer_disable();
     cer.kidnaped_thread_disable();
     viz.run_thread_disable();
+    #endif
 
     t1.join(); cout << "t1.join()\n";
-    // dm_trial_th.join(); cout << "t1_trial.join()\n";
+    dm_trial_th.join(); cout << "t1_trial.join()\n";
+    dm_cleanup_th.join(); cout << "dm_cleanup_th.join()\n";
+
+    #if 1
     t2.join(); cout << "t2.join()\n";
     desc_th.join(); cout << "desc_th.join()\n";
     loopcandidate_consumer_th.join(); cout << "loopcandidate_consumer_th.join()\n";
     kidnap_th.join(); cout << "kidnap_th.join()\n";
     t3.join(); cout << "t3.join()\n";
-
+    #endif
 
     #if 0
     {
@@ -400,7 +532,7 @@ int main( int argc, char ** argv )
         RawFileIO::write_string( save_dir+"/log.json", dataManager.metaDataAsJson() );
         RawFileIO::write_string( save_dir+"/log.txt", dataManager.metaDataAsFlatFile() ); //TODO remove. Since i can read json in python as well as c++ with ease, these is no point of storing stuff as txt
 
-
+        #if 1
         std::map< ros::Time, DataNode* > data_map = dataManager.getDataMapRef();
         for( auto it = data_map.begin() ; it!= data_map.end() ; it++ )
         {
@@ -446,6 +578,7 @@ int main( int argc, char ** argv )
             }
             #endif
         }
+        #endif
 
 
         // Save Camera Matrix and IMUCamExtrinsic
@@ -492,6 +625,8 @@ int main( int argc, char ** argv )
         string cmd_ = string("mkdir -p ")+save_dir+"/matching/";
         RawFileIO::exec_cmd( cmd_ );
 
+
+        // If you are looking to save these matchings, besure to set the #define just before `Cerebro::loopcandiate_consumer_thread()`.
         json all_procloops_json_obj;
         for( int i=0 ; i<cer.processedLoops_count() ; i++ ) {
 

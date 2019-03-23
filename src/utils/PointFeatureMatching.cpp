@@ -65,7 +65,8 @@ void StaticPointFeatureMatching::gms_point_feature_matches( const cv::Mat& imlef
         }
     }
     // MatrixXd M1, M2;
-    MiscUtils::dmatch_2_eigen( kp1, kp2, matches_gms, u, ud, true );
+    if( matches_gms.size() > 0 )
+        MiscUtils::dmatch_2_eigen( kp1, kp2, matches_gms, u, ud, true );
 
 
 }
