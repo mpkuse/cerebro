@@ -1389,8 +1389,8 @@ bool Cerebro::process_loop_candidate_imagepair( int ii, ProcessedLoopCandidate& 
 // Kidnap identification thread. This thread monitors dataManager->getDataMapRef().size
 // for every new node added if there are zero tracked features means that, I have
 // been kidnaped. It however declares kidnap only after 2 sec of kidnaped
-#define __Cerebro__kidnaped_thread__( msg ) msg;
-// #define __Cerebro__kidnaped_thread__( msg ) ;
+// #define __Cerebro__kidnaped_thread__( msg ) msg;
+#define __Cerebro__kidnaped_thread__( msg ) ;
 void Cerebro::kidnaped_thread( int loop_rate_hz )
 {
     if( loop_rate_hz <= 0 || loop_rate_hz >= 30 ) {
@@ -1400,17 +1400,11 @@ void Cerebro::kidnaped_thread( int loop_rate_hz )
 
     cout << TermColor::GREEN() << "Start  Cerebro::kipnaped_thead\n" << TermColor::RESET() << endl;
 
-    // Setup Publisher for sending kidnaped message to
-    // a) vins_estimator and b) pose_graph solver
-    string pub_topic_test = "/feature_tracker/rcvd_flag";
-    ROS_INFO( "Cerebro Kidnap thread : Publisher pub_topic_test: %s", pub_topic_test.c_str() );
-    ros::Publisher rcvd_flag_pub = nh.advertise<std_msgs::Bool>(pub_topic_test, 1000);
-    // We publish std_msgs::Header to the pose-graph-solver.
-    // The purpose is that, this will serve as carrier of timestamp according to which
-    // we can eliminate the odometry edges from the cost function.
-    string pub_topic_header = "/feature_tracker/rcvd_flag_header";
-    ROS_INFO( "Cerebro Kidnap thread : Publisher pub_topic_header: %s", pub_topic_header.c_str() );
-    ros::Publisher kidnap_indicator_header_pub = nh.advertise<std_msgs::Header>(pub_topic_header, 1000);
+
+    if( dataManager->isKidnapIndicatorPubSet() == false ) {
+        cout << TermColor::RED() << "FATAL ERROR in [Cerebro::kidnaped_thread] kidnap indicator ros::Publishers were not set\n";
+        exit(2);
+    }
 
 
 
@@ -1441,7 +1435,7 @@ void Cerebro::kidnaped_thread( int loop_rate_hz )
         if( new_count <= prev_count ) {
             __Cerebro__kidnaped_thread__(cout << "[Cerebro::kidnaped_thread]Nothing new\n";)
 
-            #if 1
+            #if 0
             // Handling for multiple bags. The idea is, if no new messages then publish false and stop the vins_estimator.
             if( first_data_received ) {
                 cout << "[Cerebro::kidnaped_thread] looks like a bag has ended and we are waiting for the next bag to start\n";
@@ -1473,7 +1467,7 @@ void Cerebro::kidnaped_thread( int loop_rate_hz )
 
         for( auto it = S ; it != E ; it++ )
         {
-            #if 1
+            #if 0
             // Handling for multiple bags. The idea is, if no new messages then publish false and stop the vins_estimator.
             // If new messages are seen after stopiing vins_estimator, this is an indicator of new bag playing.
             if(first_data_received && waiting_for_next_bag_to_start ) {
@@ -1552,24 +1546,8 @@ void Cerebro::kidnaped_thread( int loop_rate_hz )
                 )
                 is_kidnapped_more_than_n_sec = true;
 
-                // publish False (bool msg)
-                std_msgs::Bool bool_msg; bool_msg.data = false;
-                rcvd_flag_pub.publish( bool_msg );
-                // rcvd_flag_pub.publish( false );
+                dataManager->PUBLISH__FALSE( is_kidnapped_start );
 
-                // publish header message
-                std_msgs::Header header_msg;
-                header_msg.stamp = is_kidnapped_start;
-                header_msg.frame_id = "kidnapped";
-                kidnap_indicator_header_pub.publish( header_msg );
-
-
-                //---> This bit has been moved to `Cerebro::kidnap_header_callback`
-                // {// these braces are Important here, for the threadsafety lock_gaurd
-                //     std::lock_guard<std::mutex> lk(mutex_kidnap);
-                //     this->state_is_kidnapped = true;
-                //     start_of_kidnap.push_back( it->first );
-                // }
             }
 
             if( is_kidnapped && n_feats > THRESH_N_FEATS ) {
@@ -1580,24 +1558,8 @@ void Cerebro::kidnaped_thread( int loop_rate_hz )
                 if( is_kidnapped_more_than_n_sec )
                 {
                     // publish true to vins_estimator to indicate that it may resume the estimation with a new co-ordinate system.
-                    // Publish True
-                    __Cerebro__kidnaped_thread__( cout << "PUBLISH TRUE\n"; )
-                    std_msgs::Bool bool_msg; bool_msg.data = true;
-                    rcvd_flag_pub.publish( bool_msg );
-                    // rcvd_flag_pub.publish( true );
+                    dataManager->PUBLISH__TRUE( it->first );
 
-                    // publish header msg
-                    std_msgs::Header header_msg;
-                    header_msg.stamp =  it->first ;
-                    header_msg.frame_id = "unkidnapped";
-                    kidnap_indicator_header_pub.publish( header_msg );
-
-                    //--->  This bit has been moved to `Cerebro::kidnap_header_callback`
-                    // { // these braces are Important here, for the threadsafety lock_gaurd
-                    //     std::lock_guard<std::mutex> lk(mutex_kidnap);
-                    //     this->state_is_kidnapped = false;
-                    //     end_of_kidnap.push_back( it->first );
-                    // }
                 }
                 is_kidnapped = false;
                 is_kidnapped_more_than_n_sec = false;
@@ -1695,16 +1657,5 @@ void Cerebro::kidnap_header_callback( const std_msgs::HeaderConstPtr& rcvd_heade
     }
 
     assert( false && "in Cerebro::kidnap_header_callback. rcvd_header->frame_id is something other than `kidnapped` or `unkidnapped`.");
-
-}
-
-
-void PUBLISH__TRUE( const ros::Time _t )
-{
-
-}
-
-void PUBLISH__FALSE( const ros::Time _t )
-{
 
 }

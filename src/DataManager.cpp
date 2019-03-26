@@ -27,6 +27,8 @@ DataManager::DataManager(const DataManager &obj)
 // }
 
 
+
+
 void DataManager::setAbstractCamera( camodocal::CameraPtr abs_camera, short cam_id )
 {
     assert( cam_id >= 0 && "DataManager, you requested a camera with negative id which is an error. cam_id=0 for default camera and 1,2,.. for additional cameras.\n" );
@@ -133,6 +135,53 @@ const ros::Time DataManager::getIMUCamExtrinsicLastUpdated()
     return imu_T_cam_stamp;
 }
 
+//////////////////////////////////////////////////////////////////////////////
+/////////////////// Kidnap Indicator Publisher ///////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+bool DataManager::isKidnapIndicatorPubSet()
+{
+    return (bool)is_kidnapn_indicator_set ;
+}
+
+void DataManager::setKidnapIndicatorPublishers( ros::Publisher& pub_bool, ros::Publisher& pub_header )
+{
+    rcvd_flag_pub = pub_bool;
+    kidnap_indicator_header_pub = pub_header;
+    is_kidnapn_indicator_set = true;
+}
+
+
+void DataManager::PUBLISH__TRUE( const ros::Time _t )
+{
+    assert( is_kidnapn_indicator_set );
+    cout << TermColor::RED() << "[Cerebro::PUBLISH__TRUE] PUBLISH TRUE (t= " << _t << " to indicate the vins_estimator to start again.\n" << TermColor::RESET();
+
+    std_msgs::Bool bool_msg; bool_msg.data = true;
+    rcvd_flag_pub.publish( bool_msg );
+
+    // publish header msg
+    std_msgs::Header header_msg;
+    header_msg.stamp =  _t;
+    header_msg.frame_id = "unkidnapped";
+    kidnap_indicator_header_pub.publish( header_msg );
+}
+
+void DataManager::PUBLISH__FALSE( const ros::Time _t )
+{
+    assert( is_kidnapn_indicator_set );
+    cout << TermColor::RED() << "[Cerebro::PUBLISH__FALSE] PUBLISH FALSE (t= " << _t << " to indicate the vins_estimator to stop.\n" << TermColor::RESET();
+
+    // publish False (bool msg)
+    std_msgs::Bool bool_msg; bool_msg.data = false;
+    rcvd_flag_pub.publish( bool_msg );
+
+    // publish header message
+    std_msgs::Header header_msg;
+    header_msg.stamp = _t;
+    header_msg.frame_id = "kidnapped";
+    kidnap_indicator_header_pub.publish( header_msg );
+}
+
 
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////// call backs //////////////////////////////////
@@ -173,7 +222,11 @@ void DataManager::raw_image_callback( const sensor_msgs::ImageConstPtr& msg )
     __DATAMANAGER_CALLBACK_PRINT( cout << TermColor::GREEN() << "[cerebro/raw_image_callback]" << msg->header.stamp << "\t" << msg->header.stamp-pose_0 << TermColor::RESET() << endl; )
 
 
-    if( this->last_image_time >= 0 && (msg->header.stamp.toSec() - this->last_image_time > 1.0 || msg->header.stamp.toSec() < this->last_image_time) )
+    if( this->last_image_time != ros::Time() &&
+            (msg->header.stamp.toSec() - this->last_image_time.toSec() > 1.0
+                ||
+            msg->header.stamp.toSec() < this->last_image_time.toSec())
+    )
     {
         cout << TermColor::iBLUE()
         << "+++++++++++++[DataManager::raw_image_callback] "
@@ -185,12 +238,23 @@ void DataManager::raw_image_callback( const sensor_msgs::ImageConstPtr& msg )
 
 
 
+        cout << TermColor::BLUE() << "PUBLISH__FALSE\n" << TermColor::RESET();
+        PUBLISH__FALSE( this->last_image_time );
+
+        cout << TermColor::BLUE() << "Sleep 500ms\n" << TermColor::RESET();
+        // sleep( 500 ms );
+        std::this_thread::sleep_for (std::chrono::milliseconds(500));
+
+        cout << TermColor::BLUE() << "PUBLISH__TRUE\n" << TermColor::RESET();
+        PUBLISH__TRUE( msg->header.stamp );
+
+
 
     }
 
 
     img_buf.push( msg );
-    this->last_image_time = msg->header.stamp.toSec();
+    this->last_image_time = msg->header.stamp;
     return;
 
 }

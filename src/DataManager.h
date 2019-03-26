@@ -56,6 +56,8 @@
 #include <geometry_msgs/Point.h>
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
+#include <std_msgs/Bool.h>
+
 
 // Eigen
 #include <Eigen/Core>
@@ -70,10 +72,13 @@ using namespace Eigen;
 
 #include "DataNode.h"
 
+
 #include "utils/PoseManipUtils.h"
 #include "utils/RawFileIO.h"
 #include "utils/SafeQueue.h"
 #include "utils/ElapsedTime.h"
+
+
 
 class DataManager
 {
@@ -102,6 +107,28 @@ public:
     const Matrix4d& getIMUCamExtrinsic();
     bool isIMUCamExtrinsicAvailable();
     const ros::Time getIMUCamExtrinsicLastUpdated();
+
+
+public:
+    ////////
+    /////// Kidnap Indicator Publisher
+    ///////
+
+    // publish true and publish false.
+    // The timestamps indicate the start of kidnap and end of kidnap respectively.
+    // each of the function will publish messages on '/feature_tracker/rcvd_flag'
+    // and on '/feature_tracker/rcvd_flag_header'
+
+    bool isKidnapIndicatorPubSet();
+    void setKidnapIndicatorPublishers( ros::Publisher& pub_bool, ros::Publisher& pub_header );
+    void PUBLISH__TRUE( const ros::Time _t );
+    void PUBLISH__FALSE( const ros::Time _t );
+
+
+private:
+    ros::Publisher rcvd_flag_pub;
+    ros::Publisher kidnap_indicator_header_pub;
+    bool is_kidnapn_indicator_set = false;
 
 
 public:
@@ -153,7 +180,8 @@ public:
 
 
 private:
-    double last_image_time=-1;
+    // double last_image_time=-1;
+    ros::Time last_image_time = ros::Time();
 
     // callback-buffers
     // set this to zero to use SafeQueue. Make this to 1 to use std queue

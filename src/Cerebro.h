@@ -184,13 +184,6 @@ public:
     void kidnap_bool_callback( const std_msgs::BoolConstPtr& rcvd_header ) ;
     void kidnap_header_callback( const std_msgs::HeaderConstPtr& rcvd_header ) ;
 
-    // publish true and publish false.
-    // The timestamps indicate the start of kidnap and end of kidnap respectively.
-    // each of the function will publish messages on '/feature_tracker/rcvd_flag'
-    // and on '/feature_tracker/rcvd_flag_header'
-    void PUBLISH__TRUE( const ros::Time _t );
-    void PUBLISH__FALSE( const ros::Time _t );
-
 private:
     atomic<bool> b_kidnaped_thread_enable;
 
@@ -198,4 +191,8 @@ private:
     atomic< bool > state_is_kidnapped;
     vector< ros::Time > start_of_kidnap;
     vector< ros::Time > end_of_kidnap;
+
+    ros::Publisher rcvd_flag_pub;
+    ros::Publisher kidnap_indicator_header_pub;
+    bool is_kidnapn_indicator_set = false;
 };

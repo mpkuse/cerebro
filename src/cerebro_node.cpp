@@ -364,8 +364,27 @@ int main( int argc, char ** argv )
     cer.setDataManager( &dataManager );
     cer.setPublishers( "/cerebro" );
 
+
+
+
     // [B.00]
-    // Kidnap message. There are two kinds of kidnap messages
+    // Kidnap Message Publisher. See also comments below for `kidnap message subscriber`
+    // Setup Publisher for sending kidnaped message to
+    // a) vins_estimator and b) pose_graph solver
+    string pub_topic_test = "/feature_tracker/rcvd_flag";
+    ROS_INFO( "main : Publisher pub_topic_test: %s", pub_topic_test.c_str() );
+    ros::Publisher rcvd_flag_pub = nh.advertise<std_msgs::Bool>(pub_topic_test, 1000);
+    // We publish std_msgs::Header to the pose-graph-solver.
+    // The purpose is that, this will serve as carrier of timestamp according to which
+    // we can eliminate the odometry edges from the cost function.
+    string pub_topic_header = "/feature_tracker/rcvd_flag_header";
+    ROS_INFO( "main : Publisher pub_topic_header: %s", pub_topic_header.c_str() );
+    ros::Publisher kidnap_indicator_header_pub = nh.advertise<std_msgs::Header>(pub_topic_header, 1000);
+    dataManager.setKidnapIndicatorPublishers( rcvd_flag_pub, kidnap_indicator_header_pub );
+
+
+    // [B.01]
+    // Kidnap message subscriber. There are two kinds of kidnap messages
     // a. Bool b. Header. Look at the documentation of the kidnaped thread to know the details.
     // This has been done only for compatibility. I (mpkuse) prefer the Header because it
     // can also contain the timestamp when kidnap started and ended.
@@ -491,7 +510,7 @@ int main( int argc, char ** argv )
     ///////////////////////
     // Actual Logging.  //
     //////////////////////
-    #define __LOGGING__ 0 // make this 1 to enable logging. 0 to disable logging. rememeber to catkin_make after this change
+    #define __LOGGING__ 1 // make this 1 to enable logging. 0 to disable logging. rememeber to catkin_make after this change
     #if __LOGGING__
         // Write json log
         string save_dir = "/Bulk_Data/_tmp/";
@@ -530,9 +549,9 @@ int main( int argc, char ** argv )
 
 
         RawFileIO::write_string( save_dir+"/log.json", dataManager.metaDataAsJson() );
-        RawFileIO::write_string( save_dir+"/log.txt", dataManager.metaDataAsFlatFile() ); //TODO remove. Since i can read json in python as well as c++ with ease, these is no point of storing stuff as txt
+        // RawFileIO::write_string( save_dir+"/log.txt", dataManager.metaDataAsFlatFile() ); //TODO remove. Since i can read json in python as well as c++ with ease, these is no point of storing stuff as txt
 
-        #if 1
+        #if 0
         std::map< ros::Time, DataNode* > data_map = dataManager.getDataMapRef();
         for( auto it = data_map.begin() ; it!= data_map.end() ; it++ )
         {
