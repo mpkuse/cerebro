@@ -348,7 +348,7 @@ int main( int argc, char ** argv )
     // [A]
     // Data associate thread: looks at the callback buffers and sets the data in the std::map
     dataManager.data_association_thread_enable();
-    std::thread t1( &DataManager::data_association_thread, &dataManager, 15 );
+    std::thread data_association_th( &DataManager::data_association_thread, &dataManager, 15 );
 
     dataManager.trial_thread_enable();
     dataManager.trial_thread_disable();
@@ -406,7 +406,7 @@ int main( int argc, char ** argv )
     //      list `foundLoops`
     cer.run_thread_enable();
     // cer.run_thread_disable();
-    std::thread t2( &Cerebro::run, &cer ); //< descrip_N__dot__descrip_0_N. runs @ 10hz
+    std::thread dot_product_th( &Cerebro::run, &cer ); //< descrip_N__dot__descrip_0_N. runs @ 10hz
 
 
     // [C]
@@ -442,7 +442,7 @@ int main( int argc, char ** argv )
     viz.setCerebro( &cer );
     viz.setVizPublishers( "/cerebro_node/viz/" );
     viz.run_thread_enable();
-    std::thread t3( &Visualization::run, &viz, 20 ); //TODO something wrong with the logic in publish. another solution could be we keep #seq in DataNode.
+    std::thread viz_th( &Visualization::run, &viz, 20 ); //TODO something wrong with the logic in publish. another solution could be we keep #seq in DataNode.
 
 
     fs.release();
@@ -460,16 +460,16 @@ int main( int argc, char ** argv )
     viz.run_thread_disable();
     #endif
 
-    t1.join(); cout << "t1.join()\n";
+    data_association_th.join(); cout << "data_association_th.join()\n";
     dm_trial_th.join(); cout << "t1_trial.join()\n";
     dm_cleanup_th.join(); cout << "dm_cleanup_th.join()\n";
 
     #if 1
-    t2.join(); cout << "t2.join()\n";
+    dot_product_th.join(); cout << "dot_product_th.join()\n";
     desc_th.join(); cout << "desc_th.join()\n";
     loopcandidate_consumer_th.join(); cout << "loopcandidate_consumer_th.join()\n";
     kidnap_th.join(); cout << "kidnap_th.join()\n";
-    t3.join(); cout << "t3.join()\n";
+    viz_th.join(); cout << "viz_th.join()\n";
     #endif
 
     #if 0
@@ -510,7 +510,7 @@ int main( int argc, char ** argv )
     ///////////////////////
     // Actual Logging.  //
     //////////////////////
-    #define __LOGGING__ 1 // make this 1 to enable logging. 0 to disable logging. rememeber to catkin_make after this change
+    #define __LOGGING__ 0 // make this 1 to enable logging. 0 to disable logging. rememeber to catkin_make after this change
     #if __LOGGING__
         // Write json log
         string save_dir = "/Bulk_Data/_tmp/";
@@ -551,7 +551,7 @@ int main( int argc, char ** argv )
         RawFileIO::write_string( save_dir+"/log.json", dataManager.metaDataAsJson() );
         // RawFileIO::write_string( save_dir+"/log.txt", dataManager.metaDataAsFlatFile() ); //TODO remove. Since i can read json in python as well as c++ with ease, these is no point of storing stuff as txt
 
-        #if 0
+        #if 1
         std::map< ros::Time, DataNode* > data_map = dataManager.getDataMapRef();
         for( auto it = data_map.begin() ; it!= data_map.end() ; it++ )
         {
