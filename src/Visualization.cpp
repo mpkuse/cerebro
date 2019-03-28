@@ -46,8 +46,9 @@ void Visualization::run( const int looprate    )
     assert( b_run_thread && "you need to call run_thread_enable() before run() can start executing\n" );
     assert( looprate > 0  && "[ Visualization::run] looprate need to be postive\n");
 
+    // Adjust these for debugging.
     bool bpub_framepositions = false;
-    bool bpub_loopcandidates = false;
+    bool bpub_loopcandidates = true;
     bool bpub_processed_loopcandidates = true;
 
     ros::Rate rate( looprate );

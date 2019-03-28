@@ -80,13 +80,9 @@ public:
 
     int _3d2d_n_pfvalid_depth;
     Matrix4d _3d2d__2T1; //used 3d points from 1st view, 2d points from 2nd view.
-    bool isSet_3d2d__2T1=false;
+    bool isSet_3d2d__2T1=false; //< final_pose_available
     float _3d2d__2T1__ransac_confidence;
 
-    // TODO: Removal
-    // int _2d3d_n_pfvalid_depth;
-    // Matrix4d _2d3d__2T1; //used 2d points from 1st and 3d points from 2nd view.
-    // bool isSet_2d3d__2T1=false;
 
     // std::mutex _mutex;
 
@@ -100,10 +96,6 @@ public:
     vector<cv::Mat> debug_images;
     vector<string> debug_images_titles;
 
-    // TODO: removal
-    // cv::Mat matching_im_pair;
-    // cv::Mat pnp_verification_image;
-    // cv::Mat node_1_disparity_viz;
-    // cv::Mat node_2_disparity_viz;
+
 
 };

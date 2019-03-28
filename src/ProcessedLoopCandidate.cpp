@@ -35,8 +35,8 @@ bool ProcessedLoopCandidate::makeLoopEdgeMsg(  cerebro::LoopEdge& msg )
     return true;
 }
 
-// #define __ProcessedLoopCandidate_makeLoopEdgeMsgWithConsistencyCheck( msg )  msg;
-#define __ProcessedLoopCandidate_makeLoopEdgeMsgWithConsistencyCheck( msg ) ;
+#define __ProcessedLoopCandidate_makeLoopEdgeMsgWithConsistencyCheck( msg )  msg;
+// #define __ProcessedLoopCandidate_makeLoopEdgeMsgWithConsistencyCheck( msg ) ;
 bool ProcessedLoopCandidate::makeLoopEdgeMsgWithConsistencyCheck( cerebro::LoopEdge& msg )
 {
     if( opX_b_T_a.size() != 3 ) {
@@ -49,7 +49,9 @@ bool ProcessedLoopCandidate::makeLoopEdgeMsgWithConsistencyCheck( cerebro::LoopE
     ros::Duration diff = node_1->getT() - node_2->getT();
     if(  abs(diff.sec) < 10 ) // the candidates are too near in time, so ignore them
     {
+        __ProcessedLoopCandidate_makeLoopEdgeMsgWithConsistencyCheck(
         cout << "[ ProcessedLoopCandidate::makeLoopEdgeMsgWithConsistencyCheck] abs(diff.sec) < 10. diff= "<< diff << endl;
+        )
         return false;
     }
 

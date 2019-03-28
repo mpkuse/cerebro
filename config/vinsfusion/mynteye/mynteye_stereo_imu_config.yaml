@@ -20,7 +20,8 @@ image_height: 480
 # contains the right_T_left aka 1_T_0, ie. stereo baseline. I need right_T_left that a transform that transforms 3d points of left to 3d points of right. in other words, if you sure of right the position of left camera.
 # This is an optional argument even if using `num_of_cam:=2`. If I cannot
 # find this key I will use `body_T_cam0` and `body_T_cam1` to compute cam1_T_cam0.
-# But if this key exists, we will use these values as stereo baseline. In this file, I assume translation re specified in mm (and not in meters).
+# But if this key exists, we will use these values as stereo baseline.
+# **In this file, I assume translation re specified ****in mm**** (and not in meters).**
 extrinsic_1_T_0: "extrinsics.yaml"
 
 # Extrinsic parameter between IMU and Camera.
@@ -70,10 +71,10 @@ gyr_w: 2.0e-5       # gyroscope bias random work noise standard deviation.     #
 g_norm: 9.80766     # gravity magnitude
 
 #unsynchronization parameters
-estimate_td: 0                      # online estimate time offset between camera and imu
+estimate_td: 1                      # online estimate time offset between camera and imu
 td: 0.0                             # initial value of time offset. unit: s. readed image clock + td = real image clock (IMU clock)
 
 #loop closure parameters
 load_previous_pose_graph: 0        # load and reuse previous pose graph; load from 'pose_graph_save_path'
 pose_graph_save_path: "~/output/pose_graph/" # save and load path
-save_image: 0                   # save image in pose graph for visualization prupose; you can close this function by setting 0
+save_image: 1                   # save image in pose graph for visualization prupose; you can close this function by setting 0

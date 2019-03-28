@@ -510,8 +510,18 @@ int main( int argc, char ** argv )
     ///////////////////////
     // Actual Logging.  //
     //////////////////////
-    #define __LOGGING__ 0 // make this 1 to enable logging. 0 to disable logging. rememeber to catkin_make after this change
+    #define __LOGGING__ 1 // make this 1 to enable logging. 0 to disable logging. rememeber to catkin_make after this change
     #if __LOGGING__
+    // Note: If using roslaunch to launch this node and when LOGGING is enabled,
+    // roslaunch sends a sigterm and kills this thread when ros::ok() returns false ie.
+    // when you press CTRL+C. The timeout is governed by roslaunch.
+    //
+    // If you wish to increase this timeout, you need to edit "/opt/ros/kinetic/lib/python2.7/dist-packages/roslaunch/nodeprocess.py"
+    // then edit these two vars.
+    // _TIMEOUT_SIGINT = 15.0 #seconds
+    // _TIMEOUT_SIGTERM = 2.0 #seconds
+    //          ^^^^ Borrowed from : https://answers.ros.org/question/11353/how-to-delay-escalation-to-sig-term-after-sending-sig-int-to-roslaunch/
+
         // Write json log
         string save_dir = "/Bulk_Data/_tmp/";
 
@@ -551,7 +561,7 @@ int main( int argc, char ** argv )
         RawFileIO::write_string( save_dir+"/log.json", dataManager.metaDataAsJson() );
         // RawFileIO::write_string( save_dir+"/log.txt", dataManager.metaDataAsFlatFile() ); //TODO remove. Since i can read json in python as well as c++ with ease, these is no point of storing stuff as txt
 
-        #if 1
+        #if 0
         std::map< ros::Time, DataNode* > data_map = dataManager.getDataMapRef();
         for( auto it = data_map.begin() ; it!= data_map.end() ; it++ )
         {
@@ -645,12 +655,20 @@ int main( int argc, char ** argv )
         RawFileIO::exec_cmd( cmd_ );
 
 
-        // If you are looking to save these matchings, besure to set the #define just before `Cerebro::loopcandiate_consumer_thread()`.
+        //******
+        // If you are looking to ***save*** these matchings image pairs
+        // besure to set the #define just before `Cerebro::loopcandiate_consumer_thread()`.
+
         json all_procloops_json_obj;
         for( int i=0 ; i<cer.processedLoops_count() ; i++ ) {
 
             // Retrive i^{th} item
             ProcessedLoopCandidate c = cer.processedLoops_i( i );
+
+            if( c.isSet_3d2d__2T1 == false ) {
+                cout << "ignore ProcessedLoopCandidate[" << i << "] because c.isSet_3d2d__2T1 == false. aka poses computed from multiple methods didnt seem consistent\n";
+                continue;
+            }
 
             // Write all the logged images
             for( int l=0 ; l<c.debug_images.size() ; l++ ) {
@@ -676,6 +694,18 @@ int main( int argc, char ** argv )
             // Write the final poses as files
             if( c.isSet_3d2d__2T1 )
                 RawFileIO::write_EigenMatrix( save_dir+"/matching/im_pair_"+to_string(i)+".3d2d__2T1", c._3d2d__2T1 );
+
+            // Write final pose status image.
+            string __final_pose_status_im_string = "";
+            if( c.isSet_3d2d__2T1 ) {
+                __final_pose_status_im_string = "TRUE (poses were consistent);";
+                __final_pose_status_im_string += PoseManipUtils::prettyprintMatrix4d( c._3d2d__2T1 );
+            } else {
+                __final_pose_status_im_string = "FALSE (non consistent poses);";
+            }
+            cv::Mat __final_pose_status_im = cv::Mat::zeros(cv::Size(400, 20), CV_8UC3);
+            MiscUtils::append_status_image( __final_pose_status_im,  __final_pose_status_im_string );
+            RawFileIO::write_image( save_dir+"/matching/im_pair_"+to_string(i)+"_aaconsistency_status.jpg", __final_pose_status_im );
 
         }
         RawFileIO::write_string( save_dir+"/matching/ProcessedLoopCandidate.json", all_procloops_json_obj.dump(4) );

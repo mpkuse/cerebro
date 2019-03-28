@@ -20,7 +20,8 @@ image_height: 480
 # contains the right_T_left aka 1_T_0, ie. stereo baseline. I need right_T_left that a transform that transforms 3d points of left to 3d points of right. in other words, if you sure of right the position of left camera.
 # This is an optional argument even if using `num_of_cam:=2`. If I cannot
 # find this key I will use `body_T_cam0` and `body_T_cam1` to compute cam1_T_cam0.
-# But if this key exists, we will use these values as stereo baseline. In this file, I assume translation re specified in mm (and not in meters).
+# But if this key exists, we will use these values as stereo baseline.
+# **In this file, I assume translation re specified ****in mm**** (and not in meters).**
 extrinsic_1_T_0: "extrinsics.yaml"
 
 # Extrinsic parameter between IMU and Camera.
@@ -49,12 +50,12 @@ body_T_cam1: !!opencv-matrix
 multiple_thread: 1
 
 #feature traker paprameters
-max_cnt: 150            # max feature number in feature tracking
+max_cnt: 140            # max feature number in feature tracking
 min_dist: 30            # min distance between two features
 freq: 10                # frequence (Hz) of publish tracking result. At least 10Hz for good estimation. If set 0, the frequence will be same as raw image
 F_threshold: 1.0        # ransac threshold (pixel)
 show_track: 1           # publish tracking image as topic
-flow_back: 1            # perform forward and backward optical flow to improve feature tracking accuracy
+flow_back: 0            # perform forward and backward optical flow to improve feature tracking accuracy
 
 #optimization parameters
 max_solver_time: 0.04  # max solver itration time (ms), to guarantee real time

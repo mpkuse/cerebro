@@ -1,0 +1,65 @@
+<launch timeout="100.0">
+
+    <!-- CONFIG FILE -->
+    <!-- <arg name="config_path" default="$(find cerebro)/config/vinsfusion/euroc/euroc_mono_imu_config.yaml" /> -->
+    <arg name="config_path" default="$(find cerebro)/config/vinsfusion/euroc/euroc_stereo_imu_config.yaml" />
+
+
+
+    <!-- BAG -->
+    <arg name="bag_path" default="/Bulk_Data/ros_bags/euroc/" />
+
+    <arg name="bag_file" default="MH_01_easy.bag" />
+    <!-- <arg name="bag_file" default="MH_02_easy.bag" /> -->
+    <!-- <arg name="bag_file" default="MH_03_medium.bag" /> -->
+    <!-- <arg name="bag_file" default="MH_04_difficult.bag" /> -->
+    <!-- <arg name="bag_file" default="MH_05_difficult.bag" /> -->
+    <!-- <arg name="bag_file" default="V1_01_easy.bag" /> -->
+    <!--<arg name="bag_file" default="V1_02_medium.bag" />-->
+    <!--<arg name="bag_file" default="V1_03_difficult.bag" />-->
+    <!--<arg name="bag_file" default="V2_01_easy.bag" />-->
+    <!--<arg name="bag_file" default="V2_02_medium.bag" />-->
+    <!--<arg name="bag_file" default="V2_03_difficult.bag" />-->
+
+    <node pkg="rosbag" type="play" name="rosbag" args="$(arg bag_path)/$(arg bag_file) -s 35" output="log"/>
+    <!-- END Bag -->
+
+
+    <!-- VINS-Fusion Odometry Estimator -->
+    <!-- unlike previous vins-mono, even the feature tracker is put inside 1 node ie. vins_node.
+    $(ubuntu) rosrun vins vins_node /app/catkin_ws/src/cerebro/config/vinsfusion/euroc/euroc_stereo_imu_config.yaml
+    -->
+    <node name="vins_estimator" pkg="vins" type="vins_node" args=" $(arg config_path)" output="log">
+    </node>
+
+
+    <group if="0">
+        <!-- VINS-Fusion loop_fusion -->
+        <!-- This is the DBOW + posegraph optimization from Qin Tong
+        $(ubuntu) rosrun loop_fusion loop_fusion_node /app/catkin_ws/src/cerebro/config/vinsfusion/euroc/euroc_stereo_imu_config.yaml
+        -->
+        <node name="loop_fusion" pkg="loop_fusion" type="loop_fusion_node" args=" $(arg config_path)" output="log">
+        </node>
+    </group>
+
+
+    <group if="1">
+        <!-- Cerebro -->
+        <node name="cerebro_node" pkg="cerebro" type="cerebro_node" output="screen">
+           <param name="config_file" type="string" value="$(arg config_path)" />
+        </node>
+
+        <!-- KERAS SERVER -->
+        <!-- $(ubuntu) rosrun cerebro whole_image_desc_compute_server.py _config_file:=/app/catk_ws/src/cerebro/config/vinsfusion/euroc/euroc_stereo_imu_config.yaml -->
+        <node name="whole_image_desc_compute_server" pkg="cerebro" type="whole_image_desc_compute_server.py" output="log">
+           <param name="config_file" type="string" value="$(arg config_path)" />
+        </node>
+
+        <!-- Pose graph (kidnap aware) -->
+        <!-- $(ubuntu) rosrun solve_keyframe_pose_graph keyframe_pose_graph_slam -->
+        <node name="keyframe_pose_graph_slam_node" pkg="solve_keyframe_pose_graph" type="keyframe_pose_graph_slam" output="screen" >
+        </node>
+    </group>
+
+
+</launch>

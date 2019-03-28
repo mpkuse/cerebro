@@ -355,13 +355,13 @@ json Cerebro::foundLoops_as_JSON()
 #define __Cerebro__loopcandi_consumer__(msg)  ;
 // ^This will also imshow image-pairs with gms-matches marked.
 
-// #define __Cerebro__loopcandi_consumer__IMP( msg ) msg;
-#define __Cerebro__loopcandi_consumer__IMP( msg ) ;
+#define __Cerebro__loopcandi_consumer__IMP( msg ) msg;
+// #define __Cerebro__loopcandi_consumer__IMP( msg ) ;
 // ^Important Text only printing
 
 
-#define __Cerebro__loopcandi_consumer__IMSHOW 0 // will not produce the images (ofcourse will not show as well)
-// #define __Cerebro__loopcandi_consumer__IMSHOW 1 // produce the images and log them, will not imshow
+// #define __Cerebro__loopcandi_consumer__IMSHOW 0 // will not produce the images (ofcourse will not show as well)
+#define __Cerebro__loopcandi_consumer__IMSHOW 1 // produce the images and log them, will not imshow
 // #define __Cerebro__loopcandi_consumer__IMSHOW 2 // produce the images and imshow them, don't log
 
 // Just uncomment it to disable consistency check.
@@ -739,7 +739,7 @@ bool Cerebro::process_loop_candidate_imagepair_consistent_pose_compute( int ii, 
     MiscUtils::plot_point_sets( pi_dst_img, PI_world_point_uv_odom, cv::Scalar(255,0,0), false  );
     MiscUtils::plot_point_sets( pi_dst_img, uv, cv::Scalar(0,0,255), false  );
     MiscUtils::plot_point_sets( pi_dst_img, uv_d, cv::Scalar(255,0,255), false  );
-    cv::resize(pi_dst_img,pi_dst_img, cv::Size(), 0.5, 0.5 );
+    cv::resize(pi_dst_img,pi_dst_img, cv::Size(), 0.6, 0.6 );
     MiscUtils::append_status_image( pi_dst_img, string( "^this is image b=")+to_string(idx_2)+";plot( PI( op1__b_T_a * world_point_uv ) ) on imB in green;plot( PI( odom__b_T_a * world_point_uv ) ) on imB in blue;plot( uv ) on imB in red;plot( uv_d) on imB in pink");
 
 
@@ -786,7 +786,7 @@ bool Cerebro::process_loop_candidate_imagepair_consistent_pose_compute( int ii, 
     MiscUtils::plot_point_sets( pi_dst_img, PI_world_point_uvd_odom, cv::Scalar(255,0,0), false  );
     MiscUtils::plot_point_sets( pi_dst_img, uv, cv::Scalar(0,0,255), false  );
     MiscUtils::plot_point_sets( pi_dst_img, uv_d, cv::Scalar(255,0,255), false  );
-    cv::resize(pi_dst_img,pi_dst_img, cv::Size(), 0.5, 0.5 );
+    cv::resize(pi_dst_img,pi_dst_img, cv::Size(), 0.6, 0.6 );
     MiscUtils::append_status_image( pi_dst_img, string( "^this is image a=")+to_string(idx_1)+";plot( PI( op2__a_T_b * world_point_uv_d ) ) on imA in green;plot( PI( odom__b_T_a * world_point_uv ) ) on imA in blue;plot( uv ) on imA in red;plot( uv_d) on imA in pink");
 
 
