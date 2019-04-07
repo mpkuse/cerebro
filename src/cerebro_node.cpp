@@ -558,7 +558,8 @@ int main( int argc, char ** argv )
         // done emptying the directory.
 
 
-        RawFileIO::write_string( save_dir+"/log.json", dataManager.metaDataAsJson() );
+        RawFileIO::write_string( save_dir+"/log.json", dataManager.asJson().dump(4) );
+        // RawFileIO::write_string( save_dir+"/log.json", dataManager.metaDataAsJson() );
         // RawFileIO::write_string( save_dir+"/log.txt", dataManager.metaDataAsFlatFile() ); //TODO remove. Since i can read json in python as well as c++ with ease, these is no point of storing stuff as txt
 
         #if 0

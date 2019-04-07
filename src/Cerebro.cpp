@@ -360,8 +360,8 @@ json Cerebro::foundLoops_as_JSON()
 // ^Important Text only printing
 
 
-// #define __Cerebro__loopcandi_consumer__IMSHOW 0 // will not produce the images (ofcourse will not show as well)
-#define __Cerebro__loopcandi_consumer__IMSHOW 1 // produce the images and log them, will not imshow
+#define __Cerebro__loopcandi_consumer__IMSHOW 0 // will not produce the images (ofcourse will not show as well)
+// #define __Cerebro__loopcandi_consumer__IMSHOW 1 // produce the images and log them, will not imshow
 // #define __Cerebro__loopcandi_consumer__IMSHOW 2 // produce the images and imshow them, don't log
 
 // Just uncomment it to disable consistency check.

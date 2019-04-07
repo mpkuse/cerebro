@@ -366,6 +366,84 @@ std::string DataManager::metaDataAsFlatFile()
 
 }
 
+json DataManager::asJson()
+{
+    json obj;
+    std::map< ros::Time, DataNode* > __data_map = this->getDataMapRef();
+    IOFormat CSVFormat(StreamPrecision, DontAlignCols, ", ", ",\t\n");
+
+    #if 1
+    for( auto it = __data_map.begin() ; it!= __data_map.end() ; it++ )
+    {
+        int seq_id = std::distance( __data_map.begin() , it );
+        // cout << "[DataManager::asJson] " seq_id << endl;
+
+        json curr_obj;
+        curr_obj["stamp"] = it->first.toSec();
+        curr_obj["stamp_relative"] =  ( it->first -  this->getPose0Stamp() ).toSec() ;
+        curr_obj["seq"] = seq_id;
+
+        DataNode * __u = it->second;
+        curr_obj["getT"] = __u->getT().toSec();
+        curr_obj["getT_image"] = __u->getT_image().toSec();
+        curr_obj["getT_image_1"] = __u->getT_image(1).toSec();
+        curr_obj["getT_pose"] = __u->getT_pose().toSec();
+        curr_obj["getT_uv"] = __u->getT_uv().toSec();
+
+        curr_obj["isKeyFrame"] = __u->isKeyFrame();
+        curr_obj["isImageAvailable"] = __u->isImageAvailable();
+        curr_obj["isImageAvailable_1"] = __u->isImageAvailable(1);
+        curr_obj["isPoseAvailable"] = __u->isPoseAvailable();
+        curr_obj["isPtCldAvailable"] = __u->isPtCldAvailable();
+        curr_obj["isUnVnAvailable"] = __u->isUnVnAvailable();
+        curr_obj["isUVAvailable"] = __u->isUVAvailable();
+        curr_obj["isFeatIdsAvailable"] = __u->isFeatIdsAvailable();
+        curr_obj["getNumberOfSuccessfullyTrackedFeatures"] = __u->getNumberOfSuccessfullyTrackedFeatures();
+        curr_obj["isWholeImageDescriptorAvailable"] = __u->isWholeImageDescriptorAvailable();
+
+        if( __u->isPoseAvailable() )
+        {
+            const Matrix4d wTc = __u->getPose();
+            json pose_ifo;
+            pose_ifo["rows"] = wTc.rows();
+            pose_ifo["cols"] = wTc.cols();
+            pose_ifo["stamp"] = __u->getT_pose().toSec();
+            std::stringstream ss;
+            ss <<  wTc.format(CSVFormat);
+            pose_ifo["data"] = ss.str();
+            pose_ifo["data_pretty"] = PoseManipUtils::prettyprintMatrix4d(wTc);
+            curr_obj["w_T_c"] = pose_ifo;
+        }
+
+
+        obj["DataNodes"].push_back( curr_obj );
+    }
+    #endif
+
+    // Global Data
+    obj["global"]["isPose0Available"] = this->isPose0Available();
+    obj["global"]["Pose0Stamp"] = this->getPose0Stamp().toSec();
+
+    obj["global"]["isIMUCamExtrinsicAvailable"] = this->isIMUCamExtrinsicAvailable();
+    if( this->isIMUCamExtrinsicAvailable() )
+    {
+        const Matrix4d __imu_T_cam = this->getIMUCamExtrinsic();
+        json pose_ifo;
+        pose_ifo["rows"] = __imu_T_cam.rows();
+        pose_ifo["cols"] = __imu_T_cam.cols();
+        pose_ifo["stamp"] = this->getIMUCamExtrinsicLastUpdated().toSec();
+        std::stringstream ss;
+        ss <<  __imu_T_cam.format(CSVFormat);
+        pose_ifo["data"] = ss.str();
+        pose_ifo["data_pretty"] = PoseManipUtils::prettyprintMatrix4d(__imu_T_cam);
+        obj["global"]["Pose0Stamp"] = pose_ifo;
+    }
+
+
+    return obj;
+
+}
+
 // TODO: another function which returns the nlohmann/json.hpp object.
 std::string DataManager::metaDataAsJson()
 {

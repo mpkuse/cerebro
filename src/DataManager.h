@@ -72,6 +72,9 @@ using namespace Eigen;
 
 #include "DataNode.h"
 
+#include "utils/nlohmann/json.hpp"
+using json = nlohmann::json;
+
 
 #include "utils/PoseManipUtils.h"
 #include "utils/RawFileIO.h"
@@ -137,6 +140,7 @@ public:
     ////////
     // returns string as a json. contains everything including wTc, wX, uv, K, D etc.
     string metaDataAsJson(); // TODO: rewrite this function using the nlohmann/json.hpp.
+    json asJson();
     string metaDataAsFlatFile(); // a simple list of timestamps and what data is available.
 
 

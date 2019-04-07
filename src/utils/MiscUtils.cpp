@@ -475,7 +475,7 @@ void MiscUtils::plot_point_pair( const cv::Mat& imA, const MatrixXd& ptsA, int i
 
 
 // append a status image . ';' separated
-void MiscUtils::append_status_image( cv::Mat& im, const string& msg, float txt_size, cv::Scalar bg_color, cv::Scalar txt_color )
+void MiscUtils::append_status_image( cv::Mat& im, const string& msg, float txt_size, cv::Scalar bg_color, cv::Scalar txt_color, float line_thinkness )
 {
     bool is_single_channel = (im.channels()==1)?true:false;
     txt_size = (txt_size<0.1 || txt_size>2)?0.4:txt_size;
@@ -493,7 +493,7 @@ void MiscUtils::append_status_image( cv::Mat& im, const string& msg, float txt_s
     for( int h=0 ; h<msg_tokens.size() ; h++ )
         cv::putText( status, msg_tokens[h].c_str(), cv::Point(10,20+20*h),
                 cv::FONT_HERSHEY_SIMPLEX,
-                txt_size, txt_color, 1.5 );
+                txt_size, txt_color, line_thinkness );
 
 
     cv::vconcat( im, status, im );

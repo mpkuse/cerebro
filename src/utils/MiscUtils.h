@@ -138,7 +138,7 @@ public:
 
 
     // append a status image . ';' separated
-    static void append_status_image( cv::Mat& im, const string& msg, float txt_size=0.4, cv::Scalar bg_color=cv::Scalar(0,0,0), cv::Scalar txt_color=cv::Scalar(255,255,255) );
+    static void append_status_image( cv::Mat& im, const string& msg, float txt_size=0.4, cv::Scalar bg_color=cv::Scalar(0,0,0), cv::Scalar txt_color=cv::Scalar(255,255,255), float line_thinkness=1.5 );
     static bool side_by_side( const cv::Mat& A, const cv::Mat& B, cv::Mat& dst );
     static bool vertical_side_by_side( const cv::Mat& A, const cv::Mat& B, cv::Mat& dst );
 

@@ -169,6 +169,28 @@ void Visualization::publish_processed_loopcandidates()
                 cv::Mat side_by_side_impair;
                 MiscUtils::side_by_side( candidate_i.node_1->getImage(), candidate_i.node_2->getImage(), side_by_side_impair );
 
+
+                string sgg = std::to_string( candidate_i.idx_from_datamanager_1  )
+                                + "                    "+
+                             std::to_string( candidate_i.idx_from_datamanager_2  );
+                 string sgg_time = std::to_string( candidate_i.node_1->getT().toSec()  )
+                                 + "             "+
+                              std::to_string( candidate_i.node_2->getT().toSec()  );
+
+
+                MiscUtils::append_status_image( side_by_side_impair, ";;"+sgg,
+                        2.0, cv::Scalar(0,0,0), cv::Scalar(255,255,255), 3.0 );
+                MiscUtils::append_status_image( side_by_side_impair, ";"+sgg_time,
+                        1.5, cv::Scalar(0,0,0), cv::Scalar(255,255,255), 3.0 );
+
+                if( candidate_i.isSet_3d2d__2T1 ) {
+                    MiscUtils::append_status_image( side_by_side_impair, ";Pose Estimation was consistent, so Accept",
+                            1.5, cv::Scalar(0,0,0), cv::Scalar(0,255,0), 3.0 );
+                } else {
+                    MiscUtils::append_status_image( side_by_side_impair, ";Inconsistent Pose Estimation, so Reject",
+                            1.5, cv::Scalar(0,0,0), cv::Scalar(0,0,255), 3.0 );
+                }
+
                 cv::Mat buffer;
                 cv::resize(side_by_side_impair, buffer, cv::Size(), 0.5, 0.5 );
 

@@ -9,19 +9,19 @@
     <!-- BAG -->
     <arg name="bag_path" default="/Bulk_Data/ros_bags/euroc/" />
 
-    <arg name="bag_file" default="MH_01_easy.bag" />
+    <!-- <arg name="bag_file" default="MH_01_easy.bag" /> -->
     <!-- <arg name="bag_file" default="MH_02_easy.bag" /> -->
     <!-- <arg name="bag_file" default="MH_03_medium.bag" /> -->
     <!-- <arg name="bag_file" default="MH_04_difficult.bag" /> -->
-    <!-- <arg name="bag_file" default="MH_05_difficult.bag" /> -->
+    <arg name="bag_file" default="MH_05_difficult.bag" />
     <!-- <arg name="bag_file" default="V1_01_easy.bag" /> -->
     <!--<arg name="bag_file" default="V1_02_medium.bag" />-->
     <!--<arg name="bag_file" default="V1_03_difficult.bag" />-->
-    <!--<arg name="bag_file" default="V2_01_easy.bag" />-->
-    <!--<arg name="bag_file" default="V2_02_medium.bag" />-->
-    <!--<arg name="bag_file" default="V2_03_difficult.bag" />-->
+    <!-- <arg name="bag_file" default="V2_01_easy.bag" /> -->
+    <!-- <arg name="bag_file" default="V2_02_medium.bag" /> -->
+    <!-- <arg name="bag_file" default="V2_03_difficult.bag" /> -->
 
-    <node pkg="rosbag" type="play" name="rosbag" args="$(arg bag_path)/$(arg bag_file) -s 35" output="log"/>
+    <!-- <node pkg="rosbag" type="play" name="rosbag" args="$(arg bag_path)/$(arg bag_file) -s 35" output="log"/> -->
     <!-- END Bag -->
 
 
@@ -45,7 +45,7 @@
 
     <group if="1">
         <!-- Cerebro -->
-        <node name="cerebro_node" pkg="cerebro" type="cerebro_node" output="screen">
+        <node name="cerebro_node" pkg="cerebro" type="cerebro_node" output="log">
            <param name="config_file" type="string" value="$(arg config_path)" />
         </node>
 

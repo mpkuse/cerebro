@@ -9,21 +9,39 @@ which contains timestamps of the identified loopcandidate along with the
 computed relative pose between the pair. The pose computation needs a stereo pair
 for reliable pose computation.
 This is a multi-threaded object oriented implementation and I observe a CPU load factor
-of about 2.0.
-
-## Demo (Using VINS-Fusion as Odometry Estimator)
-[![IMAGE ALT TEXT](http://img.youtube.com/vi/sTd_rZdW4DQ/0.jpg)](http://www.youtube.com/watch?v=sTd_rZdW4DQ "Video Title")
+of about 2.0. A separate node handles pose graph solver (it is in [github-repo](https://github.com/mpkuse/solve_keyframe_pose_graph) ).
 
 
+## Highlight Video
+[![IMAGE ALT TEXT](http://img.youtube.com/vi/lDzDHZkInos/0.jpg)](http://www.youtube.com/watch?v=lDzDHZkInos "Video Title")
+
+
+## MyntEye Demo (Using VINS-Fusion as Odometry Estimator)
 [![IMAGE ALT TEXT](http://img.youtube.com/vi/3YQF4_v7AEg/0.jpg)](http://www.youtube.com/watch?v=3YQF4_v7AEg "Video Title")
 
 
-## Demo (Using VINS-Mono as Odometry Estimator)
+[![IMAGE ALT TEXT](http://img.youtube.com/vi/sTd_rZdW4DQ/0.jpg)](http://www.youtube.com/watch?v=sTd_rZdW4DQ "Video Title")
+
+
+
+
+## MyntEye Demo (Using VINS-Mono as Odometry Estimator)
 [![IMAGE ALT TEXT](http://img.youtube.com/vi/KDRo9LpL6Hs/0.jpg)](http://www.youtube.com/watch?v=KDRo9LpL6Hs "Video Title")
 
 [![IMAGE ALT TEXT](http://img.youtube.com/vi/XvoCrLFq99I/0.jpg)](http://www.youtube.com/watch?v=XvoCrLFq99I "Video Title")
 
-[![IMAGE ALT TEXT](http://img.youtube.com/vi/MMLyNtDNsZE/0.jpg)](http://www.youtube.com/watch?v=MMLyNtDNsZE "Video Title")
+
+
+## EuRoC MAV Dataset live merge MH-01, ... MH-05.
+[![IMAGE ALT TEXT](http://img.youtube.com/vi/mnnoAlAIsN8/0.jpg)](http://www.youtube.com/watch?v=mnnoAlAIsN8 "Video Title")
+
+
+## EuRoC MAV Dataset live merge V1_01, V1_02, V1_03, V2_01, V2_02
+
+[![IMAGE ALT TEXT](http://img.youtube.com/vi/rIaANkd74cQ/0.jpg)](http://www.youtube.com/watch?v=rIaANkd74cQ "Video Title")
+
+
+
 
 For more demonstration, have a look at my [youtube playlist](https://www.youtube.com/playlist?list=PLWyydx20vdPzs5VVhZu0TGsReT7U17Fxp)
 
@@ -34,9 +52,7 @@ For more demonstration, have a look at my [youtube playlist](https://www.youtube
 - [TUM Visual Inertial Dataset](https://vision.in.tum.de/data/datasets/visual-inertial-dataset)
 - UPenn - [Penncosyvio](https://github.com/daniilidis-group/penncosyvio)
 - [ADVIO](https://github.com/AaltoVision/ADVIO) ARKIT, Tango logging.
-- Blackbox4 (dji imu+color bluefox)
-- point_grey (microstain imu+point grey color camera)
-- MyntEye (Stereo+IMU)
+- Our MyntEye (Stereo+IMU) [One-drive-link](https://hkustconnect-my.sharepoint.com/:f:/g/personal/mpkuse_connect_ust_hk/EkTisuLkXLFBs_WHYkxoH2oBeVIkdLc3-5a_t1J9c_4wkg?e=h9cifx)
 
 ## How to run - Docker
 I highly recommend the already deployed packages with docker.
@@ -50,7 +66,7 @@ $(host) export ROS_HOSTNAME=`hostname`
 $(host) roscore
 # assume that host has the ip address 172.17.0.1 in docker-network aka docker0
 $(host) docker run --runtime=nvidia -it \
-        -v /home/mpkuse/docker_ws_slam:/app \    #<- catkin_ws can reside here
+        -v /home/mpkuse/docker_ws_slam:/app \    #<- catkin_ws can reside here. Make sure all the needed packages are here.
         --add-host `hostname`:172.17.0.1 \
         --env ROS_MASTER_URI=http://`hostname`:11311/ \
         --env CUDA_VISIBLE_DEVICES=0 \
@@ -58,6 +74,10 @@ $(host) docker run --runtime=nvidia -it \
         --name happy_go  \
         mpkuse/kusevisionkit:ros-kinetic-vins bash
 $(host) rviz # inside rviz open config cerebro/config/good-viz.rviz. If you open rviz in a new tab you might need to do set ROS_HOSTNAME again.
+$(docker) roslaunch mynteye_vinsfusion.launch
+            OR
+$(docker) roslaunch euroc_vinsfusion.launch
+$(host) rosbag play 1.bag
 ```
 
 
