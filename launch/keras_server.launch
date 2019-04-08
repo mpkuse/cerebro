@@ -6,7 +6,7 @@
 <!-- <arg name="config_path" default="$(find cerebro)/config/tum_vi/tum_jie_config.yaml" /> -->
 <!-- <arg name="config_path" default="$(find cerebro)/config/mynteye/mynteye_config.yaml" /> -->
 <!-- <arg name="config_path" default="$(find cerebro)/config/vinsfusion/euroc/cam0_mei.yaml" />  -->
-<arg name="config_path" default="$(find cerebro)/config/vinsfusion/euroc/euroc_mono_imu_config.yaml" />
+<arg name="config_path" default="$(find cerebro)/config/vinsfusion/euroc/euroc_stereo_imu_config.yaml" />
 
 
 

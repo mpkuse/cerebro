@@ -66,13 +66,12 @@ $(host) export ROS_HOSTNAME=`hostname`
 $(host) roscore
 # assume that host has the ip address 172.17.0.1 in docker-network aka docker0
 $(host) docker run --runtime=nvidia -it \
-        -v /home/mpkuse/docker_ws_slam:/app \    #<- catkin_ws can reside here. Make sure all the needed packages are here.
         --add-host `hostname`:172.17.0.1 \
         --env ROS_MASTER_URI=http://`hostname`:11311/ \
         --env CUDA_VISIBLE_DEVICES=0 \
         --hostname happy_go \
         --name happy_go  \
-        mpkuse/kusevisionkit:ros-kinetic-vins bash
+        mpkuse/kusevisionkit:vins-kidnap bash
 $(host) rviz # inside rviz open config cerebro/config/good-viz.rviz. If you open rviz in a new tab you might need to do set ROS_HOSTNAME again.
 $(docker) roslaunch mynteye_vinsfusion.launch
             OR
@@ -80,10 +79,13 @@ $(docker) roslaunch euroc_vinsfusion.launch
 $(host) rosbag play 1.bag
 ```
 
+Edit the launch file as needed. 
+
 
 If you are unfamiliar with docker, you may want to read [my blog post](https://kusemanohar.wordpress.com/2018/10/03/docker-for-computer-vision-researchers/)
 on using docker for computer vision researchers.
 You might want to have a look at my test ros-package to ensure things work with docker [docker_ros_test](https://github.com/mpkuse/docker_ros_test).
+
 
 
 
@@ -101,7 +103,8 @@ your ROS works correctly.
 
 
 ### Get VINS-Fusion Working
-I recommend you use my fork of VINS-Fusion, in which I have fixed some bugs.
+I recommend you use my fork of VINS-Fusion, in which I have fixed some bugs
+and added mechanism for reseting the VINS.
 ```
 cd catkin_ws/src
 #git clone https://github.com/HKUST-Aerial-Robotics/VINS-Fusion.git
@@ -183,7 +186,10 @@ calibration info are in folder `config`.
 
 ## Development Guidelines
 If you are developing I still recommend using docker. with -v flags in docker you could mount your
-pc's folders on the docker. Check the next command:
+pc's folders on the docker. I recommend keeping all the packages in folder `docker_ws_slam/catkin_ws/src`
+on your host pc. And all the rosbags in folder `/media/mpkuse/Bulk_Data`. And then mount these
+two folders on the docker-container. Edit the following command as needed.
+
 
 ```
 docker run --runtime=nvidia -it  -v /media/mpkuse/Bulk_Data/:/Bulk_Data  -v /home/mpkuse/docker_ws_slam:/app  --add-host `hostname`:172.17.0.1  --env ROS_MASTER_URI=http://`hostname`:11311/  --env CUDA_VISIBLE_DEVICES=0  --hostname happy_go   --name happy_go  mpkuse/kusevisionkit:ros-kinetic-vins bash
