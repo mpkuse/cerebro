@@ -24,7 +24,7 @@
     <!-- <arg name="bag_file" default="2018-11-29-15-30-39.bag" doc="near coffee shop 1"/> -->
     <!-- <arg name="bag_file" default="2018-11-29-15-36-41.bag" doc="seng"/> -->
     <!-- <arg name="bag_file" default="2018-12-13-16-48-46.bag" doc="seng3. walking on academic concouse CYT end, walking down the escalator and back up."/> -->
-    <arg name="bag_file" default="2018-12-13-16-56-36.bag" doc="concourse-seng4. from coffee-shop to atrium"/>
+    <!-- <arg name="bag_file" default="2018-12-13-16-56-36.bag" doc="concourse-seng4. from coffee-shop to atrium"/> -->
 
     <!-- ### Kidnap sequences in lab -->
     <!-- <arg name="bag_path" default="/Bulk_Data/ros_bags/mynteye/" /> -->
@@ -38,9 +38,19 @@
     <!-- <arg name="bag_file" default="/kidnap/2019-03-14-16-36-58.bag" doc="10 kidnaps. 0; 1; merge everything with 1. finall all merge to zero. very complicated dependence structure of the walk,"/> -->
 
 
+    <!-- ### Mall -->
+    <!-- <arg name="bag_file" default="/mall/2019-04-08-16-02-10.bag" doc=""/> -->
+    <arg name="bag_file" default="/mall/2019-04-08-16-09-41.bag" doc="good. no kidnap, but just 1 loop starting from Muji"/>
+    <!-- <arg name="bag_file" default="/mall/2019-04-08-16-14-19.bag" doc="1 moderate loop;kidnap;a very short seq in a portion of the loop. near marathon sports, (shoes shops)"/> -->
+    <!-- <arg name="bag_file" default="/mall/2019-04-08-16-17-05.bag" doc="corridon near shoes shop;kidnap;"/> -->
 
 
-    <!-- <node pkg="rosbag" type="play" name="rosbag" args="$(arg bag_path)/$(arg bag_file) -s 0 -d 2" output="log"/> -->
+
+
+
+
+
+    <node pkg="rosbag" type="play" name="rosbag" args="$(arg bag_path)/$(arg bag_file) -s 0 -d 2" output="log"/>
 
     <!-- END Bag -->
 
@@ -52,7 +62,7 @@
     <node name="vins_estimator" pkg="vins" type="vins_node" args=" $(arg config_path)" output="log">
     </node>
 
-    <group if="0">
+    <group if="1">
         <!-- VINS-Fusion loop_fusion -->
         <!-- This is the DBOW + posegraph optimization from Qin Tong
         $(ubuntu) rosrun loop_fusion loop_fusion_node /app/catkin_ws/src/cerebro/config/vinsfusion/euroc/euroc_stereo_imu_config.yaml
@@ -62,7 +72,7 @@
     </group>
 
 
-    <group if="1">
+    <group if="0">
         <!-- Cerebro -->
         <node name="cerebro_node" pkg="cerebro" type="cerebro_node" output="screen">
            <param name="config_file" type="string" value="$(arg config_path)" />

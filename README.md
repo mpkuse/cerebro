@@ -195,6 +195,14 @@ two folders on the docker-container. Edit the following command as needed.
 docker run --runtime=nvidia -it  -v /media/mpkuse/Bulk_Data/:/Bulk_Data  -v /home/mpkuse/docker_ws_slam:/app  --add-host `hostname`:172.17.0.1  --env ROS_MASTER_URI=http://`hostname`:11311/  --env CUDA_VISIBLE_DEVICES=0  --hostname happy_go   --name happy_go  mpkuse/kusevisionkit:ros-kinetic-vins bash
 ```
 
+
+Use the following if you wish to use xhost(gui) from inside docker
+```
+$(host) xhost +local:root
+$(host)
+docker run --runtime=nvidia -it  -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix -v /media/mpkuse/Bulk_Data/:/Bulk_Data  -v /home/mpkuse/docker_ws_slam:/app  --add-host `hostname`:172.17.0.1  --env ROS_MASTER_URI=http://`hostname`:11311/  --env CUDA_VISIBLE_DEVICES=0  --hostname happy_go   --name happy_go  mpkuse/kusevisionkit:ros-kinetic-vins bash
+```
+
 Each of my classes can export the data they hold as json objects and image files. Look at the
 end of `main()` in `cerebro_node.cpp` and modify as needed to extract more debug data. Similarly
 the pose graph solver can also be debugged.

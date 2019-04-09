@@ -44,7 +44,7 @@ set(CMAKE_BUILD_TYPE Release)
 
 #----------END GPERFTOOLS
 
-option(COMPILE_UNIT_TEST "Compile unit tests" OFF) #OFF by default. catkin_make -DCOMPILE_UNIT_TEST=ON will compile it. OFF will skip it
+option(COMPILE_UNIT_TEST "Compile unit tests" ON) #OFF by default. catkin_make -DCOMPILE_UNIT_TEST=ON will compile it. OFF will skip it
 
 
 ################################################
@@ -226,6 +226,12 @@ if(COMPILE_UNIT_TEST)
     )
 
 
+    add_executable (
+        unittest_plot2mat
+            src/unittest/unittest_plot2mat.cpp
+            src/utils/Plot2Mat.cpp
+    )
+
 
     target_link_libraries(unittest_rosservice_client
       ${catkin_LIBRARIES}
@@ -257,6 +263,11 @@ if(COMPILE_UNIT_TEST)
       ${CMAKE_THREAD_LIBS_INIT}
       ${CERES_LIBRARIES}
       ${THEIA_LIBRARIES}
+    )
+
+    target_link_libraries(unittest_plot2mat
+      ${catkin_LIBRARIES}
+      ${OpenCV_LIBRARIES}
     )
 
 
