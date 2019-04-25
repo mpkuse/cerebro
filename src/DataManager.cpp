@@ -377,22 +377,25 @@ json DataManager::asJson()
     cout << "[DataManager::asJson] Start loop through data_map\n";
 
     #if 1
+    int max_dist = std::distance( __data_map.begin() , __data_map.end() );
     for( auto it = __data_map.begin() ; it!= __data_map.end() ; it++ )
     {
         int seq_id = std::distance( __data_map.begin() , it );
-        cout << "[DataManager::asJson] " <<  seq_id << endl;
+        cout << "[DataManager::asJson] " <<  seq_id << " max dist=" << max_dist << endl;
 
         json curr_obj;
         curr_obj["stamp"] = it->first.toSec();
         curr_obj["stamp_relative"] =  ( it->first -  this->getPose0Stamp() ).toSec() ;
         curr_obj["seq"] = seq_id;
+        cout << "A\n";
 
         DataNode * __u = it->second;
         curr_obj["getT"] = __u->getT().toSec();
         curr_obj["getT_image"] = __u->getT_image().toSec();
-        curr_obj["getT_image_1"] = __u->getT_image(1).toSec();
+        // curr_obj["getT_image_1"] = __u->getT_image(1).toSec();
         curr_obj["getT_pose"] = __u->getT_pose().toSec();
         curr_obj["getT_uv"] = __u->getT_uv().toSec();
+        cout << "B\n";
 
         curr_obj["isKeyFrame"] = __u->isKeyFrame();
         curr_obj["isImageAvailable"] = __u->isImageAvailable();
@@ -404,6 +407,7 @@ json DataManager::asJson()
         curr_obj["isFeatIdsAvailable"] = __u->isFeatIdsAvailable();
         curr_obj["getNumberOfSuccessfullyTrackedFeatures"] = __u->getNumberOfSuccessfullyTrackedFeatures();
         curr_obj["isWholeImageDescriptorAvailable"] = __u->isWholeImageDescriptorAvailable();
+        cout << "C\n";
 
         if( __u->isPoseAvailable() )
         {
@@ -418,6 +422,8 @@ json DataManager::asJson()
             pose_ifo["data_pretty"] = PoseManipUtils::prettyprintMatrix4d(wTc);
             curr_obj["w_T_c"] = pose_ifo;
         }
+        cout << "D\n";
+
 
 
         obj["DataNodes"].push_back( curr_obj );
