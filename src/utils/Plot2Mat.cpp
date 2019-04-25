@@ -7,10 +7,10 @@ Plot2Mat::Plot2Mat() {
     create( bg_color );
 }
 
-Plot2Mat::Plot2Mat(cv::Scalar _bg_color)
+Plot2Mat::Plot2Mat(int _width, int _height, cv::Scalar _bg_color)
 {
-    im_width = 640;
-    im_height = 480;
+    im_width = _width;
+    im_height = _height;
     bg_color = _bg_color;
     create( bg_color );
 }

@@ -40,17 +40,24 @@
 
     <!-- ### Mall -->
     <!-- <arg name="bag_file" default="/mall/2019-04-08-16-02-10.bag" doc=""/> -->
-    <arg name="bag_file" default="/mall/2019-04-08-16-09-41.bag" doc="good. no kidnap, but just 1 loop starting from Muji"/>
+    <!-- <arg name="bag_file" default="/mall/2019-04-08-16-09-41.bag" doc="good. no kidnap, but just 1 loop starting from Muji"/> -->
     <!-- <arg name="bag_file" default="/mall/2019-04-08-16-14-19.bag" doc="1 moderate loop;kidnap;a very short seq in a portion of the loop. near marathon sports, (shoes shops)"/> -->
-    <!-- <arg name="bag_file" default="/mall/2019-04-08-16-17-05.bag" doc="corridon near shoes shop;kidnap;"/> -->
+    <!-- <arg name="bag_file" default="/mall/2019-04-08-16-17-05.bag" doc="corridor near shoes shop;kidnap;"/> -->
+    <!-- <arg name="bag_file" default="/mall/2019-04-10-15-07-51.bag" doc="3 kidnaps. k1:hsbc;right to muji; shoes;;k1: panash;atrium;shoes;panash" /> -->
+    <!-- <arg name="bag_file" default="/mall/2019-04-10-15-17-34.bag" doc="2 kidnaps. k1:fancl;bossino;muji;right of hsbc rotated and tilted; k2:bodyshop ; k3: fancl;bossini,shoes" /> -->
+    <arg name="bag_file" default="/mall/2019-04-10-15-40-35.bag" doc="level-1 from from PacificC to muji to hsbc. 1kidnap" />
+
+    <!-- <arg name="bag_file" default="/mall/2019-04-10-15-23-38.bag" doc="start from atrium near pacific-coffee;go up; casual walking on top floor 4 kidnaps" /> -->
+    <!-- <arg name="bag_file" default="/mall/2019-04-10-15-34-01.bag" doc="1 corridor on top floor. no loop no kidnap" /> -->
+    <!-- <arg name="bag_file" default="/mall/2019-04-10-15-34-57.bag" doc="1 kidnaps. both runs r independent, no interworld revisit" /> -->
+    <!-- <arg name="bag_file" default="/mall/2019-04-10-15-38-51.bag" doc="really short (abt 30 sec near broadway)" /> -->
 
 
 
 
 
 
-
-    <node pkg="rosbag" type="play" name="rosbag" args="$(arg bag_path)/$(arg bag_file) -s 0 -d 2" output="log"/>
+    <!-- <node pkg="rosbag" type="play" name="rosbag" args="$(arg bag_path)/$(arg bag_file) -s 1 -d 2" output="log"/> -->
 
     <!-- END Bag -->
 
@@ -62,7 +69,7 @@
     <node name="vins_estimator" pkg="vins" type="vins_node" args=" $(arg config_path)" output="log">
     </node>
 
-    <group if="1">
+    <group if="0">
         <!-- VINS-Fusion loop_fusion -->
         <!-- This is the DBOW + posegraph optimization from Qin Tong
         $(ubuntu) rosrun loop_fusion loop_fusion_node /app/catkin_ws/src/cerebro/config/vinsfusion/euroc/euroc_stereo_imu_config.yaml
@@ -72,7 +79,7 @@
     </group>
 
 
-    <group if="0">
+    <group if="1">
         <!-- Cerebro -->
         <node name="cerebro_node" pkg="cerebro" type="cerebro_node" output="screen">
            <param name="config_file" type="string" value="$(arg config_path)" />
@@ -86,7 +93,7 @@
 
         <!-- Pose graph (kidnap aware) -->
         <!-- $(ubuntu) rosrun solve_keyframe_pose_graph keyframe_pose_graph_slam -->
-        <node name="keyframe_pose_graph_slam_node" pkg="solve_keyframe_pose_graph" type="keyframe_pose_graph_slam" output="screen" >
+        <node name="keyframe_pose_graph_slam_node" pkg="solve_keyframe_pose_graph" type="keyframe_pose_graph_slam" output="log" >
         </node>
     </group>
 

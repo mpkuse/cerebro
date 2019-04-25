@@ -366,17 +366,21 @@ std::string DataManager::metaDataAsFlatFile()
 
 }
 
+#define __json_debuggin(msg) msg;
+// #define __json_debuggin(msg) ;
 json DataManager::asJson()
 {
     json obj;
     std::map< ros::Time, DataNode* > __data_map = this->getDataMapRef();
     IOFormat CSVFormat(StreamPrecision, DontAlignCols, ", ", ",\t\n");
 
+    cout << "[DataManager::asJson] Start loop through data_map\n";
+
     #if 1
     for( auto it = __data_map.begin() ; it!= __data_map.end() ; it++ )
     {
         int seq_id = std::distance( __data_map.begin() , it );
-        // cout << "[DataManager::asJson] " seq_id << endl;
+        cout << "[DataManager::asJson] " <<  seq_id << endl;
 
         json curr_obj;
         curr_obj["stamp"] = it->first.toSec();
@@ -420,7 +424,11 @@ json DataManager::asJson()
     }
     #endif
 
+    cout << "[DataManager::asJson] End loop through data_map\n";
+
+
     // Global Data
+    cout << "[DataManager::asJson] Logging Global data\n";
     obj["global"]["isPose0Available"] = this->isPose0Available();
     obj["global"]["Pose0Stamp"] = this->getPose0Stamp().toSec();
 
@@ -440,6 +448,7 @@ json DataManager::asJson()
     }
 
 
+    cout << "[DataManager::asJson] Done asJson()\n";
     return obj;
 
 }

@@ -126,7 +126,7 @@ class Plot2Mat {
 
 public:
     Plot2Mat();
-    Plot2Mat(cv::Scalar _bg_color);
+    Plot2Mat(int _width, int _height, cv::Scalar _bg_color);
 
     // Canvas controllers
     void resetCanvas();

@@ -51,8 +51,8 @@ body_T_cam1: !!opencv-matrix
 multiple_thread: 1
 
 #feature traker paprameters
-max_cnt: 150            # max feature number in feature tracking
-min_dist: 30            # min distance between two features
+max_cnt: 170            # max feature number in feature tracking
+min_dist: 20            # min distance between two features
 freq: 10                # frequence (Hz) of publish tracking result. At least 10Hz for good estimation. If set 0, the frequence will be same as raw image
 F_threshold: 1.1        # ransac threshold (pixel)
 show_track: 0           # publish tracking image as topic

@@ -561,8 +561,9 @@ int main( int argc, char ** argv )
         RawFileIO::write_string( save_dir+"/log.json", dataManager.asJson().dump(4) );
         // RawFileIO::write_string( save_dir+"/log.json", dataManager.metaDataAsJson() );
         // RawFileIO::write_string( save_dir+"/log.txt", dataManager.metaDataAsFlatFile() ); //TODO remove. Since i can read json in python as well as c++ with ease, these is no point of storing stuff as txt
+        // return 0;
 
-        #if 0
+        #if 1
         std::map< ros::Time, DataNode* > data_map = dataManager.getDataMapRef();
         for( auto it = data_map.begin() ; it!= data_map.end() ; it++ )
         {
@@ -666,10 +667,10 @@ int main( int argc, char ** argv )
             // Retrive i^{th} item
             ProcessedLoopCandidate c = cer.processedLoops_i( i );
 
-            if( c.isSet_3d2d__2T1 == false ) {
-                cout << "ignore ProcessedLoopCandidate[" << i << "] because c.isSet_3d2d__2T1 == false. aka poses computed from multiple methods didnt seem consistent\n";
-                continue;
-            }
+            // if( c.isSet_3d2d__2T1 == false ) {
+                // cout << "ignore ProcessedLoopCandidate[" << i << "] because c.isSet_3d2d__2T1 == false. aka poses computed from multiple methods didnt seem consistent\n";
+                // continue;
+            // }
 
             // Write all the logged images
             for( int l=0 ; l<c.debug_images.size() ; l++ ) {

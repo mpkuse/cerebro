@@ -35,8 +35,8 @@ bool ProcessedLoopCandidate::makeLoopEdgeMsg(  cerebro::LoopEdge& msg )
     return true;
 }
 
-#define __ProcessedLoopCandidate_makeLoopEdgeMsgWithConsistencyCheck( msg )  msg;
-// #define __ProcessedLoopCandidate_makeLoopEdgeMsgWithConsistencyCheck( msg ) ;
+// #define __ProcessedLoopCandidate_makeLoopEdgeMsgWithConsistencyCheck( msg )  msg;
+#define __ProcessedLoopCandidate_makeLoopEdgeMsgWithConsistencyCheck( msg ) ;
 bool ProcessedLoopCandidate::makeLoopEdgeMsgWithConsistencyCheck( cerebro::LoopEdge& msg )
 {
     if( opX_b_T_a.size() != 3 ) {
@@ -74,19 +74,19 @@ bool ProcessedLoopCandidate::makeLoopEdgeMsgWithConsistencyCheck( cerebro::LoopE
     PoseManipUtils::eigenmat_to_rawyprt( op2_m_icp, op2_m_icp_ypr, op2_m_icp_tr);
     bool is_consistent_ypr = false, is_consistent_tr=false;
 
-    if( op1_m_op2_ypr.lpNorm<Eigen::Infinity>() < 2.0  &&
-        op1_m_icp_ypr.lpNorm<Eigen::Infinity>() < 2.0  &&
-        op2_m_icp_ypr.lpNorm<Eigen::Infinity>() < 2.0
+    if( op1_m_op2_ypr.lpNorm<Eigen::Infinity>() < 5.0  &&
+        op1_m_icp_ypr.lpNorm<Eigen::Infinity>() < 5.0  &&
+        op2_m_icp_ypr.lpNorm<Eigen::Infinity>() < 5.0
     )
     { is_consistent_ypr = true;}
 
-    if( op1_m_icp_tr.lpNorm<Eigen::Infinity>() < .1  &&
-        op1_m_icp_tr.lpNorm<Eigen::Infinity>() < .1  &&
-        op2_m_icp_tr.lpNorm<Eigen::Infinity>() < .1
+    if( op1_m_icp_tr.lpNorm<Eigen::Infinity>() < .2  &&
+        op1_m_icp_tr.lpNorm<Eigen::Infinity>() < .2  &&
+        op2_m_icp_tr.lpNorm<Eigen::Infinity>() < .2
     )
     { is_consistent_tr = true;}
 
-    #if 1 //just priniting
+    #if 0 //just priniting
     __ProcessedLoopCandidate_makeLoopEdgeMsgWithConsistencyCheck(
     Matrix4d odom_b_T_a = node_2->getPose().inverse() * node_1->getPose();
     cout << "---" << to_string(idx_from_datamanager_1)+"<=>"+to_string(idx_from_datamanager_2);

@@ -27,8 +27,12 @@ void Cerebro::setPublishers( const string base_topic_name )
 }
 
 
-// #define __Cerebro__run__( msg ) msg ;
-#define __Cerebro__run__( msg ) ;
+#define __Cerebro__run__( msg ) msg ;
+// #define __Cerebro__run__( msg ) ;
+
+// #define __Cerebro__run__debug( msg ) msg ;
+#define __Cerebro__run__debug( msg ) ;
+
 void Cerebro::run()
 {
     descrip_N__dot__descrip_0_N();
@@ -41,6 +45,10 @@ void Cerebro::run()
 /// TODO: In the future more intelligent schemes can be experimented with. Besure to run those in new threads and disable this thread.
 /// wholeImageComputedList is a list for which descriptors are computed. Similarly other threads can compute
 /// scene-object labels, text etc etc in addition to currently computed whole-image-descriptor
+
+// 1 will plot the result of dot product as image. 0 will not plot to image
+#define __Cerebro__descrip_N__dot__descrip_0_N__implotting 1
+
 void Cerebro::descrip_N__dot__descrip_0_N()
 {
     assert( m_dataManager_available && "You need to set the DataManager in class Cerebro before execution of the run() thread can begin. You can set the dataManager by call to Cerebro::setDataManager()\n");
@@ -69,8 +77,16 @@ void Cerebro::descrip_N__dot__descrip_0_N()
 
     int l=0, last_l=0;
     int last_processed=0;
-    MatrixXd M = MatrixXd::Zero( this->descriptor_size, 9000 ); // TODO: Need dynamic allocation here.
+    MatrixXd M = MatrixXd::Zero( this->descriptor_size, 29000 ); // TODO: Need dynamic allocation here.
     cout << "[Cerebro::run] M.rows = " << M.rows() << "  M.cols=" << M.cols()  << endl;
+
+
+    #if __Cerebro__descrip_N__dot__descrip_0_N__implotting > 0
+    // Plotting image
+    Plot2Mat handle(320,240, cv::Scalar(80,80,80) );
+    // Plot2Mat handle;
+    handle.setYminmax( -0.1, 1.1);
+    #endif
     while( b_run_thread )
     {
         // rate.sleep();
@@ -82,7 +98,7 @@ void Cerebro::descrip_N__dot__descrip_0_N()
         }
 
         if( l - last_l < 3 ) {
-            // cout << "nothing new\n";
+            __Cerebro__run__debug( cout << "nothing new\n"; );
             rate.sleep();
             continue;
         }
@@ -90,7 +106,10 @@ void Cerebro::descrip_N__dot__descrip_0_N()
         __Cerebro__run__( cout << TermColor::RED() << "---" << TermColor::RESET() << endl; )
         __Cerebro__run__( cout << "l=" << l << endl; )
 
+
+        ///------------ Extract v, v-1, v-2. The latest 3 descriptors.
         VectorXd v, vm, vmm;
+        ros::Time i_v, i_vm, i_vmm;
         {
             std::lock_guard<std::mutex> lk(m_wholeImageComputedList);
             assert(  data_map.count( wholeImageComputedList[l-1] ) > 0  &&
@@ -98,9 +117,28 @@ void Cerebro::descrip_N__dot__descrip_0_N()
                      data_map.count( wholeImageComputedList[l-3] ) > 0 &&
                      "either of l, l-1, l-2 is not available in the datamap"
                  );
+
+
+            #if 0
+            // extra safety. Not strictly needed, but helpful for debug.
+            __Cerebro__run__debug(
+
+            for( int ___kop=1 ; ___kop<=3 ; ___kop++ ) {
+            if( data_map.count( wholeImageComputedList[l-___kop] ) == 0  ) {
+                cout << TermColor::iRED() << "ERROR in descrip_N__dot__descrip_0_N  "<< ___kop << "  : ";
+                cout << "cannot time t=" << wholeImageComputedList[l-___kop] << " in the data_map\n" << TermColor::RESET();
+            }
+            }
+
+            )
+            #endif
+
             v   = data_map[ wholeImageComputedList[l-1] ]->getWholeImageDescriptor();
             vm  = data_map[ wholeImageComputedList[l-2] ]->getWholeImageDescriptor();
             vmm = data_map[ wholeImageComputedList[l-3] ]->getWholeImageDescriptor();
+            i_v = wholeImageComputedList[l-1];
+            i_vm = wholeImageComputedList[l-2];
+            i_vmm = wholeImageComputedList[l-3];
         }
 
 
@@ -108,22 +146,41 @@ void Cerebro::descrip_N__dot__descrip_0_N()
         // This is very inefficient. Better to have a matrix-vector product and not getWholeImageDescriptor() all the time.
         assert( M.rows() == v.size() );
         assert( l < M.cols() );
-        M.col( l-1 ) = v;
-        M.col( l-2 ) = vm;
-        M.col( l-3 ) = vmm;
 
+
+        ////-------------- Fill descriptors [last_l, l) into M.
+        {
+            std::lock_guard<std::mutex> lk(m_wholeImageComputedList);
+            for( int _s=last_l ; _s<l ; _s++ ) {
+                M.col(_s) = data_map[ wholeImageComputedList[_s] ]->getWholeImageDescriptor();
+
+                __Cerebro__run__debug(
+                cout << "M.col(" << _s << ") = data_map[ " << wholeImageComputedList[_s] << " ]. \t";
+                cout << " isWholeImageDescriptorAvailable = " << data_map[ wholeImageComputedList[_s] ]->isWholeImageDescriptorAvailable() << endl;
+                )
+            }
+        }
+
+
+        //////////////////////////////////////
+        ////----------- DOT PRODUCT----------
+        /////////////////////////////////////
         int k = l - 50; // given a stamp, l, get another stamp k. better make this to 200.
 
         //usable size of M is 8192xl, let k (k<l) be the length until which dot is needed by time.
         if( k > 5 ) {
             ElapsedTime timer;
             timer.tic();
+            // dot
             VectorXd u   = v.transpose() * M.leftCols( k );
             VectorXd um  = vm.transpose() * M.leftCols( k );
             VectorXd umm = vmm.transpose() * M.leftCols( k );
-            __Cerebro__run__( cout << "<v , M[0 to "<< k << "]\t";)
+            __Cerebro__run__( cout << "<v=" << i_v  <<" , M[0 to "<< k << "]>  ";)
+            __Cerebro__run__( cout << "<vm=" << i_vm  <<" , M[0 to "<< k << "]>  ";)
+            __Cerebro__run__( cout << "<vmm=" << i_vmm  <<" , M[0 to "<< k << "]>     ";)
             __Cerebro__run__( cout << "Done in (ms): " << timer.toc_milli() << endl; )
 
+            // max coefficient and the index of maxcoeff.
             double u_max = u.maxCoeff();
             double um_max = um.maxCoeff();
             double umm_max = umm.maxCoeff();
@@ -135,19 +192,33 @@ void Cerebro::descrip_N__dot__descrip_0_N()
             }
             assert( u_argmax > 0 && um_argmax > 0 && umm_argmax > 0 );
 
+
+            #if __Cerebro__descrip_N__dot__descrip_0_N__implotting > 0
+            // plot
+            handle.resetCanvas();
+            handle.plot( u );
+
+            #endif
+
+
+            // Criteria for a recognized place
             if( abs(u_argmax - um_argmax) < LOCALITY_THRESH && abs(u_argmax-umm_argmax) < 8 && u_max > DOT_PROD_THRESH  )
             {
                 std::lock_guard<std::mutex> lk(m_wholeImageComputedList);
 
 
                 __Cerebro__run__(
-                cout << TermColor::RED() << "Loop FOUND!!" <<  u_argmax << "\t" << um_argmax << "\t" << umm_argmax << TermColor::RESET() << endl;
+                cout << TermColor::RED() << "Loop FOUND!! a_idx=" << l-1 << "<-----> (" <<   u_argmax << "," << um_argmax << "," << umm_argmax << ")"<< TermColor::RESET() << endl;
                 cout << TermColor::RED() << "loop FOUND!! "
                                          <<  wholeImageComputedList[l-1]
                                          << "<" << u_max << ">"
                                          << wholeImageComputedList[u_argmax]
                                          << TermColor::RESET() << endl;
                                 )
+
+                  #if __Cerebro__descrip_N__dot__descrip_0_N__implotting > 0
+                  handle.mark( u_argmax );
+                  #endif
 
                   //TODO :
                   // publish the image pair based on a config_file_flag
@@ -158,6 +229,12 @@ void Cerebro::descrip_N__dot__descrip_0_N()
                 foundLoops.push_back( std::make_tuple( wholeImageComputedList[l-1], wholeImageComputedList[u_argmax], u_max ) );
                 }
             }
+
+
+            #if __Cerebro__descrip_N__dot__descrip_0_N__implotting > 0
+            cv::imshow("canvas", handle.getCanvasConstPtr() );
+            cv::waitKey(20);
+            #endif
 
         }
         else {
@@ -174,8 +251,11 @@ void Cerebro::descrip_N__dot__descrip_0_N()
 
 }
 
-// #define __Cerebro__descriptor_computer_thread( msg ) msg
 #define __Cerebro__descriptor_computer_thread( msg ) ;
+// #define __Cerebro__descriptor_computer_thread( msg ) msg
+
+#define __Cerebro__descriptor_computer_thread__imp( msg ) ;
+// #define __Cerebro__descriptor_computer_thread__imp( msg ) msg;
 void Cerebro::descriptor_computer_thread()
 {
     assert( m_dataManager_available && "You need to set the DataManager in class Cerebro before execution of the run() thread can begin. You can set the dataManager by call to Cerebro::setDataManager()\n");
@@ -280,6 +360,11 @@ void Cerebro::descriptor_computer_thread()
                     }
                     __Cerebro__descriptor_computer_thread(cout << "Computed descriptor at t=" << it->first - dataManager->getPose0Stamp() << "\t" << it->first << endl;)
                     __Cerebro__descriptor_computer_thread(std::cout << "Computed descriptor in (millisec) = " << _time.toc_milli()  << endl;)
+
+
+                    __Cerebro__descriptor_computer_thread__imp(cout << TermColor::CYAN() << "Computed descriptor at t=" << it->first - dataManager->getPose0Stamp() << "\t" << it->first << TermColor::RESET() << endl);
+
+
                 }
                 else {
                     ROS_ERROR( "Failed to call ros service" );
@@ -355,13 +440,13 @@ json Cerebro::foundLoops_as_JSON()
 #define __Cerebro__loopcandi_consumer__(msg)  ;
 // ^This will also imshow image-pairs with gms-matches marked.
 
-#define __Cerebro__loopcandi_consumer__IMP( msg ) msg;
-// #define __Cerebro__loopcandi_consumer__IMP( msg ) ;
+// #define __Cerebro__loopcandi_consumer__IMP( msg ) msg;
+#define __Cerebro__loopcandi_consumer__IMP( msg ) ;
 // ^Important Text only printing
 
 
-#define __Cerebro__loopcandi_consumer__IMSHOW 0 // will not produce the images (ofcourse will not show as well)
-// #define __Cerebro__loopcandi_consumer__IMSHOW 1 // produce the images and log them, will not imshow
+// #define __Cerebro__loopcandi_consumer__IMSHOW 0 // will not produce the images (ofcourse will not show as well)
+#define __Cerebro__loopcandi_consumer__IMSHOW 1 // produce the images and log them, will not imshow
 // #define __Cerebro__loopcandi_consumer__IMSHOW 2 // produce the images and imshow them, don't log
 
 // Just uncomment it to disable consistency check.

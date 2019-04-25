@@ -44,7 +44,7 @@ set(CMAKE_BUILD_TYPE Release)
 
 #----------END GPERFTOOLS
 
-option(COMPILE_UNIT_TEST "Compile unit tests" ON) #OFF by default. catkin_make -DCOMPILE_UNIT_TEST=ON will compile it. OFF will skip it
+option(COMPILE_UNIT_TEST "Compile unit tests" OFF) #OFF by default. catkin_make -DCOMPILE_UNIT_TEST=ON will compile it. OFF will skip it
 
 
 ################################################
@@ -149,6 +149,7 @@ FILE( GLOB KuseUtilsSources
         src/utils/RosMarkerUtils.cpp
         src/utils/RawFileIO.cpp
         src/utils/MiscUtils.cpp
+        src/utils/Plot2Mat.cpp
         src/utils/CameraGeometry.cpp
         src/utils/PointFeatureMatching.cpp
         src/utils/GMSMatcher/gms_matcher.cpp

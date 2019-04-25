@@ -98,8 +98,13 @@ your ROS works correctly.
 - ROS Kinetic
 - Eigen3
 - Ceres
-- OpenCV3 (should also work with 2.4 (not tested), 3.3 and 3.4)
+- OpenCV3 (should also work with 2.4 (not tested), 3.3 (tested Ok) and 3.4 (tested ok))
 - [Theia-sfm](http://theia-sfm.org/)
+    - oiio
+    - RocksDB
+    - OpenExr
+- Tensorflow (tested on 1.11.0)
+- Keras (atleast 2.2.4), I noticed issues in jsonmodel with 2.2.2, 2.2.2 still works though!
 
 
 ### Get VINS-Fusion Working
@@ -206,6 +211,20 @@ docker run --runtime=nvidia -it  -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11
 Each of my classes can export the data they hold as json objects and image files. Look at the
 end of `main()` in `cerebro_node.cpp` and modify as needed to extract more debug data. Similarly
 the pose graph solver can also be debugged.
+If writing a lot of debug data (usually taking more than 10sec) roslaunch force-kills the process.
+To get around this issue, you need to increase the timeout:
+
+```
+For kinetic this can be found in:
+/opt/ros/kinetic/lib/python2.7/dist-packages/roslaunch
+In the file nodeprocess.py there will be 2 variables on line 57 and 58.
+
+_TIMEOUT_SIGINT = 15.0 #seconds
+
+_TIMEOUT_SIGTERM = 2.0 #seconds
+```
+
+
 For streamlining printing messages
 I have preprocessor macros at the start of function implementation (of classes DataManager and Cerebro),
 read the comments there and edit as per need. Try to implement your algorithms in

@@ -180,7 +180,7 @@ void Visualization::publish_processed_loopcandidates()
 
                 MiscUtils::append_status_image( side_by_side_impair, ";;"+sgg,
                         2.0, cv::Scalar(0,0,0), cv::Scalar(255,255,255), 3.0 );
-                MiscUtils::append_status_image( side_by_side_impair, ";"+sgg_time,
+                MiscUtils::append_status_image( side_by_side_impair, ";"+sgg_time+";;processedLoop["+to_string(i)+"]",
                         1.5, cv::Scalar(0,0,0), cv::Scalar(255,255,255), 3.0 );
 
                 if( candidate_i.isSet_3d2d__2T1 ) {

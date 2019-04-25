@@ -23,6 +23,7 @@
 
 #include "utils/TermColor.h"
 #include "utils/ElapsedTime.h"
+#include "utils/Plot2Mat.h"
 
 #include "utils/CameraGeometry.h"
 #include "utils/PointFeatureMatching.h"
