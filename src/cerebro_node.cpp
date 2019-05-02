@@ -356,7 +356,7 @@ int main( int argc, char ** argv )
 
     // [A.1] Another thread in class dataManager which will deallocate images in nonkeyframes.
     dataManager.clean_up_useless_images_thread_enable();
-    dataManager.clean_up_useless_images_thread_disable();
+    // dataManager.clean_up_useless_images_thread_disable();
     std::thread dm_cleanup_th( &DataManager::clean_up_useless_images_thread, &dataManager );
 
 
@@ -398,18 +398,6 @@ int main( int argc, char ** argv )
 
 
     // [B]
-    // Cerebro threads
-    //      This thread looks at `wholeImageComputedList`, if there is something new
-    //      in it (new descriptors) it does dot(  0-->T-50, T ), dot(  0-->T-50, T-1 )
-    //      and dot(  0-->T-50, T-2 ). If threshold-test and locality-test both
-    //      comeout to be +ve it declares 'loop found' and queues up this pair into the
-    //      list `foundLoops`
-    cer.run_thread_enable();
-    // cer.run_thread_disable();
-    std::thread dot_product_th( &Cerebro::run, &cer ); //< descrip_N__dot__descrip_0_N. runs @ 10hz
-
-
-    // [C]
     // Descriptor Computation Thread.
     //      It monitors data_map. If new keyframes are available then
     //      it queries the ros-service with the image to get the whole-image-descriptor.
@@ -418,6 +406,18 @@ int main( int argc, char ** argv )
     cer.descriptor_computer_thread_enable();
     // cer.descriptor_computer_thread_disable();
     std::thread desc_th( &Cerebro::descriptor_computer_thread, &cer ); //runs @20hz
+
+
+    // [C]
+    // loopcandidates producer
+    //      This thread looks at `wholeImageComputedList`, if there is something new
+    //      in it (new descriptors) it does dot(  0-->T-50, T ), dot(  0-->T-50, T-1 )
+    //      and dot(  0-->T-50, T-2 ). If threshold-test and locality-test both
+    //      comeout to be +ve it declares 'loop found' and queues up this pair into the
+    //      list `foundLoops`
+    cer.run_thread_enable();
+    // cer.run_thread_disable();
+    std::thread dot_product_th( &Cerebro::run, &cer ); //< descrip_N__dot__descrip_0_N. runs @ 10hz
 
 
     // [C.1]
@@ -429,13 +429,13 @@ int main( int argc, char ** argv )
     // cer.loopcandidate_consumer_disable();
     std::thread loopcandidate_consumer_th( &Cerebro::loopcandiate_consumer_thread, &cer ); // runs @1hz
 
-    // [C.2]
+    // [D]
     // Kidnap Identification Thread
     cer.kidnaped_thread_enable();
     // cer.kidnaped_thread_disable();
     std::thread kidnap_th( &Cerebro::kidnaped_thread, &cer, 5 );
 
-    // [D]
+    // [E]
     // Visualization
     Visualization viz(nh);
     viz.setDataManager( &dataManager );
@@ -510,7 +510,7 @@ int main( int argc, char ** argv )
     ///////////////////////
     // Actual Logging.  //
     //////////////////////
-    #define __LOGGING__ 1 // make this 1 to enable logging. 0 to disable logging. rememeber to catkin_make after this change
+    #define __LOGGING__ 0 // make this 1 to enable logging. 0 to disable logging. rememeber to catkin_make after this change
     #if __LOGGING__
     // Note: If using roslaunch to launch this node and when LOGGING is enabled,
     // roslaunch sends a sigterm and kills this thread when ros::ok() returns false ie.

@@ -69,14 +69,15 @@ public:
     // This is supposed to be run in a separate thread.
     void run_thread_enable() { b_run_thread = true; }
     void run_thread_disable() { b_run_thread = false; }
-    void run();
+    void run(); //< The loopcandidate (geometrically unverified) producer. 
 
-    void descrip_N__dot__descrip_0_N();
+    void descrip_N__dot__descrip_0_N(); //< Naive method of dot product DIY
 
 
 private:
     // private things to run thread
     atomic<bool> b_run_thread;
+    bool wait_until__connectedToDescServer_and_descSizeAvailable( int timeout_in_sec );  //blocking call
 
 
 public:

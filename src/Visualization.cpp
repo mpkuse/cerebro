@@ -250,11 +250,11 @@ void Visualization::publish_loopcandidates()
         double score = std::get<2>(u);
 
         assert( data_map.count( t_curr ) > 0 && data_map.count( t_prev ) > 0  && "One or both of the timestamps in foundloops where not in the data_map. This cannot be happening...fatal...\n" );
-        int idx_1 = std::distance( data_map.begin(), data_map.find( t_curr )  );
-        int idx_2 = std::distance( data_map.begin(), data_map.find( t_prev )  );
+        int idx_1 = std::distance( data_map->begin(), data_map->find( t_curr )  );
+        int idx_2 = std::distance( data_map->begin(), data_map->find( t_prev )  );
 
-        Vector4d w_t_curr = data_map[t_curr]->getPose().col(3);
-        Vector4d w_t_prev = data_map[t_prev]->getPose().col(3);
+        Vector4d w_t_curr = data_map->at(t_curr)->getPose().col(3);
+        Vector4d w_t_prev = data_map->at(t_prev)->getPose().col(3);
 
         // TODO - need to test. looks like alright.
         // add_point_to_marker with w_t_curr
@@ -310,10 +310,10 @@ void Visualization::publish_frames()
     txt_vis.scale.z = 0.03;
 
 
-    for( auto it = data_map.begin() ; it != data_map.end() ; it++ )
+    for( auto it = data_map->begin() ; it != data_map->end() ; it++ )
     {
         if( XC[ it->first ] < 10 || rand() % 100 < 2 ) { // publish only if not already published 10 times
-            int seq_id = std::distance( data_map.begin() , it );
+            int seq_id = std::distance( data_map->begin() , it );
             cam_vis.id = seq_id;
             pt_vis.id = seq_id;
             txt_vis.id = seq_id;

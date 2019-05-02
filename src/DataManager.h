@@ -33,7 +33,7 @@
 #include <mutex>
 #include <atomic>
 #include <chrono>
-
+#include <memory> //needed for std::shared_ptr
 //opencv
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -81,7 +81,7 @@ using json = nlohmann::json;
 #include "utils/SafeQueue.h"
 #include "utils/ElapsedTime.h"
 
-
+typedef std::map< ros::Time, DataNode* > t__DataNode;
 
 class DataManager
 {
@@ -93,23 +93,24 @@ public:
     // PinholeCamera& getCameraRef() { return camera;}
 
     void setAbstractCamera( camodocal::CameraPtr abs_camera, short cam_id=0 );
-    camodocal::CameraPtr getAbstractCameraRef(short cam_id=0);
-    bool isAbstractCameraSet(short cam_id=0);
-    vector<short> getAbstractCameraKeys();
+    camodocal::CameraPtr getAbstractCameraRef(short cam_id=0) const;
+    bool isAbstractCameraSet(short cam_id=0) const;
+    vector<short> getAbstractCameraKeys() const;
 
     void setCameraRelPose( Matrix4d a_T_b, std::pair<int,int> pair_a_b );
-    bool isCameraRelPoseSet( std::pair<int,int> pair_a_b );
-    const Matrix4d& getCameraRelPose( std::pair<int,int> pair_a_b );
+    bool isCameraRelPoseSet( std::pair<int,int> pair_a_b ) const;
+    const Matrix4d& getCameraRelPose( std::pair<int,int> pair_a_b ) const;
     vector< std::pair<int,int> > getCameraRelPoseKeys();
 
-    std::map< ros::Time, DataNode* >& getDataMapRef() { return data_map; }
+    // std::map< ros::Time, DataNode* >& getDataMapRef() { return data_map; }
+    std::shared_ptr< t__DataNode > getDataMapRef() { return data_map; }
 
-    const ros::Time getPose0Stamp() { return pose_0; }
-    bool isPose0Available() { return pose_0_available; }
+    const ros::Time getPose0Stamp() const { return pose_0; }
+    bool isPose0Available() const { return pose_0_available; }
 
-    const Matrix4d& getIMUCamExtrinsic();
-    bool isIMUCamExtrinsicAvailable();
-    const ros::Time getIMUCamExtrinsicLastUpdated();
+    const Matrix4d& getIMUCamExtrinsic() const;
+    bool isIMUCamExtrinsicAvailable() const;
+    const ros::Time getIMUCamExtrinsicLastUpdated() const;
 
 
 public:
@@ -122,10 +123,10 @@ public:
     // each of the function will publish messages on '/feature_tracker/rcvd_flag'
     // and on '/feature_tracker/rcvd_flag_header'
 
-    bool isKidnapIndicatorPubSet();
+    bool isKidnapIndicatorPubSet() const;
     void setKidnapIndicatorPublishers( ros::Publisher& pub_bool, ros::Publisher& pub_header );
-    void PUBLISH__TRUE( const ros::Time _t );
-    void PUBLISH__FALSE( const ros::Time _t );
+    void PUBLISH__TRUE( const ros::Time _t ) const;
+    void PUBLISH__FALSE( const ros::Time _t ) const;
 
 
 private:
@@ -139,9 +140,7 @@ public:
     //////// Write Data
     ////////
     // returns string as a json. contains everything including wTc, wX, uv, K, D etc.
-    string metaDataAsJson(); // TODO: rewrite this function using the nlohmann/json.hpp.
-    json asJson();
-    string metaDataAsFlatFile(); // a simple list of timestamps and what data is available.
+    json asJson() ;
 
 
 private:
@@ -155,7 +154,8 @@ private:
     ros::NodeHandle nh; //< Node Handle, TODO Not sure why this will be needed here. consider removing it from here.
     // const std::ofstream &out_stream;
 
-    std::map< ros::Time, DataNode* > data_map;
+    // std::map< ros::Time, DataNode* >  data_map; //original
+    std::shared_ptr< t__DataNode > data_map = std::make_shared<t__DataNode>();
 
     bool pose_0_available = false;
     ros::Time pose_0; // time of 1st pose
@@ -164,7 +164,7 @@ private:
     bool imu_T_cam_available = false;
     ros::Time imu_T_cam_stamp;
 
-    std::mutex global_vars_mutex;
+    mutable std::mutex global_vars_mutex;
 
 
 public:
@@ -209,7 +209,7 @@ private:
     #endif
 
 
-    string print_queue_size(int verbose );
+    string print_queue_size(int verbose ) const;
 
 
     /////////

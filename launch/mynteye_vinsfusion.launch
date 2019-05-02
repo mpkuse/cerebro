@@ -10,7 +10,7 @@
     <!-- ### IN LAB -->
     <!-- <arg name="bag_file" default="1.bag" doc="sitting on my desk"/> -->
     <!-- <arg name="bag_file" default="2018-11-20-17-45-55.bag" doc="single loop in lab"/> -->
-    <!-- <arg name="bag_file" default="2018-11-20-17-42-54.bag" doc="multiple loops in lab"/> -->
+    <arg name="bag_file" default="2018-11-20-17-42-54.bag" doc="multiple loops in lab"/>
     <!-- <arg name="bag_file" default="2019-01-28-16-32-23.bag" doc="many-10 loops in lab"/> -->
     <!-- <arg name="bag_file" default="2018-11-22-12-06-47.bag" doc="drone fly area loopy"/> -->
     <!-- <arg name="bag_file" default="2018-11-22-12-09-21.bag" doc="conference room RI"/> -->
@@ -45,7 +45,7 @@
     <!-- <arg name="bag_file" default="/mall/2019-04-08-16-17-05.bag" doc="corridor near shoes shop;kidnap;"/> -->
     <!-- <arg name="bag_file" default="/mall/2019-04-10-15-07-51.bag" doc="3 kidnaps. k1:hsbc;right to muji; shoes;;k1: panash;atrium;shoes;panash" /> -->
     <!-- <arg name="bag_file" default="/mall/2019-04-10-15-17-34.bag" doc="2 kidnaps. k1:fancl;bossino;muji;right of hsbc rotated and tilted; k2:bodyshop ; k3: fancl;bossini,shoes" /> -->
-    <arg name="bag_file" default="/mall/2019-04-10-15-40-35.bag" doc="level-1 from from PacificC to muji to hsbc. 1kidnap" />
+    <!-- <arg name="bag_file" default="/mall/2019-04-10-15-40-35.bag" doc="level-1 from from PacificC to muji to hsbc. 1kidnap" /> -->
 
     <!-- <arg name="bag_file" default="/mall/2019-04-10-15-23-38.bag" doc="start from atrium near pacific-coffee;go up; casual walking on top floor 4 kidnaps" /> -->
     <!-- <arg name="bag_file" default="/mall/2019-04-10-15-34-01.bag" doc="1 corridor on top floor. no loop no kidnap" /> -->

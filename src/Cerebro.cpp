@@ -33,21 +33,33 @@ void Cerebro::setPublishers( const string base_topic_name )
 // #define __Cerebro__run__debug( msg ) msg ;
 #define __Cerebro__run__debug( msg ) ;
 
+/// TODO: In the future more intelligent schemes can be experimented with. Besure to run those in new threads and disable this thread.
+/// wholeImageComputedList is a list for which descriptors are computed. Similarly other threads can compute
+/// scene-object labels, text etc etc in addition to currently computed whole-image-descriptor
 void Cerebro::run()
 {
     descrip_N__dot__descrip_0_N();
 }
 
 
-///
+///-----------------------------------------------------------------
+/// Nearest neighbors search using facebook research's faiss library's IndexFlatIP
+///         Roughly follows : https://github.com/mpkuse/vins_mono_debug_pkg/blob/master/src_place_recog/faiss_try1.py
+
+// TODO>: Write a function similar in functionality to `descrip_N__dot__descrip_0_N`
+//        but using faiss
+
+
+///-----------------------------------------------------------------
+
+///-----------------------------------------------------------------
 /// This implements a simple loopclosure detection scheme based on dot-product of descriptor-vectors.
 ///
-/// TODO: In the future more intelligent schemes can be experimented with. Besure to run those in new threads and disable this thread.
-/// wholeImageComputedList is a list for which descriptors are computed. Similarly other threads can compute
-/// scene-object labels, text etc etc in addition to currently computed whole-image-descriptor
 
 // 1 will plot the result of dot product as image. 0 will not plot to image
+// #define __Cerebro__descrip_N__dot__descrip_0_N__implotting 0
 #define __Cerebro__descrip_N__dot__descrip_0_N__implotting 1
+
 
 void Cerebro::descrip_N__dot__descrip_0_N()
 {
@@ -56,20 +68,28 @@ void Cerebro::descrip_N__dot__descrip_0_N()
 
     ros::Rate rate(10);
 
+    #if 0
     // wait until connected_to_descriptor_server=true and descriptor_size_available=true
     int wait_itr = 0;
     while( true ) {
         if( this->connected_to_descriptor_server && this->descriptor_size_available)
             break;
-        __Cerebro__run__(cout << wait_itr << " [Cerebro::run]waiting for `descriptor_size_available` to be true\n";)
+        __Cerebro__run__(cout << wait_itr << " [Cerebro::descrip_N__dot__descrip_0_N]waiting for `descriptor_size_available` to be true\n";)
         rate.sleep();
         wait_itr++;
         if( wait_itr > 157 ) {
-            __Cerebro__run__( cout << TermColor::RED() << "[Cerebro::run] `this->connected_to_descriptor_server && this->descriptor_size_available` has not become true dispite waiting for about 15sec. So quiting the run thread.\n" << TermColor::RESET(); )
+            __Cerebro__run__( cout << TermColor::RED() << "[Cerebro::descrip_N__dot__descrip_0_N] `this->connected_to_descriptor_server && this->descriptor_size_available` has not become true dispite waiting for about 15sec. So quiting the run thread.\n" << TermColor::RESET(); )
             return;
         }
     }
-    __Cerebro__run__( cout << TermColor::GREEN() <<"[Cerebro::run] descriptor_size=" << this->descriptor_size << "  connected_to_descriptor_server && descriptor_size_available" << TermColor::RESET() << endl; )
+    #endif
+
+    if( wait_until__connectedToDescServer_and_descSizeAvailable( 15 ) == false ) {
+        cout << TermColor::RED() << "[ Cerebro::descrip_N__dot__descrip_0_N ERROR] wait_until__connectedToDescServer_and_descSizeAvailable returned false implying a timeout.\n" << TermColor::RESET();
+        return;
+    }
+
+    __Cerebro__run__( cout << TermColor::GREEN() <<"[Cerebro::descrip_N__dot__descrip_0_N] descriptor_size=" << this->descriptor_size << "  connected_to_descriptor_server && descriptor_size_available" << TermColor::RESET() << endl; )
     assert( this->descriptor_size> 0 );
 
     int LOCALITY_THRESH = 8;
@@ -89,8 +109,7 @@ void Cerebro::descrip_N__dot__descrip_0_N()
     #endif
     while( b_run_thread )
     {
-        // rate.sleep();
-        // continue;
+
         auto data_map = dataManager->getDataMapRef(); // this needs to be get every iteration else i dont get the ubdated values which are constantly being updated by other threads.
         {
             std::lock_guard<std::mutex> lk(m_wholeImageComputedList);
@@ -105,6 +124,7 @@ void Cerebro::descrip_N__dot__descrip_0_N()
 
         __Cerebro__run__( cout << TermColor::RED() << "---" << TermColor::RESET() << endl; )
         __Cerebro__run__( cout << "l=" << l << endl; )
+        __Cerebro__run__debug( cout << "[Cerebro::descrip_N__dot__descrip_0_N] data_map.size() = " << data_map->size() << endl; )
 
 
         ///------------ Extract v, v-1, v-2. The latest 3 descriptors.
@@ -133,9 +153,9 @@ void Cerebro::descrip_N__dot__descrip_0_N()
             )
             #endif
 
-            v   = data_map[ wholeImageComputedList[l-1] ]->getWholeImageDescriptor();
-            vm  = data_map[ wholeImageComputedList[l-2] ]->getWholeImageDescriptor();
-            vmm = data_map[ wholeImageComputedList[l-3] ]->getWholeImageDescriptor();
+            v   = data_map->at( wholeImageComputedList[l-1] )->getWholeImageDescriptor();
+            vm  = data_map->at( wholeImageComputedList[l-2] )->getWholeImageDescriptor();
+            vmm = data_map->at( wholeImageComputedList[l-3] )->getWholeImageDescriptor();
             i_v = wholeImageComputedList[l-1];
             i_vm = wholeImageComputedList[l-2];
             i_vmm = wholeImageComputedList[l-3];
@@ -152,7 +172,7 @@ void Cerebro::descrip_N__dot__descrip_0_N()
         {
             std::lock_guard<std::mutex> lk(m_wholeImageComputedList);
             for( int _s=last_l ; _s<l ; _s++ ) {
-                M.col(_s) = data_map[ wholeImageComputedList[_s] ]->getWholeImageDescriptor();
+                M.col(_s) = data_map->at( wholeImageComputedList[_s] )->getWholeImageDescriptor();
 
                 __Cerebro__run__debug(
                 cout << "M.col(" << _s << ") = data_map[ " << wholeImageComputedList[_s] << " ]. \t";
@@ -210,9 +230,9 @@ void Cerebro::descrip_N__dot__descrip_0_N()
                 __Cerebro__run__(
                 cout << TermColor::RED() << "Loop FOUND!! a_idx=" << l-1 << "<-----> (" <<   u_argmax << "," << um_argmax << "," << umm_argmax << ")"<< TermColor::RESET() << endl;
                 cout << TermColor::RED() << "loop FOUND!! "
-                                         <<  wholeImageComputedList[l-1]
-                                         << "<" << u_max << ">"
-                                         << wholeImageComputedList[u_argmax]
+                                         <<  "t_l=" << wholeImageComputedList[l-1]
+                                         << "  <DOT=" << u_max << ">  "
+                                         << "t_argmax=" << wholeImageComputedList[u_argmax]
                                          << TermColor::RESET() << endl;
                                 )
 
@@ -251,6 +271,31 @@ void Cerebro::descrip_N__dot__descrip_0_N()
 
 }
 
+
+///-----------------------------------------------------------------
+
+// private function for descriptor_dot_product thread
+bool Cerebro::wait_until__connectedToDescServer_and_descSizeAvailable( int timeout_in_sec )  //blocking call
+{
+    assert( timeout_in_sec > 2 );
+    ros::Rate rate(10);
+    // wait until connected_to_descriptor_server=true and descriptor_size_available=true
+    int wait_itr = 0;
+    while( true ) {
+        if( this->connected_to_descriptor_server && this->descriptor_size_available)
+            break;
+        __Cerebro__run__(cout << wait_itr << " [Cerebro::wait_until__connectedToDescServer_and_descSizeAvailable] waiting for `descriptor_size_available` to be true\n";)
+        rate.sleep();
+        wait_itr++;
+        if( wait_itr > timeout_in_sec*10 ) {
+            __Cerebro__run__( cout << TermColor::RED() << "[Cerebro::wait_until__connectedToDescServer_and_descSizeAvailable] `this->connected_to_descriptor_server && this->descriptor_size_available` has not become true dispite waiting for about 15sec. So quiting the run thread.\n" << TermColor::RESET(); )
+            return false;
+        }
+    }
+    return true;
+}
+
+
 #define __Cerebro__descriptor_computer_thread( msg ) ;
 // #define __Cerebro__descriptor_computer_thread( msg ) msg
 
@@ -279,14 +324,34 @@ void Cerebro::descriptor_computer_thread()
 
     // Send a zeros image to the server just to know the descriptor size
     int nrows=-1, ncols=-1, desc_size=-1;
+    int nChannels = 1;
     {
         auto _abs_cam = dataManager->getAbstractCameraRef();
         assert( _abs_cam && "[Cerebro::descriptor_computer_thread] request from cerebro to access camera from dataManager is invalid. This means that camera was not yet set in dataManager\n");
         nrows = _abs_cam->imageHeight();
         ncols = _abs_cam->imageWidth();
-        cv::Mat zero_image = cv::Mat::zeros( nrows, ncols, CV_8UC3 );
+        cv::Mat zero_image;
+        if( nChannels == 3 )
+            zero_image = cv::Mat::zeros( nrows, ncols, CV_8UC3 );
+        else if( nChannels == 1 )
+            zero_image = cv::Mat::zeros( nrows, ncols, CV_8UC3 );
+        else {
+            assert( false && "Invalid number of channels specified in Cerebro::descriptor_computer_thread() ");
+            cout << TermColor::RED() << "[ERROR] Ax Invalid number of channels specified in Cerebro::descriptor_computer_thread() " << endl << TermColor::RESET();
+            exit(3);
+        }
+
         // create zero image sensor_msgs::Image
-        sensor_msgs::ImagePtr image_msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", zero_image).toImageMsg();
+        sensor_msgs::ImagePtr image_msg;
+        if( nChannels == 3 )
+            image_msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", zero_image).toImageMsg();
+        else if( nChannels == 1 )
+            image_msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", zero_image).toImageMsg();
+        else {
+            assert( false && "Invalid number of channels specified in Cerebro::descriptor_computer_thread() ");
+            cout << TermColor::RED() << "[ERROR] Bx Invalid number of channels specified in Cerebro::descriptor_computer_thread() " << endl << TermColor::RESET();
+            exit(3);
+        }
         image_msg->header.stamp = ros::Time::now();
         cerebro::WholeImageDescriptorCompute srv; //service message
         srv.request.ima = *image_msg;
@@ -300,7 +365,7 @@ void Cerebro::descriptor_computer_thread()
         }
     }
     assert( nrows > 0 && ncols > 0 && desc_size > 0 );
-    cout << "[Cerebro::descriptor_computer_thread] nrows=" << nrows << "  ncols=" << ncols << "  desc_size=" << desc_size << endl;
+    cout << "[Cerebro::descriptor_computer_thread] nrows=" << nrows << "  ncols=" << ncols << " nChannels=" << nChannels << " ===>  desc_size=" << desc_size << endl;
     this->descriptor_size = int(desc_size);
     descriptor_size_available = true;
 
@@ -309,17 +374,17 @@ void Cerebro::descriptor_computer_thread()
 
 
     ros::Rate rate(20);
+    auto data_map = dataManager->getDataMapRef();
     while( b_descriptor_computer_thread )
     {
-        auto data_map = dataManager->getDataMapRef();
-        if( data_map.begin() == data_map.end() ) {
+        if( data_map->begin() == data_map->end() ) {
             __Cerebro__descriptor_computer_thread( cout << "nothing to compute descriptor\n" );
             std::this_thread::sleep_for( std::chrono::milliseconds( 1000 )  );
             continue;
         }
-        ros::Time lb = data_map.rbegin()->first - ros::Duration(10, 0); // look at recent 10sec.
-        auto S = data_map.lower_bound( lb );
-        auto E = data_map.end();
+        ros::Time lb = data_map->rbegin()->first - ros::Duration(10, 0); // look at recent 10sec.
+        auto S = data_map->lower_bound( lb );
+        auto E = data_map->end();
         for( auto it = S; it != E ; it++ ) {
             //descriptor does not exisit at this stamp, so compute it.
             // Here I compute the whole image descriptor only at keyframes, you may try something like, if the pose is available compute it.
@@ -336,7 +401,16 @@ void Cerebro::descriptor_computer_thread()
 
                 // use it->second->getImage() to compute descriptor. call the service
                 const cv::Mat& image_curr = it->second->getImage();
-                sensor_msgs::ImagePtr image_msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", image_curr).toImageMsg();
+                sensor_msgs::ImagePtr image_msg;
+                if( nChannels == 3 )
+                    image_msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", image_curr).toImageMsg();
+                else if( nChannels == 1 )
+                    image_msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", image_curr).toImageMsg();
+                else {
+                    assert( false && "Invalid number of channels specified in Cerebro::descriptor_computer_thread() ");
+                    cout << TermColor::RED() << "[ERROR] Cx Invalid number of channels specified in Cerebro::descriptor_computer_thread() " << endl << TermColor::RESET();
+                    exit(3);
+                }
                 image_msg->header.stamp = ros::Time( it->first );
                 cerebro::WholeImageDescriptorCompute srv; //service message
                 srv.request.ima = *image_msg;
@@ -399,7 +473,7 @@ json Cerebro::foundLoops_as_JSON()
     std::lock_guard<std::mutex> lk(m_foundLoops);
 
     json jsonout_obj;
-    std::map< ros::Time, DataNode* > data_map = dataManager->getDataMapRef();
+    auto data_map = dataManager->getDataMapRef();
 
     int n_foundloops = foundLoops.size();
     for( int i=0 ; i<n_foundloops ; i++ ) {
@@ -410,8 +484,8 @@ json Cerebro::foundLoops_as_JSON()
 
 
         assert( data_map.count( t_curr ) > 0 && data_map.count( t_prev ) > 0  && "One or both of the timestamps in foundloops where not in the data_map. This cannot be happening...fatal...\n" );
-        int idx_1 = std::distance( data_map.begin(), data_map.find( t_curr )  );
-        int idx_2 = std::distance( data_map.begin(), data_map.find( t_prev )  );
+        int idx_1 = std::distance( data_map->begin(), data_map->find( t_curr )  );
+        int idx_2 = std::distance( data_map->begin(), data_map->find( t_prev )  );
         // cout << "loop#" << i << " of " << n_foundloops << ": ";
         // cout << t_curr << "(" << score << ")" << t_prev << endl;
         // cout << idx_1 << "<--->" << idx_2 << endl;
@@ -713,12 +787,12 @@ bool Cerebro::process_loop_candidate_imagepair_consistent_pose_compute( int ii, 
     double score = std::get<2>(u);
 
     auto data_map = dataManager->getDataMapRef();
-    assert( data_map.count( t_curr ) > 0 && data_map.count( t_prev ) > 0  && "One or both of the timestamps in foundloops where not in the data_map. This cannot be happening...fatal...\n" );
-    int idx_1 = std::distance( data_map.begin(), data_map.find( t_curr )  );
-    int idx_2 = std::distance( data_map.begin(), data_map.find( t_prev )  );
+    assert( data_map->count( t_curr ) > 0 && data_map->count( t_prev ) > 0  && "One or both of the timestamps in foundloops where not in the data_map. This cannot be happening...fatal...\n" );
+    int idx_1 = std::distance( data_map->begin(), data_map->find( t_curr )  );
+    int idx_2 = std::distance( data_map->begin(), data_map->find( t_prev )  );
 
-    DataNode * node_1 = data_map.find( t_curr )->second;
-    DataNode * node_2 = data_map.find( t_prev )->second;
+    DataNode * node_1 = data_map->find( t_curr )->second;
+    DataNode * node_2 = data_map->find( t_prev )->second;
 
 
 
@@ -1035,12 +1109,12 @@ bool Cerebro::process_loop_candidate_imagepair( int ii, ProcessedLoopCandidate& 
     double score = std::get<2>(u);
 
     auto data_map = dataManager->getDataMapRef();
-    assert( data_map.count( t_curr ) > 0 && data_map.count( t_prev ) > 0  && "One or both of the timestamps in foundloops where not in the data_map. This cannot be happening...fatal...\n" );
-    int idx_1 = std::distance( data_map.begin(), data_map.find( t_curr )  );
-    int idx_2 = std::distance( data_map.begin(), data_map.find( t_prev )  );
+    assert( data_map->count( t_curr ) > 0 && data_map->count( t_prev ) > 0  && "One or both of the timestamps in foundloops where not in the data_map. This cannot be happening...fatal...\n" );
+    int idx_1 = std::distance( data_map->begin(), data_map->find( t_curr )  );
+    int idx_2 = std::distance( data_map->begin(), data_map->find( t_prev )  );
 
-    DataNode * node_1 = data_map.find( t_curr )->second;
-    DataNode * node_2 = data_map.find( t_prev )->second;
+    DataNode * node_1 = data_map->find( t_curr )->second;
+    DataNode * node_2 = data_map->find( t_prev )->second;
 
     // cv::Mat im_1 = node_1->getImage();
     // cv::Mat im_2 = node_2->getImage();
@@ -1474,8 +1548,11 @@ bool Cerebro::process_loop_candidate_imagepair( int ii, ProcessedLoopCandidate& 
 // Kidnap identification thread. This thread monitors dataManager->getDataMapRef().size
 // for every new node added if there are zero tracked features means that, I have
 // been kidnaped. It however declares kidnap only after 2 sec of kidnaped
-// #define __Cerebro__kidnaped_thread__( msg ) msg;
-#define __Cerebro__kidnaped_thread__( msg ) ;
+#define __Cerebro__kidnaped_thread__( msg ) msg;
+// #define __Cerebro__kidnaped_thread__( msg ) ;
+
+#define __Cerebro__kidnaped_thread__debug( msg ) msg;
+// #define __Cerebro__kidnaped_thread__debug( msg ) ;
 void Cerebro::kidnaped_thread( int loop_rate_hz )
 {
     if( loop_rate_hz <= 0 || loop_rate_hz >= 30 ) {
@@ -1491,6 +1568,9 @@ void Cerebro::kidnaped_thread( int loop_rate_hz )
         exit(2);
     }
 
+
+    const int THRESH_N_FEATS = 24;
+    const ros::Duration WAIT_BEFORE_DECLARING_AS_KIDNAP = ros::Duration(3.0);
 
 
     ros::Rate loop_rate( loop_rate_hz );
@@ -1515,66 +1595,21 @@ void Cerebro::kidnaped_thread( int loop_rate_hz )
 
 
         auto data_map = dataManager->getDataMapRef(); //< map< ros::Time, DataNode*>
-        new_count = data_map.size();
+        new_count = data_map->size();
 
         if( new_count <= prev_count ) {
             __Cerebro__kidnaped_thread__(cout << "[Cerebro::kidnaped_thread]Nothing new\n";)
-
-            #if 0
-            // Handling for multiple bags. The idea is, if no new messages then publish false and stop the vins_estimator.
-            if( first_data_received ) {
-                cout << "[Cerebro::kidnaped_thread] looks like a bag has ended and we are waiting for the next bag to start\n";
-
-                if( waiting_for_next_bag_to_start == false ) {
-                    cout << TermColor::RED() << "[Cerebro::kidnaped_thread] PUBLISH FALSE (t= " << data_map.rbegin()->first << " to indicate the vins_estimator to stop.\n" << TermColor::RESET();
-                    // publish False (bool msg)
-                    std_msgs::Bool bool_msg; bool_msg.data = false;
-                    rcvd_flag_pub.publish( bool_msg );
-
-                    // publish header message
-                    std_msgs::Header header_msg;
-                    header_msg.stamp = data_map.rbegin()->first;
-                    header_msg.frame_id = "kidnapped";
-                    kidnap_indicator_header_pub.publish( header_msg );
-
-                }
-                waiting_for_next_bag_to_start = true;
-            }
-            #endif
             continue;
         }
 
-        ros::Time lb = data_map.rbegin()->first - ros::Duration(5, 0); // look at recent 5sec.
+        ros::Time lb = data_map->rbegin()->first - ros::Duration(5, 0); // look at recent 5sec.
         // auto S = data_map.begin();
-        auto S = data_map.lower_bound( lb );
-        auto E = data_map.end();
-        __Cerebro__kidnaped_thread__( cout << "S=" << S->first << "  E=" << E->first <<  endl; )
+        auto S = data_map->lower_bound( lb );
+        auto E = data_map->end();
+        __Cerebro__kidnaped_thread__debug( cout << "[Cerebro::kidnaped_thread] S=" << S->first << "  E=" << E->first <<  endl; )
 
         for( auto it = S ; it != E ; it++ )
         {
-            #if 0
-            // Handling for multiple bags. The idea is, if no new messages then publish false and stop the vins_estimator.
-            // If new messages are seen after stopiing vins_estimator, this is an indicator of new bag playing.
-            if(first_data_received && waiting_for_next_bag_to_start ) {
-                // this means a new bag has started. So, publish true
-                cout << TermColor::GREEN() << "Looks to me that a new bag has started. PUBLISH TRUE with t=" << S->first << TermColor::RESET() << endl;
-
-                // publish true to vins_estimator to indicate that it may resume the estimation with a new co-ordinate system.
-                // Publish True
-                __Cerebro__kidnaped_thread__( cout << "PUBLISH TRUE\n"; )
-                std_msgs::Bool bool_msg; bool_msg.data = true;
-                rcvd_flag_pub.publish( bool_msg );
-                // rcvd_flag_pub.publish( true );
-
-                // publish header msg
-                std_msgs::Header header_msg;
-                header_msg.stamp =  S->first ;
-                header_msg.frame_id = "unkidnapped";
-                kidnap_indicator_header_pub.publish( header_msg );
-            }
-            first_data_received = true;
-            waiting_for_next_bag_to_start = false;
-            #endif
 
             #if 0
             if( it->second->isImageAvailable() ) {
@@ -1601,10 +1636,13 @@ void Cerebro::kidnaped_thread( int loop_rate_hz )
             if( it->first <= last_known_keyframe ||  n_feats < 0 )
                 continue;
 
+            __Cerebro__kidnaped_thread__debug(
+                cout <<it->first << ": n_feats=" << n_feats << endl;
+            )
+
             last_known_keyframe = it->first;
 
-            const int THRESH_N_FEATS = 24;
-            const ros::Duration WAIT_BEFORE_DECLARING_AS_KIDNAP = ros::Duration(3.0);
+
             if( is_kidnapped==false && n_feats < THRESH_N_FEATS  ) {
                 is_kidnapped = true;
                 is_kidnapped_start = it->first;

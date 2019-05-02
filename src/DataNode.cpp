@@ -5,10 +5,19 @@ void DataNode::setImageFromMsg( const sensor_msgs::ImageConstPtr msg )
 {
     std::lock_guard<std::mutex> lk(m);
 
-    this->image = cv_bridge::toCvShare(msg, "bgr8" )->image;
-    // this->image = cv_bridge::toCvCopy(msg, "bgr8" )->image;
+    // this->image = cv_bridge::toCvShare(msg, "bgr8" )->image;
+    this->image = (cv_bridge::toCvCopy(msg, "bgr8" )->image).clone();
 
-    // TODO: Make sure the image is valid
+
+    //
+    // Note: (on Opencv and cv_bridge, memory)
+    // I was observing a massive memory leak when not using clone().
+    // See [this link](https://answers.opencv.org/question/14285/how-to-free-memory-through-cvmat/)
+    // So, the point is, if using cv::Mat, it is important to understand who owns the memory.
+    // cv::Mat::clone() does a deep copy. it is important to .clone here for
+    // the deallocation to work correctly.
+
+
     assert( image.rows > 0 && image.cols > 0 && !image.empty() && "In DataNode::setImageFromMsg image that is being set from sensor_msgs::Image is invalid.");
 
 
@@ -20,17 +29,35 @@ void DataNode::setImageFromMsg( const sensor_msgs::ImageConstPtr msg, short cam_
 {
     std::lock_guard<std::mutex> lk(m);
 
-    cv::Mat __image = cv_bridge::toCvShare(msg, "bgr8" )->image;
-    // cv::Mat __image = cv_bridge::toCvCopy(msg, "bgr8" )->image;
+    // cv::Mat __image = cv_bridge::toCvShare(msg, "bgr8" )->image;
+    cv::Mat __image = (cv_bridge::toCvCopy(msg, "bgr8" )->image).clone();
     this->all_images[cam_id] = __image;
 
+    //
+    // Note: (on Opencv and cv_bridge, memory)
+    // I was observing a massive memory leak when not using clone().
+    // See [this link](https://answers.opencv.org/question/14285/how-to-free-memory-through-cvmat/)
+    // So, the point is, if using cv::Mat, it is important to understand who owns the memory.
+    // cv::Mat::clone() does a deep copy. it is important to .clone here for
+    // the deallocation to work correctly. 
 
-    // TODO: Make sure the image is valid
     assert( __image.rows > 0 && __image.cols > 0 && !image.empty() && "In DataNode::setImageFromMsg with cam_id image that is being set from sensor_msgs::Image is invalid.");
 
 
     this->t_all_images[cam_id] = msg->header.stamp;
 
+}
+
+void DataNode::print_image_cvinfo()
+{
+    std::lock_guard<std::mutex> lk(m);
+    cout << "[DataNode::print_image_cvinfo]\n";
+
+    if( m_image ) {
+        cout << "main image: " << MiscUtils::cvmat_info( image ) << endl;
+    }
+
+    cout << "[DataNode::print_image_cvinfo] Done\n";
 }
 
 void DataNode::deallocate_all_images()
@@ -359,7 +386,7 @@ void DataNode::setWholeImageDescriptor( VectorXd vec )
 }
 
 // const VectorXd& DataNode::getWholeImageDescriptor()
-const VectorXd DataNode::getWholeImageDescriptor()
+const VectorXd DataNode::getWholeImageDescriptor() const
 {
     std::lock_guard<std::mutex> lk(m);
     assert( m_img_desc && "[DataNode::getWholeImageDescriptor] You are trying to get the image descriptor before setting it." );

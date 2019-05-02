@@ -102,12 +102,14 @@ public:
     // Whole Image descriptors setter and getter
     void setWholeImageDescriptor( VectorXd vec );
     // const VectorXd& getWholeImageDescriptor();
-    const VectorXd getWholeImageDescriptor(); //don't know which one is more suitated to me. :(
+    const VectorXd getWholeImageDescriptor() const; //don't know which one is more suitated to me. :(
     bool isWholeImageDescriptorAvailable() const { return m_img_desc; }
 
 
     void prettyPrint();
     void deallocate_all_images();
+    void print_image_cvinfo();
+
 
 private:
     const ros::Time stamp;

@@ -42,30 +42,32 @@ void DataManager::setAbstractCamera( camodocal::CameraPtr abs_camera, short cam_
     cout << "--- END\n";
 }
 
-camodocal::CameraPtr DataManager::getAbstractCameraRef(short cam_id)
+camodocal::CameraPtr DataManager::getAbstractCameraRef(short cam_id) const
 {
     assert( cam_id >= 0 && "DataManager, you requested a camera with negative id which is an error. cam_id=0 for default camera and 1,2,.. for additional cameras.\n" );
     // assert( abstract_camera && "[DataManager::getAbstractCameraRef] you are requesting a camera reference before setting.\n" );
     // return abstract_camera;
     assert( isAbstractCameraSet(cam_id) && "[DataManager::getAbstractCameraRef] you are requesting a camera reference before setting.\n");
-    return this->all_abstract_cameras[cam_id];
+    // return this->all_abstract_cameras[cam_id]; //old non-const access
+    return this->all_abstract_cameras.at(cam_id);
 }
 
-bool DataManager::isAbstractCameraSet(short cam_id)
+bool DataManager::isAbstractCameraSet(short cam_id) const
 {
     assert( cam_id >= 0 && "DataManager, you requested a camera with negative id which is an error. cam_id=0 for default camera and 1,2,.. for additional cameras.\n" );
     if( this->all_abstract_cameras.count( cam_id ) > 0 ) {
-        if( this->all_abstract_cameras[cam_id] )
-            return true;
-        else
-            return false;
+        return true;
+        // if( this->all_abstract_cameras[cam_id] )
+            // return true;
+        // else
+            // return false;
     }
     else {
         return false;
     }
 }
 
-vector<short> DataManager::getAbstractCameraKeys() {
+vector<short> DataManager::getAbstractCameraKeys() const {
     vector<short> keys;
     for( auto it=this->all_abstract_cameras.begin(); it!=all_abstract_cameras.end() ; it++ ) {
         keys.push_back( it->first );
@@ -87,7 +89,7 @@ void DataManager::setCameraRelPose( Matrix4d a_T_b, std::pair<int,int> pair_a_b 
 
 }
 
-bool DataManager::isCameraRelPoseSet( std::pair<int,int> pair_a_b )
+bool DataManager::isCameraRelPoseSet( std::pair<int,int> pair_a_b ) const
 {
     if( this->cam_relative_poses.count( pair_a_b ) > 0 )
         return true;
@@ -95,7 +97,7 @@ bool DataManager::isCameraRelPoseSet( std::pair<int,int> pair_a_b )
         return false;
 }
 
-const Matrix4d& DataManager::getCameraRelPose( std::pair<int,int> pair_a_b )
+const Matrix4d& DataManager::getCameraRelPose( std::pair<int,int> pair_a_b ) const
 {
     assert( isCameraRelPoseSet( pair_a_b ) && "[DataManager::getCameraRelPose] make sure the rel cam pose you are requesting is available\n" );
     if( !isCameraRelPoseSet( pair_a_b) ) {
@@ -103,7 +105,8 @@ const Matrix4d& DataManager::getCameraRelPose( std::pair<int,int> pair_a_b )
         exit(2);
     }
 
-    return this->cam_relative_poses[ pair_a_b ];
+    // return this->cam_relative_poses[ pair_a_b ]; //old non const
+    return this->cam_relative_poses.at( pair_a_b );
 }
 
 
@@ -116,20 +119,20 @@ vector< std::pair<int,int> > DataManager::getCameraRelPoseKeys()
     return keys;
 }
 
-const Matrix4d& DataManager::getIMUCamExtrinsic()
+const Matrix4d& DataManager::getIMUCamExtrinsic() const
 {
     std::lock_guard<std::mutex> lk(global_vars_mutex);
     assert( imu_T_cam_available && "[DataManager::getIMUCamExtrinsic] you request the value before setting it\n");
     return imu_T_cam;
 }
 
-bool DataManager::isIMUCamExtrinsicAvailable()
+bool DataManager::isIMUCamExtrinsicAvailable() const
 {
     std::lock_guard<std::mutex> lk(global_vars_mutex);
     return imu_T_cam_available;
 }
 
-const ros::Time DataManager::getIMUCamExtrinsicLastUpdated()
+const ros::Time DataManager::getIMUCamExtrinsicLastUpdated() const
 {
     std::lock_guard<std::mutex> lk(global_vars_mutex);
     return imu_T_cam_stamp;
@@ -138,7 +141,7 @@ const ros::Time DataManager::getIMUCamExtrinsicLastUpdated()
 //////////////////////////////////////////////////////////////////////////////
 /////////////////// Kidnap Indicator Publisher ///////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
-bool DataManager::isKidnapIndicatorPubSet()
+bool DataManager::isKidnapIndicatorPubSet() const
 {
     return (bool)is_kidnapn_indicator_set ;
 }
@@ -151,7 +154,7 @@ void DataManager::setKidnapIndicatorPublishers( ros::Publisher& pub_bool, ros::P
 }
 
 
-void DataManager::PUBLISH__TRUE( const ros::Time _t )
+void DataManager::PUBLISH__TRUE( const ros::Time _t ) const
 {
     assert( is_kidnapn_indicator_set );
     cout << TermColor::RED() << "[Cerebro::PUBLISH__TRUE] PUBLISH TRUE (t= " << _t << " to indicate the vins_estimator to start again.\n" << TermColor::RESET();
@@ -166,7 +169,7 @@ void DataManager::PUBLISH__TRUE( const ros::Time _t )
     kidnap_indicator_header_pub.publish( header_msg );
 }
 
-void DataManager::PUBLISH__FALSE( const ros::Time _t )
+void DataManager::PUBLISH__FALSE( const ros::Time _t ) const
 {
     assert( is_kidnapn_indicator_set );
     cout << TermColor::RED() << "[Cerebro::PUBLISH__FALSE] PUBLISH FALSE (t= " << _t << " to indicate the vins_estimator to stop.\n" << TermColor::RESET();
@@ -335,59 +338,34 @@ void DataManager::tracked_feat_callback( const sensor_msgs::PointCloud::ConstPtr
 }
 
 
-std::string DataManager::metaDataAsFlatFile()
-{
-    std::stringstream buffer;
-    buffer << "#seq,rel_stamp,stamp,isKeyFrame,isImageAvailable,isImageAvailable_1,isPoseAvailable,isPtCldAvailable,isUVAvailable\n";
 
-    {
-        // puttime
-        auto t = std::time(nullptr);
-        auto tm = *std::localtime(&t);
-        buffer << "#generated on " << DateAndTime::current_date_and_time() << endl;
-    }
-
-    std::map< ros::Time, DataNode* > __data_map = this->getDataMapRef();
-    for( auto it = __data_map.begin() ; it!= __data_map.end() ; it++ )
-    {
-        int seq_id = std::distance( __data_map.begin() , it );
-        buffer << seq_id << ",";
-        buffer << it->first -  this->getPose0Stamp() << ",";
-        buffer <<  it->first << ",";
-        buffer << it->second->isKeyFrame() << ",";
-        buffer << it->second->isImageAvailable() << ",";
-        buffer << it->second->isImageAvailable(1) << ",";
-        buffer << it->second->isPoseAvailable() << ",";
-        buffer << it->second->isPtCldAvailable() << ",";
-        buffer << it->second->isUVAvailable();
-        buffer << "\n";
-    }
-    return buffer.str();
-
-}
-
-#define __json_debuggin(msg) msg;
-// #define __json_debuggin(msg) ;
+// #define __json_debuggin(msg) msg;
+#define __json_debuggin(msg) ;
 json DataManager::asJson()
 {
     json obj;
-    std::map< ros::Time, DataNode* > __data_map = this->getDataMapRef();
+    auto __data_map = this->getDataMapRef();
     IOFormat CSVFormat(StreamPrecision, DontAlignCols, ", ", ",\t\n");
 
-    cout << "[DataManager::asJson] Start loop through data_map\n";
+    __json_debuggin( cout << "[DataManager::asJson] Start loop through data_map\n"; )
 
     #if 1
-    int max_dist = std::distance( __data_map.begin() , __data_map.end() );
-    for( auto it = __data_map.begin() ; it!= __data_map.end() ; it++ )
+    // int max_dist = std::distance( __data_map.begin() , __data_map.end() ); //berks__old
+    int max_dist = std::distance( __data_map->begin() , __data_map->end() );
+
+    // for( auto it = __data_map.begin() ; it!= __data_map.end() ; it++ ) //berks__old
+    for( auto it = __data_map->begin() ; it!= __data_map->end() ; it++ )
     {
-        int seq_id = std::distance( __data_map.begin() , it );
-        cout << "[DataManager::asJson] " <<  seq_id << " max dist=" << max_dist << endl;
+        // int seq_id = std::distance( __data_map.begin() , it ); // berks__old
+        int seq_id = std::distance( __data_map->begin() , it );
+        __json_debuggin(
+        cout << "[DataManager::asJson] " <<  seq_id << " max dist=" << max_dist << endl;)
 
         json curr_obj;
         curr_obj["stamp"] = it->first.toSec();
         curr_obj["stamp_relative"] =  ( it->first -  this->getPose0Stamp() ).toSec() ;
         curr_obj["seq"] = seq_id;
-        cout << "A\n";
+        __json_debuggin( cout << "A\n"; )
 
         DataNode * __u = it->second;
         curr_obj["getT"] = __u->getT().toSec();
@@ -395,7 +373,7 @@ json DataManager::asJson()
         // curr_obj["getT_image_1"] = __u->getT_image(1).toSec();
         curr_obj["getT_pose"] = __u->getT_pose().toSec();
         curr_obj["getT_uv"] = __u->getT_uv().toSec();
-        cout << "B\n";
+        __json_debuggin( cout << "B\n"; )
 
         curr_obj["isKeyFrame"] = __u->isKeyFrame();
         curr_obj["isImageAvailable"] = __u->isImageAvailable();
@@ -407,7 +385,7 @@ json DataManager::asJson()
         curr_obj["isFeatIdsAvailable"] = __u->isFeatIdsAvailable();
         curr_obj["getNumberOfSuccessfullyTrackedFeatures"] = __u->getNumberOfSuccessfullyTrackedFeatures();
         curr_obj["isWholeImageDescriptorAvailable"] = __u->isWholeImageDescriptorAvailable();
-        cout << "C\n";
+        __json_debuggin( cout << "C\n"; )
 
         if( __u->isPoseAvailable() )
         {
@@ -422,7 +400,7 @@ json DataManager::asJson()
             pose_ifo["data_pretty"] = PoseManipUtils::prettyprintMatrix4d(wTc);
             curr_obj["w_T_c"] = pose_ifo;
         }
-        cout << "D\n";
+        __json_debuggin( cout << "D\n"; )
 
 
 
@@ -430,11 +408,11 @@ json DataManager::asJson()
     }
     #endif
 
-    cout << "[DataManager::asJson] End loop through data_map\n";
+    __json_debuggin( cout << "[DataManager::asJson] End loop through data_map\n"; )
 
 
     // Global Data
-    cout << "[DataManager::asJson] Logging Global data\n";
+    __json_debuggin( cout << "[DataManager::asJson] Logging Global data\n"; )
     obj["global"]["isPose0Available"] = this->isPose0Available();
     obj["global"]["Pose0Stamp"] = this->getPose0Stamp().toSec();
 
@@ -454,194 +432,14 @@ json DataManager::asJson()
     }
 
 
-    cout << "[DataManager::asJson] Done asJson()\n";
+    __json_debuggin( cout << "[DataManager::asJson] Done asJson()\n"; )
     return obj;
 
 }
 
-// TODO: another function which returns the nlohmann/json.hpp object.
-std::string DataManager::metaDataAsJson()
-{
-    std::stringstream buffer;
-    buffer << "{\n\"DataNodes\": [\n";
-    std::map< ros::Time, DataNode* > __data_map = this->getDataMapRef();
-    IOFormat CSVFormat(StreamPrecision, DontAlignCols, ", ", ",\t\n");
-
-    for( auto it = __data_map.begin() ; it!= __data_map.end() ; it++ )
-    {
-        if( it != __data_map.begin() )
-            buffer << ",";
-
-        int seq_id = std::distance( __data_map.begin() , it );
-        buffer << "{\n";
-        buffer << "\"stamp\": " << it->first << ",\n";
-        buffer << "\"stamp_relative\": " << ( it->first -  this->getPose0Stamp() ).toSec() << ",\n";
-        buffer << "\"seq\": " << seq_id << ",\n";
-
-        buffer << "\"getT\": " << it->second->getT() << ",\n";
-        buffer << "\"getT_image\": " << it->second->getT_image() << ",\n";
-        buffer << "\"getT_image_1\": " << it->second->getT_image(1) << ",\n";
-        buffer << "\"getT_pose\": " << it->second->getT_pose() << ",\n";
-        buffer << "\"getT_uv\": " << it->second->getT_uv() << ",\n";
-
-        buffer << "\"isKeyFrame\":" << it->second->isKeyFrame() << ",\n";
-        buffer << "\"isImageAvailable\":" << it->second->isImageAvailable() << ",\n";
-        buffer << "\"isImageAvailable_1\":" << it->second->isImageAvailable(1) << ",\n";
-        buffer << "\"isPoseAvailable\":" << it->second->isPoseAvailable() << ",\n";
-        buffer << "\"isPtCldAvailable\":" << it->second->isPtCldAvailable() << ",\n";
-        buffer << "\"isUnVnAvailable\":" << it->second->isUnVnAvailable() << ",\n";
-        buffer << "\"isUVAvailable\":" << it->second->isUVAvailable() << ",\n";
-        buffer << "\"isFeatIdsAvailable\":" << it->second->isFeatIdsAvailable() << ",\n";
-        buffer << "\"getNumberOfSuccessfullyTrackedFeatures\":" << it->second->getNumberOfSuccessfullyTrackedFeatures() << ",\n";
-        buffer << "\"isWholeImageDescriptorAvailable\":" << it->second->isWholeImageDescriptorAvailable() << ",\n";
-
-        // image
-        if(  it->second->isImageAvailable() ) {
-            const cv::Mat im = it->second->getImage();
-            buffer << "\"image\": {";
-                buffer << "\"rows\":" << im.rows << ", \n";
-                buffer << "\"cols\":" << im.cols << ",\n";
-                buffer << "\"channels\":" << im.channels() << ",\n";
-                buffer << "\"type\": \"" << MiscUtils::type2str( im.type() ) << "\",\n";
-                buffer << "\"stamp\":" << it->second->getT_image() << "\n";
-            buffer << "},\n";
-        }
 
 
-
-        // pose
-        if( it->second->isPoseAvailable() ) {
-            const Matrix4d wTc = it->second->getPose();
-            buffer << "\"w_T_c\": {";
-                buffer << "\"data\": [" << wTc.format(CSVFormat) << "],\n";
-                buffer << "\"rows\":" << wTc.rows() << ", \n";
-                buffer << "\"cols\":" << wTc.cols() << ", \n";
-                buffer << "\"stamp\":" << it->second->getT_pose() << "\n";
-            buffer << "},\n";
-        }
-
-
-        // ptcld, unvn, uv , id
-        if( it->second->isPtCldAvailable() ) {
-            const MatrixXd wX = it->second->getPointCloud();
-            buffer << "\"wX\": {";
-                buffer << "\"data\": [" << wX.format(CSVFormat) << "],\n";
-                buffer << "\"rows\":" << wX.rows() << ", \n";
-                buffer << "\"cols\":" << wX.cols() << ", \n";
-                buffer << "\"stamp\":" << it->second->getT_ptcld() << "\n";
-            buffer << "},\n";
-
-        }
-
-        if( it->second->isPoseAvailable()  && it->second->isPtCldAvailable() )
-        {
-
-            MatrixXd cX = it->second->getPose().inverse() * it->second->getPointCloud();
-            buffer << "\"cX\": {";
-                buffer << "\"data\": [" << cX.format(CSVFormat) << "],\n";
-                buffer << "\"rows\":" << cX.rows() << ", \n";
-                buffer << "\"cols\":" << cX.cols() << ", \n";
-                buffer << "\"stamp\":" << it->second->getT_ptcld() << "\n";
-            buffer << "},\n";
-
-        }
-
-        if( it->second->isUnVnAvailable() ) {
-            const MatrixXd unvn = it->second->getUnVn();
-            buffer << "\"unvn\": {";
-                buffer << "\"data\": [" << unvn.format(CSVFormat) << "],\n";
-                buffer << "\"rows\":" << unvn.rows() << ", \n";
-                buffer << "\"cols\":" << unvn.cols() << ", \n";
-                buffer << "\"stamp\":" << it->second->getT_unvn() << "\n";
-            buffer << "},\n";
-        }
-
-        if( it->second->isUVAvailable() ) {
-            const MatrixXd uv = it->second->getUV();
-            buffer << "\"uv\": {";
-                buffer << "\"data\": [" << uv.format(CSVFormat) << "],\n";
-                buffer << "\"rows\":" << uv.rows() << ", \n";
-                buffer << "\"cols\":" << uv.cols() << ", \n";
-                buffer << "\"stamp\":" << it->second->getT_uv() << "\n";
-            buffer << "},\n";
-        }
-
-        if( it->second->isFeatIdsAvailable() ) {
-            const VectorXi fids = it->second->getFeatIds();
-            buffer << "\"fids\": {";
-                buffer << "\"data\": [" << fids.format(CSVFormat) << "],\n";
-                buffer << "\"rows\":" << fids.rows() << ", \n";
-                buffer << "\"cols\":" << fids.cols() << ", \n";
-                buffer << "\"stamp\":" << it->second->getT_uv() << "\n";
-            buffer << "},\n";
-        }
-
-        // buffer << "\"getT\": " << "1\n";
-        buffer << "\"getT\":" << it->second->getT() << "\n";
-
-
-        buffer << "}\n";
-    }
-    buffer << "\n]\n";
-
-    // global data
-    buffer << ", \"global\": ";
-    buffer << "{";
-    buffer << "\"isPose0Available\": " << this->isPose0Available() << ", \n";
-    buffer << "\"Pose0Stamp\": " << this->getPose0Stamp() << ", \n";
-    // // imu_T_cam
-    if( this->isIMUCamExtrinsicAvailable() ) {
-        Matrix4d __imu_T_cam = this->getIMUCamExtrinsic();
-        buffer << "\"imu_T_cam\": {";
-            buffer << "\"data\": [" << __imu_T_cam.format(CSVFormat) << "],\n";
-            buffer << "\"rows\":" << __imu_T_cam.rows() << ", \n";
-            buffer << "\"cols\":" << __imu_T_cam.cols() << ", \n";
-            buffer << "\"stamp\":" << this->getIMUCamExtrinsicLastUpdated() << "\n";
-        buffer << "},\n";
-    }
-
-
-    if( this->isAbstractCameraSet() ) {
-        buffer << "\"abstract_camera\": ";
-        // buffer << "\"" << this->abstract_camera->parametersToString() << "\"";
-        buffer << "\"OK. see yaml file\"";
-        buffer << ",\n";
-    }
-
-    // TODO: Removal. PinholeCamera no more in use
-    // const PinholeCamera _cam = this->getCameraRef();
-    // const Matrix3d eK = _cam.get_eK();
-    // const Vector4d eD = _cam.get_eD();
-    //
-    // if( _cam.isValid() )
-    // {
-    //     buffer << "\"eK\": {";
-    //         buffer << "\"data\": [" << eK.format(CSVFormat) << "],\n";
-    //         buffer << "\"rows\":" << eK.rows() << ", \n";
-    //         buffer << "\"cols\":" << eK.cols() << "\n";
-    //     buffer << "},\n";
-    //
-    //     buffer << "\"eD\": {";
-    //         buffer << "\"data\": [" << eD.format(CSVFormat) << "],\n";
-    //         buffer << "\"rows\":" << eD.rows() << ", \n";
-    //         buffer << "\"cols\":" << eD.cols() << "\n";
-    //     buffer << "},\n";
-    // }
-
-    buffer << "\"isIMUCamExtrinsicAvailable\": " << this->isIMUCamExtrinsicAvailable() << "\n";
-
-
-    buffer << "}";
-
-
-
-    buffer << " }";
-    return buffer.str();
-
-}
-
-
-string DataManager::print_queue_size( int verbose=1 )
+string DataManager::print_queue_size( int verbose=1 ) const
 {
     std::stringstream buffer;
 
@@ -771,8 +569,12 @@ void DataManager::trial_thread()
     {
         cout << "trial_thread\n";
 
-        auto S = data_map.begin(); //.lower_bound( lb );
-        auto E = data_map.end();
+        // berks__old
+        // auto S = data_map.begin(); //.lower_bound( lb );
+        // auto E = data_map.end();
+
+        auto S = data_map->begin();
+        auto E = data_map->end();
         cout << "S=" << S->first << "  E=" << E->first <<  endl;
         for( auto it = S ; it != E ; it++ )
         {
@@ -827,19 +629,27 @@ void DataManager::clean_up_useless_images_thread()
     {
         looprate.sleep();
 
-        if( data_map.begin() == data_map.end() ) {
+        // if( data_map.begin() == data_map.end() ) { //berks__old
+        if( data_map->begin() == data_map->end() ) {
             cout << TermColor::CYAN() << "[clean_up_useless_images_thread] no nodes" << TermColor::RESET() << endl;
             continue;
         }
 
-        auto S = data_map.begin();
-        auto E = data_map.upper_bound( data_map.rbegin()->first - ros::Duration( 3.0 ) );
+        // berks__old
+        // auto S = data_map.begin();
+        // auto E = data_map.upper_bound( data_map.rbegin()->first - ros::Duration( 3.0 ) );
+
+        auto S = data_map->begin();
+        auto E = data_map->upper_bound( data_map->rbegin()->first - ros::Duration( 10.0 ) );
         int q=0;
         ___clean_up_cout( cout << S->first << " to " << E->first << endl; )
-        for( auto it = data_map.begin() ; it->first < E->first ; it++ ) {
+        // for( auto it = data_map.begin() ; it->first < E->first ; it++ ) { //berks__old
+        for( auto it = data_map->begin() ; it->first < E->first ; it++ ) {
             if( it->second->isImageAvailable() && !it->second->isKeyFrame() ) {
+            // if( it->second->isImageAvailable()  ) {
                 ___clean_up_cout(
                     cout << TermColor::CYAN() << "deallocate_all_images with t=" << it->first << " " << q++ << TermColor::RESET() << endl;
+                    it->second->print_image_cvinfo();
                 )
                 it->second->deallocate_all_images();
             }
@@ -890,7 +700,8 @@ void DataManager::data_association_thread( int max_loop_rate_in_hz )
             DataNode * n = new DataNode( img_msg->header.stamp );
             n->setImageFromMsg( img_msg );
 
-            data_map.insert( std::make_pair(img_msg->header.stamp, n) );
+            // data_map.insert( std::make_pair(img_msg->header.stamp, n) ); //berks__old
+            data_map->insert( std::make_pair(img_msg->header.stamp, n) );
         }
 
         // dequeue additional raw images
@@ -906,8 +717,11 @@ void DataManager::data_association_thread( int max_loop_rate_in_hz )
             __DataManager__data_association_thread__(
             cout << ">> Attempt adding poped() img_1_msg in data_map with t=" << img_1_msg->header.stamp << " ie. #####> " << img_1_msg->header.stamp-pose_0 << endl;
             )
-            if( data_map.count(t) > 0 ) {
-                data_map.at( t )->setImageFromMsg( img_1_msg, 1 );
+            // if( data_map.count(t) > 0 ) { //berks__old
+            //     data_map.at( t )->setImageFromMsg( img_1_msg, 1 );
+            // }
+            if( data_map->count(t) > 0 ) {
+                data_map->at( t )->setImageFromMsg( img_1_msg, 1 );
             }
             else {
                 // assert( false && "[DataManager::data_association_thread] attempting to set additional image into datanode. However that datanode is not found in the map. This cannot be happening\n");
@@ -939,9 +753,14 @@ void DataManager::data_association_thread( int max_loop_rate_in_hz )
              )
 
              // find the DataNode with this timestamp
-             if( data_map.count( t ) > 0 ) {
+             //berks__old
+            //  if( data_map.count( t ) > 0 ) {
+            //      // a Node seem to exist with this t.
+            //      data_map.at( t )->setPoseFromMsg( pose_msg );
+            //  }
+             if( data_map->count( t ) > 0 ) {
                  // a Node seem to exist with this t.
-                 data_map.at( t )->setPoseFromMsg( pose_msg );
+                 data_map->at( t )->setPoseFromMsg( pose_msg );
              }
              else {
 
@@ -949,14 +768,16 @@ void DataManager::data_association_thread( int max_loop_rate_in_hz )
                  // t-delta <= x <= t+delta. x is the map key.
 
                  __DataManager__data_association_thread__( cout << "\tsince the key was not found in data_map do range_search\n"; )
-                 auto __it = data_map.begin();
-                 for( __it = data_map.begin() ; __it != data_map.end() ; __it++ ) {
+                 //berks__old
+                 auto __it = data_map->begin();
+                 for( __it = data_map->begin() ; __it != data_map->end() ; __it++ ) {
                      ros::Duration diff =  __it->first-t;
                      if( (diff.sec == 0  &&  abs(diff.nsec) < 1000000) || (diff.sec == -1  &&  diff.nsec > (1000000000-1000000) )  )
                         break;
                  }
 
-                 if( __it == data_map.end() ) {
+                 // berks__old
+                 if( __it == data_map->end() ) {
                      __DataManager__data_association_thread__( cout << TermColor::RED() << "\trange search failed AAA\n");
                      assert( false && "\tnot fouind\n");
                      exit(2);
@@ -969,7 +790,8 @@ void DataManager::data_association_thread( int max_loop_rate_in_hz )
 
                 if( true )
                  {
-                     data_map.at( __it->first )->setPoseFromMsg( pose_msg );
+                    // berks__old
+                     data_map->at( __it->first )->setPoseFromMsg( pose_msg );
                  }
                  else {
 
@@ -995,7 +817,8 @@ void DataManager::data_association_thread( int max_loop_rate_in_hz )
             )
 
             // find the DataNode with this timestamp
-            if( data_map.count( t ) > 0 ) {
+            // berks__old
+            if( data_map->count( t ) > 0 ) {
                 // a Node seem to exist with this t.
 
                 //NOte: the ``/vins_estimator/keyframe_point`` and ``/feature_tracker/feature``
@@ -1009,8 +832,9 @@ void DataManager::data_association_thread( int max_loop_rate_in_hz )
                 data_map.at( t )->setAsKeyFrame();
                 #else
                 // cout << "setNumberOfSuccessfullyTrackedFeatures " << t << " " << ptcld_msg->points.size() << endl;
-                data_map.at( t )->setNumberOfSuccessfullyTrackedFeatures( ptcld_msg->points.size() );
-                data_map.at( t )->setAsKeyFrame();
+                //berks__old
+                data_map->at( t )->setNumberOfSuccessfullyTrackedFeatures( ptcld_msg->points.size() );
+                data_map->at( t )->setAsKeyFrame();
                 #endif
             }
             else {
@@ -1018,14 +842,16 @@ void DataManager::data_association_thread( int max_loop_rate_in_hz )
                 // t-delta <= x <= t+delta. x is the map key.
                 __DataManager__data_association_thread__( cout << "\tsince the key was not found in data_map do range_search\n"; )
 
-                auto __it = data_map.begin();
-                for( __it = data_map.begin() ; __it != data_map.end() ; __it++ ) {
+                // berks__old
+                auto __it = data_map->begin();
+                for( __it = data_map->begin() ; __it != data_map->end() ; __it++ ) {
                     ros::Duration diff =  __it->first-t;
                     if( (diff.sec == 0  &&  abs(diff.nsec) < 1000000) || (diff.sec == -1  &&  diff.nsec > (1000000000-1000000) )  )
                        break;
                 }
 
-                if( __it == data_map.end() ) {
+                // berks__old
+                if( __it == data_map->end() ) {
                     __DataManager__data_association_thread__( cout << TermColor::RED() << "\trange search failed BBB\n");
                     assert( false && "\tnot fouind\n");
                     exit(2);
@@ -1045,8 +871,9 @@ void DataManager::data_association_thread( int max_loop_rate_in_hz )
                    data_map.at( t )->setTrackedFeatIdsFromMsg( ptcld_msg );
                    data_map.at( t )->setAsKeyFrame();
                    #else
-                   data_map.at( __it->first )->setNumberOfSuccessfullyTrackedFeatures( ptcld_msg->points.size() );
-                   data_map.at( __it->first )->setAsKeyFrame();
+                   //berks__old
+                   data_map->at( __it->first )->setNumberOfSuccessfullyTrackedFeatures( ptcld_msg->points.size() );
+                   data_map->at( __it->first )->setAsKeyFrame();
                    #endif
                }
                else {
