@@ -30,8 +30,8 @@ void Cerebro::setPublishers( const string base_topic_name )
 #define __Cerebro__run__( msg ) msg ;
 // #define __Cerebro__run__( msg ) ;
 
-// #define __Cerebro__run__debug( msg ) msg ;
-#define __Cerebro__run__debug( msg ) ;
+#define __Cerebro__run__debug( msg ) msg ;
+// #define __Cerebro__run__debug( msg ) ;
 
 /// TODO: In the future more intelligent schemes can be experimented with. Besure to run those in new threads and disable this thread.
 /// wholeImageComputedList is a list for which descriptors are computed. Similarly other threads can compute
@@ -66,8 +66,12 @@ void Cerebro::descrip_N__dot__descrip_0_N()
     assert( m_dataManager_available && "You need to set the DataManager in class Cerebro before execution of the run() thread can begin. You can set the dataManager by call to Cerebro::setDataManager()\n");
     assert( b_run_thread && "you need to call run_thread_enable() before run() can start executing\n" );
 
-    int LOCALITY_THRESH = 8;
-    float DOT_PROD_THRESH = 0.82;
+
+    //---
+    //--- Main settings for this function
+    //---
+    int LOCALITY_THRESH = 12;
+    float DOT_PROD_THRESH = 0.90;
 
     ros::Rate rate(10);
 
@@ -100,7 +104,7 @@ void Cerebro::descrip_N__dot__descrip_0_N()
     int l=0, last_l=0;
     int last_processed=0;
     MatrixXd M = MatrixXd::Zero( this->descriptor_size, 29000 ); // TODO: Need dynamic allocation here.
-    cout << "[Cerebro::run] M.rows = " << M.rows() << "  M.cols=" << M.cols()  << endl;
+    cout << "[Cerebro::descrip_N__dot__descrip_0_N] M.rows = " << M.rows() << "  M.cols=" << M.cols()  << endl;
 
 
     #if __Cerebro__descrip_N__dot__descrip_0_N__implotting > 0
@@ -119,7 +123,7 @@ void Cerebro::descrip_N__dot__descrip_0_N()
         }
 
         if( l - last_l < 3 ) {
-            __Cerebro__run__debug( cout << "nothing new\n"; );
+            __Cerebro__run__debug( cout << "[Cerebro::descrip_N__dot__descrip_0_N]nothing new\n"; );
             rate.sleep();
             continue;
         }
@@ -178,7 +182,7 @@ void Cerebro::descrip_N__dot__descrip_0_N()
 
                 __Cerebro__run__debug(
                 cout << "M.col(" << _s << ") = data_map[ " << wholeImageComputedList[_s] << " ]. \t";
-                cout << " isWholeImageDescriptorAvailable = " << data_map[ wholeImageComputedList[_s] ]->isWholeImageDescriptorAvailable() << endl;
+                cout << " isWholeImageDescriptorAvailable = " << data_map->at( wholeImageComputedList[_s] )->isWholeImageDescriptorAvailable() << endl;
                 )
             }
         }
@@ -326,7 +330,7 @@ void Cerebro::descriptor_computer_thread()
 
     // Send a zeros image to the server just to know the descriptor size
     int nrows=-1, ncols=-1, desc_size=-1;
-    int nChannels = 1;
+    int nChannels = 3; //< This needs to be set correctly depending on the model_type
     {
         auto _abs_cam = dataManager->getAbstractCameraRef();
         assert( _abs_cam && "[Cerebro::descriptor_computer_thread] request from cerebro to access camera from dataManager is invalid. This means that camera was not yet set in dataManager\n");
@@ -1550,11 +1554,11 @@ bool Cerebro::process_loop_candidate_imagepair( int ii, ProcessedLoopCandidate& 
 // Kidnap identification thread. This thread monitors dataManager->getDataMapRef().size
 // for every new node added if there are zero tracked features means that, I have
 // been kidnaped. It however declares kidnap only after 2 sec of kidnaped
-#define __Cerebro__kidnaped_thread__( msg ) msg;
-// #define __Cerebro__kidnaped_thread__( msg ) ;
+// #define __Cerebro__kidnaped_thread__( msg ) msg;
+#define __Cerebro__kidnaped_thread__( msg ) ;
 
-#define __Cerebro__kidnaped_thread__debug( msg ) msg;
-// #define __Cerebro__kidnaped_thread__debug( msg ) ;
+// #define __Cerebro__kidnaped_thread__debug( msg ) msg;
+#define __Cerebro__kidnaped_thread__debug( msg ) ;
 void Cerebro::kidnaped_thread( int loop_rate_hz )
 {
     if( loop_rate_hz <= 0 || loop_rate_hz >= 30 ) {
@@ -1571,8 +1575,11 @@ void Cerebro::kidnaped_thread( int loop_rate_hz )
     }
 
 
-    const int THRESH_N_FEATS = 24;
-    const ros::Duration WAIT_BEFORE_DECLARING_AS_KIDNAP = ros::Duration(3.0);
+    //---
+    //--- Main Settings for this thread
+    //---
+    const int THRESH_N_FEATS = 15; //declare kidnap if number of tracked features fall below 15
+    const ros::Duration WAIT_BEFORE_DECLARING_AS_KIDNAP = ros::Duration(3.0); // wait this many seconds, of low feature tracking count before declaring kidnap
 
 
     ros::Rate loop_rate( loop_rate_hz );
@@ -1639,7 +1646,16 @@ void Cerebro::kidnaped_thread( int loop_rate_hz )
                 continue;
 
             __Cerebro__kidnaped_thread__debug(
-                cout <<it->first << ": n_feats=" << n_feats << endl;
+                if( n_feats > 50 )
+                    cout <<it->first << ": n_feats=" << TermColor::iGREEN() << n_feats << TermColor::RESET() << endl;
+                if( n_feats > 30 && n_feats<=50 )
+                    cout <<it->first << ": n_feats=" << TermColor::GREEN() << n_feats << TermColor::RESET() << endl;
+                if( n_feats > 20 && n_feats<=30 )
+                    cout <<it->first << ": n_feats=" << TermColor::YELLOW() << n_feats << TermColor::RESET() << endl;
+                if( n_feats > 10 && n_feats<=20 )
+                    cout <<it->first << ": n_feats=" << TermColor::RED() << n_feats << TermColor::RESET() << endl;
+                if( n_feats<=10 )
+                    cout <<it->first << ": n_feats=" << TermColor::iRED() << n_feats << TermColor::RESET() << endl;
             )
 
             last_known_keyframe = it->first;

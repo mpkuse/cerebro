@@ -10,7 +10,7 @@
     <!-- ### IN LAB -->
     <!-- <arg name="bag_file" default="1.bag" doc="sitting on my desk"/> -->
     <!-- <arg name="bag_file" default="2018-11-20-17-45-55.bag" doc="single loop in lab"/> -->
-    <arg name="bag_file" default="2018-11-20-17-42-54.bag" doc="multiple loops in lab"/>
+    <!-- <arg name="bag_file" default="2018-11-20-17-42-54.bag" doc="multiple loops in lab"/> -->
     <!-- <arg name="bag_file" default="2019-01-28-16-32-23.bag" doc="many-10 loops in lab"/> -->
     <!-- <arg name="bag_file" default="2018-11-22-12-06-47.bag" doc="drone fly area loopy"/> -->
     <!-- <arg name="bag_file" default="2018-11-22-12-09-21.bag" doc="conference room RI"/> -->
@@ -30,7 +30,7 @@
     <!-- <arg name="bag_path" default="/Bulk_Data/ros_bags/mynteye/" /> -->
     <!-- <arg name="bag_file" default="/kidnap/2019-01-14-17-20-06.bag" doc="lab kidnap. easy"/> -->
     <!-- <arg name="bag_file" default="/kidnap/2019-02-14-12-00-21.bag" doc="3 kidnaps in lab. This gives the chained case for pose computation between worlds"/> -->
-    <!-- <arg name="bag_file" default="/kidnap/2019-02-14-17-19-29.bag" doc="4 kidnaps in lab"/> -->
+    <arg name="bag_file" default="/kidnap/2019-02-14-17-19-29.bag" doc="4 kidnaps in lab"/>
     <!-- <arg name="bag_file" default="/kidnap/2019-02-21-17-10-30.bag" doc="0:-; 1:-; 2:merge(0), merge(1). 2nd merges with both 0 and 1."/> -->
     <!-- <arg name="bag_file" default="/kidnap/2019-02-21-17-38-58.bag" doc="0:-; 1:-; 2:merge(0), merge(1). 2nd merges with both 0 and 1."/> -->
     <!-- <arg name="bag_file" default="/kidnap/2019-03-07-14-58-00.bag" doc="2 independent runs"/> -->
@@ -57,7 +57,7 @@
 
 
 
-    <!-- <node pkg="rosbag" type="play" name="rosbag" args="$(arg bag_path)/$(arg bag_file) -s 1 -d 2" output="log"/> -->
+    <node pkg="rosbag" type="play" name="rosbag" args="$(arg bag_path)/$(arg bag_file) -s 1 -d 2" output="log"/>
 
     <!-- END Bag -->
 
@@ -81,7 +81,7 @@
 
     <group if="1">
         <!-- Cerebro -->
-        <node name="cerebro_node" pkg="cerebro" type="cerebro_node" output="screen">
+        <node name="cerebro_node" pkg="cerebro" type="cerebro_node" output="log">
            <param name="config_file" type="string" value="$(arg config_path)" />
         </node>
 
@@ -89,7 +89,9 @@
         <!-- $(ubuntu) rosrun cerebro whole_image_desc_compute_server.py _config_file:=/app/catk_ws/src/cerebro/config/vinsfusion/euroc/euroc_stereo_imu_config.yaml -->
         <node name="my_desc_server" pkg="cerebro" type="whole_image_desc_compute_server.py" output="log">
             <!-- <param name="kerasmodel_file" type="string" value="/models.keras/Apr2019/gray_conv6_K16Ghost1__centeredinput/core_model.500.keras" /> -->
-            <param name="kerasmodel_file" type="string" value="$(find cerebro)/scripts/keras.models/Apr2019/gray_conv6_K16__centeredinput/core_model.1000.keras" />
+            <!-- <param name="kerasmodel_file" type="string" value="/models.keras/Apr2019/gray_mobilenet-conv7_K16__centeredinput/core_model.400.keras" /> -->
+            <param name="kerasmodel_file" type="string" value="/models.keras/Apr2019/gray_conv6_K16Ghost1__centeredinput/core_model.500.keras" />
+            <!-- <param name="kerasmodel_file" type="string" value="$(find cerebro)/scripts/keras.models/Apr2019/gray_conv6_K16__centeredinput/core_model.1000.keras" /> -->
 
            <param name="config_file" type="string" value="$(arg config_path)" />
            <!--         OR -->
@@ -100,7 +102,7 @@
 
         <!-- Pose graph (kidnap aware) -->
         <!-- $(ubuntu) rosrun solve_keyframe_pose_graph keyframe_pose_graph_slam -->
-        <node name="keyframe_pose_graph_slam_node" pkg="solve_keyframe_pose_graph" type="keyframe_pose_graph_slam" output="log" >
+        <node name="keyframe_pose_graph_slam_node" pkg="solve_keyframe_pose_graph" type="keyframe_pose_graph_slam" output="screen" >
         </node>
     </group>
 

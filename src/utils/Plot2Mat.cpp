@@ -119,7 +119,7 @@ bool Plot2Mat::plot( const VectorXd& y, const cv::Scalar line_color, bool mark_p
 
 bool Plot2Mat::mark( const int x_, const cv::Scalar color, bool enable_text_label )
 {
-    cout << "Plot2Mat::mark(" << x_ << ")\n";
+    // cout << "Plot2Mat::mark(" << x_ << ")\n";
     assert( L>0 && "you called mark before plotting. the intended use is to call plot and then optionally call mark" );
     float xd = float(x_) / float(L) * im_width;
     auto c = cv::Point2f( xd, im_height );

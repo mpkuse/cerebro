@@ -210,7 +210,8 @@ class NetVLADImageDescriptor:
             cnn = cnn_dwn
 
         #----- @ NetVLADLayer
-        out, out_amap = NetVLADLayer(num_clusters = 16)( cnn )
+        # out, out_amap = NetVLADLayer(num_clusters = 16)( cnn )
+        out = NetVLADLayer(num_clusters = 16)( cnn )
 
         model = keras.models.Model( inputs=input_img, outputs=out )
         model.summary()
@@ -276,6 +277,8 @@ class NetVLADImageDescriptor:
         cv_image = CvBridge().imgmsg_to_cv2( req.ima )
         print '[Handle Request] cv_image.shape', cv_image.shape, '\ta=', req.a, '\tt=', req.ima.header.stamp
 
+        if len(cv_image.shape) == 2:
+            cv_image = np.expand_dims( cv_image, -1 );
 
         assert (cv_image.shape[0] == self.im_rows and
                 cv_image.shape[1] == self.im_cols and
@@ -524,18 +527,18 @@ if True:  # read from param `nrows` and `ncols`
 ## Start Server
 ##
 #gpu_s = SampleGPUComputer()
-# gpu_netvlad = NetVLADImageDescriptor( im_rows=fs_image_height, im_cols=fs_image_width )
+gpu_netvlad = NetVLADImageDescriptor( im_rows=fs_image_height, im_cols=fs_image_width )
 # gpu_netvlad = ReljaNetVLAD( im_rows=fs_image_height, im_cols=fs_image_width )
 
 
-# kerasmodel_file = '/models.keras/Apr2019/gray_conv6_K16Ghost1__centeredinput/core_model.%d.keras' %(500)
-if rospy.has_param( '~kerasmodel_file'):
-    kerasmodel_file = rospy.get_param('~kerasmodel_file')
-else:
-    print tcol.ERROR, 'FATAL...missing specification of model file. You need to specify ~kerasmodel_file', tcol.ENDC
-    quit()
-
-gpu_netvlad = JSONModelImageDescriptor( kerasmodel_file=kerasmodel_file, im_rows=fs_image_height, im_cols=fs_image_width, im_chnls=fs_image_chnls )
+if False:
+    # kerasmodel_file = '/models.keras/Apr2019/gray_conv6_K16Ghost1__centeredinput/core_model.%d.keras' %(500)
+    if rospy.has_param( '~kerasmodel_file'):
+        kerasmodel_file = rospy.get_param('~kerasmodel_file')
+    else:
+        print tcol.ERROR, 'FATAL...missing specification of model file. You need to specify ~kerasmodel_file', tcol.ENDC
+        quit()
+    gpu_netvlad = JSONModelImageDescriptor( kerasmodel_file=kerasmodel_file, im_rows=fs_image_height, im_cols=fs_image_width, im_chnls=fs_image_chnls )
 
 
 s = rospy.Service( 'whole_image_descriptor_compute', WholeImageDescriptorCompute, gpu_netvlad.handle_req  )
