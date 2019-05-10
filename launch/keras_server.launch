@@ -4,13 +4,21 @@
 <!-- <arg name="config_path" default="$(find cerebro)/config/euroc/euroc_config.yaml" /> -->
 <!-- <arg name="config_path" default="$(find cerebro)/config/blackbox4/blackbox4_config.yaml" /> -->
 <!-- <arg name="config_path" default="$(find cerebro)/config/tum_vi/tum_jie_config.yaml" /> -->
-<!-- <arg name="config_path" default="$(find cerebro)/config/mynteye/mynteye_config.yaml" /> -->
+<arg name="config_path" default="$(find cerebro)/config/mynteye/mynteye_config.yaml" />
 <!-- <arg name="config_path" default="$(find cerebro)/config/vinsfusion/euroc/cam0_mei.yaml" />  -->
-<arg name="config_path" default="$(find cerebro)/config/vinsfusion/euroc/euroc_stereo_imu_config.yaml" />
+<!-- <arg name="config_path" default="$(find cerebro)/config/vinsfusion/euroc/euroc_stereo_imu_config.yaml" /> -->
 
 
 
 <node name="my_desc_server" pkg="cerebro" type="whole_image_desc_compute_server.py" output="screen">
-   <param name="config_file" type="string" value="$(arg config_path)" />
+    <!-- <param name="kerasmodel_file" type="string" value="/models.keras/Apr2019/gray_conv6_K16Ghost1__centeredinput/core_model.500.keras" /> -->
+    <param name="kerasmodel_file" type="string" value="$(find cerebro)/scripts/keras.models/Apr2019/gray_conv6_K16__centeredinput/core_model.1000.keras" />
+
+   <!-- <param name="config_file" type="string" value="$(arg config_path)" /> -->
+   <!--         OR -->
+   <param name="nrows" type="string" value="480" />
+   <param name="ncols" type="string" value="752" />
+   <param name="nchnls" type="string" value="1" />
+
 </node>
 </launch>

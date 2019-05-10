@@ -66,6 +66,9 @@ void Cerebro::descrip_N__dot__descrip_0_N()
     assert( m_dataManager_available && "You need to set the DataManager in class Cerebro before execution of the run() thread can begin. You can set the dataManager by call to Cerebro::setDataManager()\n");
     assert( b_run_thread && "you need to call run_thread_enable() before run() can start executing\n" );
 
+    int LOCALITY_THRESH = 8;
+    float DOT_PROD_THRESH = 0.82;
+
     ros::Rate rate(10);
 
     #if 0
@@ -92,8 +95,7 @@ void Cerebro::descrip_N__dot__descrip_0_N()
     __Cerebro__run__( cout << TermColor::GREEN() <<"[Cerebro::descrip_N__dot__descrip_0_N] descriptor_size=" << this->descriptor_size << "  connected_to_descriptor_server && descriptor_size_available" << TermColor::RESET() << endl; )
     assert( this->descriptor_size> 0 );
 
-    int LOCALITY_THRESH = 8;
-    float DOT_PROD_THRESH = 0.87;
+
 
     int l=0, last_l=0;
     int last_processed=0;
