@@ -253,6 +253,14 @@ class NetVLADImageDescriptor:
         print 'model_file: ', model_file
         model.load_weights( model_file )
 
+
+        # Write model as json to file, for info.
+        # if False:
+        #     model.summary()
+        #     keras.utils.plot_model( model, to_file='/tmp/xcore.png', show_shapes=True )
+        #     with open('/tmp/xmodel.json', 'w') as outfile:
+        #         json.dump(model.to_json(), outfile, indent=4 )
+
         self.model = model
         self.model_type = model_type
         # ! Done...!
@@ -350,6 +358,7 @@ class JSONModelImageDescriptor:
         LOG_DIR = '/'.join( kerasmodel_file.split('/')[0:-1] )
         print '+++++++++++++++++++++++++++++++++++++++++++++++++++++++'
         print '++++++++++ (JSONModelImageDescriptor) LOG_DIR=', LOG_DIR
+        print '++++++++++ im_rows=', im_rows, ' im_cols=', im_cols, ' im_chnls=', im_chnls
         print '+++++++++++++++++++++++++++++++++++++++++++++++++++++++'
         model_type = LOG_DIR.split('/')[-1]
         # code.interact( local=locals() )
@@ -511,17 +520,27 @@ if True:  # read from param `nrows` and `ncols`
     if fs_image_width < 0 :
         if ( not rospy.has_param( '~nrows') or not rospy.has_param( '~ncols') or not rospy.has_param( '~nchnls') ):
             print 'FATAL...cannot find param either of ~nrows, ~ncols, ~nchnls. This is needed to determine size of the input image to allocate GPU memory'
-            rospy.logerr( '[whole_image_descriptor_compute_server]FATAL...cannot find param either of ~nrows, ~ncols, nchnls. This is needed to determine size of the input image to allocate GPU memory' )
+            rospy.logerr( '[whole_image_descriptor_compute_server] FATAL...cannot find param either of ~nrows, ~ncols, nchnls. This is needed to determine size of the input image to allocate GPU memory' )
             quit()
         else:
             fs_image_height = rospy.get_param('~nrows')
             fs_image_width = rospy.get_param('~ncols')
             fs_image_chnls = rospy.get_param('~nchnls')
 
-
-
+            print '~~~~~~~~~~~~~~~~'
             print '~nrows = ', fs_image_height, '\t~ncols = ', fs_image_width, '\t~nchnls = ', fs_image_chnls
+            print '~~~~~~~~~~~~~~~~'
 
+
+##
+## Load Channels
+##
+if True:
+    if not rospy.has_param( '~nchnls' ):
+        rospy.logerr( "[whole_image_descriptor_compute_server] FATAL....cannot file cmd param nchnls.")
+        quit()
+    else:
+        fs_image_chnls = rospy.get_param('~nchnls')
 
 ##
 ## Start Server
@@ -531,6 +550,7 @@ gpu_netvlad = NetVLADImageDescriptor( im_rows=fs_image_height, im_cols=fs_image_
 # gpu_netvlad = ReljaNetVLAD( im_rows=fs_image_height, im_cols=fs_image_width )
 
 
+# Something wrong with jsonfile loading or with change_model_inputshape().
 if False:
     # kerasmodel_file = '/models.keras/Apr2019/gray_conv6_K16Ghost1__centeredinput/core_model.%d.keras' %(500)
     if rospy.has_param( '~kerasmodel_file'):

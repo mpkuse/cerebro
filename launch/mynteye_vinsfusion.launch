@@ -90,14 +90,17 @@
         <node name="my_desc_server" pkg="cerebro" type="whole_image_desc_compute_server.py" output="log">
             <!-- <param name="kerasmodel_file" type="string" value="/models.keras/Apr2019/gray_conv6_K16Ghost1__centeredinput/core_model.500.keras" /> -->
             <!-- <param name="kerasmodel_file" type="string" value="/models.keras/Apr2019/gray_mobilenet-conv7_K16__centeredinput/core_model.400.keras" /> -->
-            <param name="kerasmodel_file" type="string" value="/models.keras/Apr2019/gray_conv6_K16Ghost1__centeredinput/core_model.500.keras" />
+            <!-- <param name="kerasmodel_file" type="string" value="/models.keras/Apr2019/gray_conv6_K16Ghost1__centeredinput/core_model.500.keras" /> -->
             <!-- <param name="kerasmodel_file" type="string" value="$(find cerebro)/scripts/keras.models/Apr2019/gray_conv6_K16__centeredinput/core_model.1000.keras" /> -->
+            <param name="kerasmodel_file" type="string" value="$(find cerebro)/scripts/keras.models/mobilenet_conv7_allpairloss.keras" />
+
 
            <param name="config_file" type="string" value="$(arg config_path)" />
            <!--         OR -->
            <!-- <param name="nrows" type="string" value="480" />
            <param name="ncols" type="string" value="752" />
            <param name="nchnls" type="string" value="1" /> -->
+           <param name="nchnls" type="string" value="1" />
         </node>
 
         <!-- Pose graph (kidnap aware) -->

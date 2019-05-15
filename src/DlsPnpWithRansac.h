@@ -17,6 +17,9 @@
 
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
+
+#include "PNPCeresCostFunctions.h"
+
 using namespace Eigen;
 using namespace std;
 
@@ -168,6 +171,37 @@ public:
         Matrix4d& uvd_T_uv, string & p3p__msg );
 
     static float PNP( const std::vector<Vector3d>& w_X, const std::vector<Vector2d>& c_uv_normalized,
+        Matrix4d& c_T_w,
+        string& pnp__msg );
+
+};
+
+// TODO: Write an ceres based iterative PnP and P3P for better control and 4DOF optimization
+class StaticCeresPoseCompute
+{
+public:
+    // PNP With ceres:     minimize_{R,t} \sum_i (  PI( c_(R|t)_w * w_X[i] ) - u[i] )
+    // [Input]
+    //      w_X: World 3d points.
+    //      c_uv_normalized: Image points in normalized co-ordinates
+    //      c_T_w: initial guess, this will be modified to reflect the optimized solution
+    // [Output]
+    //      c_T_w
+    //      pnp__msg: debugging string msg
+    static float PNP( const std::vector<Vector3d>& w_X, const std::vector<Vector2d>& c_uv_normalized,
+        Matrix4d& c_T_w,
+        string& pnp__msg );
+
+
+    // p3p (icp) with ceres: minimize_{R,t} \sum_i ( b_{R,t}_a * a_X - b_X )
+    // [Input]
+    //      a_X : 3d points in co-ordinate frame of a
+    //      b_X : 3d points in co-orfinate frame of b
+    //      b_T_a: initial guess
+    // [Output]
+    //      b_T_a : optimized output
+    //      p3p_msg: debug msg
+    static float P3P_ICP( const std::vector<Vector3d>& a_X, const std::vector<Vector3d>& b_X,
         Matrix4d& c_T_w,
         string& pnp__msg );
 

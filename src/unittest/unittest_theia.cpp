@@ -1460,7 +1460,7 @@ bool verified_alignment( std::shared_ptr<StereoGeometry> stereogeom,
 
 }
 
-int main( int argc, char ** argv )
+int main0( int argc, char ** argv )
 {
     std::shared_ptr<StereoGeometry> stereogeom = make_stereo_geom();
 
@@ -1480,7 +1480,7 @@ int main( int argc, char ** argv )
     }
 }
 
-int main2(int argc, char ** argv)
+int main(int argc, char ** argv)
 {
     std::shared_ptr<StereoGeometry> stereogeom = make_stereo_geom();
     // cout << "exit main\n";

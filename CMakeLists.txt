@@ -44,7 +44,7 @@ set(CMAKE_BUILD_TYPE Release)
 
 #----------END GPERFTOOLS
 
-option(COMPILE_UNIT_TEST "Compile unit tests" OFF) #OFF by default. catkin_make -DCOMPILE_UNIT_TEST=ON will compile it. OFF will skip it
+option(COMPILE_UNIT_TEST "Compile unit tests" ON) #OFF by default. catkin_make -DCOMPILE_UNIT_TEST=ON will compile it. OFF will skip it
 
 
 ################################################
@@ -226,6 +226,14 @@ if(COMPILE_UNIT_TEST)
             ${CamodocalCameraModelSources}
     )
 
+    add_executable (
+        unittest_pose_tester
+            src/unittest/unittest_pose_tester.cpp
+            ${KuseUtilsSources}
+            ${CamodocalCameraModelSources}
+            src/DlsPnpWithRansac.cpp
+    )
+
 
     add_executable (
         unittest_plot2mat
@@ -259,6 +267,14 @@ if(COMPILE_UNIT_TEST)
 
 
     target_link_libraries(unittest_theia
+      ${catkin_LIBRARIES}
+      ${OpenCV_LIBRARIES}
+      ${CMAKE_THREAD_LIBS_INIT}
+      ${CERES_LIBRARIES}
+      ${THEIA_LIBRARIES}
+    )
+
+    target_link_libraries(unittest_pose_tester
       ${catkin_LIBRARIES}
       ${OpenCV_LIBRARIES}
       ${CMAKE_THREAD_LIBS_INIT}

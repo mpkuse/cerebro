@@ -243,3 +243,156 @@ float StaticTheiaPoseCompute::PNP( const std::vector<Vector3d>& w_X, const std::
 
 
 }
+
+
+
+
+
+// #define __StaticCeresPoseCompute_PNP_(msg) msg;
+#define __StaticCeresPoseCompute_PNP_(msg) ;
+float StaticCeresPoseCompute::PNP( const std::vector<Vector3d>& w_X, const std::vector<Vector2d>& c_uv_normalized,
+    Matrix4d& c_T_w,
+    string& pnp__msg )
+{
+    assert( w_X.size() == c_uv_normalized.size() && w_X.size() > 8 );
+    if( w_X.size() != c_uv_normalized.size() ) {
+        cout << "[StaticCeresPoseCompute::PNP] w_X.size() != c_uv_normalized.size()\n";
+        exit(  1 );
+    }
+    __StaticCeresPoseCompute_PNP_(
+    cout << "w_X.size()=" << w_X.size() << "  c_uv_normalized.size()=" << c_uv_normalized.size() << endl;
+    )
+
+    // setup ceres problem for PNP
+    //      minimize_{R,t} \sum_i (  PI( c_(R|t)_w * w_X[i] ) - u[i] )
+    ceres::Problem problem;
+
+    // optimization variables
+    double ypr[3], tr[3];
+    PoseManipUtils::eigenmat_to_rawyprt( c_T_w, ypr, tr );
+    // double yaw=ypr[0], pitch=ypr[1], roll=ypr[2], tx=tr[0], ty=tr[1], tz=tr[2];
+
+    for( int i=0 ; i<w_X.size() ; i++ )
+    {
+        // cout << w_X[i].transpose() << " <---> " << c_uv_normalized[i].transpose() << endl;
+        ceres::CostFunction * cost_function = PNPEulerAngleError::Create( w_X[i], c_uv_normalized[i] );
+        problem.AddResidualBlock( cost_function, new ceres::HuberLoss(0.1), &ypr[0], &ypr[1], &ypr[2], &tr[0], &tr[1], &tr[2] );
+        // problem.AddResidualBlock( cost_function, NULL, &ypr[0], &ypr[1], &ypr[2], &tr[0], &tr[1], &tr[2] );
+
+    }
+
+
+    // Local Parameterization (Angle)
+    ceres::LocalParameterization *angle_parameterization = AngleLocalParameterization::Create();
+    problem.SetParameterization( &ypr[0], angle_parameterization );
+    problem.SetParameterization( &ypr[1], angle_parameterization );
+    problem.SetParameterization( &ypr[2], angle_parameterization );
+
+    // Set as constant
+    problem.SetParameterBlockConstant( &ypr[1] ); //pitch
+    problem.SetParameterBlockConstant( &ypr[2] ); //roll
+
+
+    ceres::Solver::Options options;
+    options.linear_solver_type = ceres::DENSE_SCHUR;
+    options.minimizer_progress_to_stdout = false;
+    // options.trust_region_strategy_type = ceres::DOGLEG;
+    // options.dogleg_type = ceres::SUBSPACE_DOGLEG;
+    ceres::Solver::Summary summary;
+    __StaticCeresPoseCompute_PNP_(
+    cout << "yaw,pitch,roll=" << ypr[0] << " " << ypr[1] << " " << ypr[2] << "; tx,ty,tz=" << tr[0] << " "<< tr[1] << " " << tr[2] << endl;
+    cout << "Ceres::Solve()\n";
+    )
+
+    pnp__msg += "initial_guess: "+PoseManipUtils::prettyprintMatrix4d( c_T_w ) + ";";
+    ceres::Solve(options, &problem, &summary);
+    __StaticCeresPoseCompute_PNP_(
+    cout << "yaw,pitch,roll=" << ypr[0] << " " << ypr[1] << " " << ypr[2] << "; tx,ty,tz=" << tr[0] << " "<< tr[1] << " " << tr[2] << endl;
+    )
+    // cout << summary.FullReport() << endl;
+    cout << summary.BriefReport() << endl;
+    pnp__msg += summary.BriefReport() + ";";
+
+
+    PoseManipUtils::rawyprt_to_eigenmat( ypr, tr, c_T_w );
+    pnp__msg += "final: "+PoseManipUtils::prettyprintMatrix4d( c_T_w ) + ";";
+
+    return 1.0;
+}
+
+
+
+
+
+
+#define __StaticCeresPoseCompute_P3P_(msg) msg;
+// #define __StaticCeresPoseCompute_P3P_(msg) ;
+float StaticCeresPoseCompute::P3P_ICP( const std::vector<Vector3d>& a_X, const std::vector<Vector3d>& b_X,
+    Matrix4d& b_T_a,
+    string& p3p__msg )
+{
+    assert( a_X.size() == b_X.size() && a_X.size() > 8 );
+    if( a_X.size() != b_X.size() ) {
+        cout << "[StaticCeresPoseCompute::P3P] a_X.size() != b_X.size()\n";
+        exit(  1 );
+    }
+    __StaticCeresPoseCompute_P3P_(
+    cout << "a_X.size()=" << a_X.size() << "  b_X.size()=" << b_X.size() << endl;
+    )
+
+    // setup ceres problem for PNP
+    //      minimize_{R,t} \sum_i (   c_(R|t)_w * a_X[i] - b_X[i]   )
+    ceres::Problem problem;
+
+    // optimization variables
+    double ypr[3], tr[3];
+    PoseManipUtils::eigenmat_to_rawyprt( b_T_a, ypr, tr );
+    // double yaw=ypr[0], pitch=ypr[1], roll=ypr[2], tx=tr[0], ty=tr[1], tz=tr[2];
+
+    for( int i=0 ; i<a_X.size() ; i++ )
+    {
+        // cout << a_X[i].transpose() << " <---> " << b_X[i].transpose() << endl;
+        ceres::CostFunction * cost_function = P3PEulerAngleError::Create( a_X[i], b_X[i] );
+        problem.AddResidualBlock( cost_function, new ceres::HuberLoss(0.1), &ypr[0], &ypr[1], &ypr[2], &tr[0], &tr[1], &tr[2] );
+        // problem.AddResidualBlock( cost_function, NULL, &ypr[0], &ypr[1], &ypr[2], &tr[0], &tr[1], &tr[2] );
+
+    }
+
+
+    // Local Parameterization (Angle)
+    ceres::LocalParameterization *angle_parameterization = AngleLocalParameterization::Create();
+    problem.SetParameterization( &ypr[0], angle_parameterization );
+    problem.SetParameterization( &ypr[1], angle_parameterization );
+    problem.SetParameterization( &ypr[2], angle_parameterization );
+
+    // Set as constant
+    problem.SetParameterBlockConstant( &ypr[1] ); //pitch
+    problem.SetParameterBlockConstant( &ypr[2] ); //roll
+
+
+    ceres::Solver::Options options;
+    options.linear_solver_type = ceres::DENSE_SCHUR;
+    options.minimizer_progress_to_stdout = false;
+    // options.trust_region_strategy_type = ceres::DOGLEG;
+    // options.dogleg_type = ceres::SUBSPACE_DOGLEG;
+    ceres::Solver::Summary summary;
+    __StaticCeresPoseCompute_P3P_(
+    cout << "yaw,pitch,roll=" << ypr[0] << " " << ypr[1] << " " << ypr[2] << "; tx,ty,tz=" << tr[0] << " "<< tr[1] << " " << tr[2] << endl;
+    cout << "Ceres::Solve()\n";
+    )
+    p3p__msg += "initial bTa: "+PoseManipUtils::prettyprintMatrix4d( b_T_a ) + ";";
+    ceres::Solve(options, &problem, &summary);
+    __StaticCeresPoseCompute_P3P_(
+    cout << "yaw,pitch,roll=" << ypr[0] << " " << ypr[1] << " " << ypr[2] << "; tx,ty,tz=" << tr[0] << " "<< tr[1] << " " << tr[2] << endl;
+    )
+    __StaticCeresPoseCompute_P3P_(
+    // cout << summary.FullReport() << endl;
+    cout << summary.BriefReport() << endl;
+    )
+    p3p__msg += summary.BriefReport() + ";";
+
+    PoseManipUtils::rawyprt_to_eigenmat( ypr, tr, b_T_a );
+    p3p__msg += "final: "+PoseManipUtils::prettyprintMatrix4d( b_T_a ) + ";";
+
+    return 1.0;
+}

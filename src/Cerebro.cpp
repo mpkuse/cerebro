@@ -27,11 +27,11 @@ void Cerebro::setPublishers( const string base_topic_name )
 }
 
 
-#define __Cerebro__run__( msg ) msg ;
-// #define __Cerebro__run__( msg ) ;
+// #define __Cerebro__run__( msg ) msg ;
+#define __Cerebro__run__( msg ) ;
 
-#define __Cerebro__run__debug( msg ) msg ;
-// #define __Cerebro__run__debug( msg ) ;
+// #define __Cerebro__run__debug( msg ) msg ;
+#define __Cerebro__run__debug( msg ) ;
 
 /// TODO: In the future more intelligent schemes can be experimented with. Besure to run those in new threads and disable this thread.
 /// wholeImageComputedList is a list for which descriptors are computed. Similarly other threads can compute
@@ -319,7 +319,7 @@ void Cerebro::descriptor_computer_thread()
     descriptor_size_available = false;
     cout << "Attempt connecting to ros-service for 10sec (will give up after that)\n";
     ros::ServiceClient client = nh.serviceClient<cerebro::WholeImageDescriptorCompute>( "/whole_image_descriptor_compute" );
-    client.waitForExistence( ros::Duration(10, 0) ); //wait maximum 10 sec
+    client.waitForExistence( ros::Duration(12, 0) ); //wait maximum 10 sec
     if( !client.exists() ) {
         ROS_ERROR( "Connection to server NOT successful. Quiting the thread." );
         return;
@@ -520,8 +520,8 @@ json Cerebro::foundLoops_as_JSON()
 #define __Cerebro__loopcandi_consumer__(msg)  ;
 // ^This will also imshow image-pairs with gms-matches marked.
 
-// #define __Cerebro__loopcandi_consumer__IMP( msg ) msg;
-#define __Cerebro__loopcandi_consumer__IMP( msg ) ;
+#define __Cerebro__loopcandi_consumer__IMP( msg ) msg;
+// #define __Cerebro__loopcandi_consumer__IMP( msg ) ;
 // ^Important Text only printing
 
 
@@ -884,7 +884,15 @@ bool Cerebro::process_loop_candidate_imagepair_consistent_pose_compute( int ii, 
         stereogeom, uv, a_3dImage, uv_d,
                                 feature_position_uv, feature_position_uv_d, world_point_uv);
     Matrix4d op1__b_T_a; string pnp__msg;
-    float pnp_goodness = StaticTheiaPoseCompute::PNP( world_point_uv, feature_position_uv_d, op1__b_T_a, pnp__msg  );
+    //--
+    // float pnp_goodness = StaticTheiaPoseCompute::PNP( world_point_uv, feature_position_uv_d, op1__b_T_a, pnp__msg  );
+    //--END
+
+    //--
+    op1__b_T_a = odom_b_T_a; // setting initial guess as odometry rel pose with translation as zero
+    op1__b_T_a(0,3) = 0.0; op1__b_T_a(1,3) = 0.0; op1__b_T_a(2,3) = 0.0;
+    float pnp_goodness = StaticCeresPoseCompute::PNP( world_point_uv, feature_position_uv_d, op1__b_T_a, pnp__msg  );
+    //--END
     __Cerebro__loopcandi_consumer__IMP(
     cout << TermColor::YELLOW() << "pnp_goodness=" << pnp_goodness << " op1__b_T_a = " << PoseManipUtils::prettyprintMatrix4d( op1__b_T_a ) << TermColor::RESET() << endl;
     )
@@ -905,7 +913,7 @@ bool Cerebro::process_loop_candidate_imagepair_consistent_pose_compute( int ii, 
     MiscUtils::plot_point_sets( pi_dst_img, uv, cv::Scalar(0,0,255), false  );
     MiscUtils::plot_point_sets( pi_dst_img, uv_d, cv::Scalar(255,0,255), false  );
     cv::resize(pi_dst_img,pi_dst_img, cv::Size(), 0.6, 0.6 );
-    MiscUtils::append_status_image( pi_dst_img, string( "^this is image b=")+to_string(idx_2)+";plot( PI( op1__b_T_a * world_point_uv ) ) on imB in green;plot( PI( odom__b_T_a * world_point_uv ) ) on imB in blue;plot( uv ) on imB in red;plot( uv_d) on imB in pink");
+    MiscUtils::append_status_image( pi_dst_img, string( "^this is image b=")+to_string(idx_2)+";plot( PI( op1__b_T_a * world_point_uv ) ) in green on imB;plot( PI( odom__b_T_a * world_point_uv ) ) in blue on imB;plot( uv ) in red on imB;plot( uv_d) in pink on imB;>> green and pink show alignment quality; >> ignore blue and red");
 
 
     #if __Cerebro__loopcandi_consumer__IMSHOW == 1
@@ -928,7 +936,16 @@ bool Cerebro::process_loop_candidate_imagepair_consistent_pose_compute( int ii, 
         stereogeom, uv_d, b_3dImage, uv,
                                 feature_position_uv_d, feature_position_uv, world_point_uv_d);
     Matrix4d op2__a_T_b, op2__b_T_a; string pnp__msg_option_B;
-    float pnp_goodness_optioN_B = StaticTheiaPoseCompute::PNP( world_point_uv_d, feature_position_uv, op2__a_T_b, pnp__msg_option_B  );
+    //--
+    // float pnp_goodness_optioN_B = StaticTheiaPoseCompute::PNP( world_point_uv_d, feature_position_uv, op2__a_T_b, pnp__msg_option_B  );
+    //--END
+
+    //--
+    op2__a_T_b = odom_b_T_a.inverse();  //initial guess same as odometry
+    op2__a_T_b(0,3)=0.0;op2__a_T_b(1,3)=0.0;op2__a_T_b(2,3)=0.0;
+    float pnp_goodness_optioN_B = StaticCeresPoseCompute::PNP( world_point_uv_d, feature_position_uv, op2__a_T_b, pnp__msg_option_B  );
+    //--END
+
     op2__b_T_a = op2__a_T_b.inverse();
     __Cerebro__loopcandi_consumer__IMP(
     cout << TermColor::YELLOW() << pnp_goodness_optioN_B << " op2__a_T_b = " << PoseManipUtils::prettyprintMatrix4d( op2__a_T_b ) << TermColor::RESET() << endl;
@@ -952,7 +969,7 @@ bool Cerebro::process_loop_candidate_imagepair_consistent_pose_compute( int ii, 
     MiscUtils::plot_point_sets( pi_dst_img, uv, cv::Scalar(0,0,255), false  );
     MiscUtils::plot_point_sets( pi_dst_img, uv_d, cv::Scalar(255,0,255), false  );
     cv::resize(pi_dst_img,pi_dst_img, cv::Size(), 0.6, 0.6 );
-    MiscUtils::append_status_image( pi_dst_img, string( "^this is image a=")+to_string(idx_1)+";plot( PI( op2__a_T_b * world_point_uv_d ) ) on imA in green;plot( PI( odom__b_T_a * world_point_uv ) ) on imA in blue;plot( uv ) on imA in red;plot( uv_d) on imA in pink");
+    MiscUtils::append_status_image( pi_dst_img, string( "^this is image a=")+to_string(idx_1)+";plot( PI( op2__a_T_b * world_point_uv_d ) ) in green on imA;plot( PI( odom__b_T_a * world_point_uv ) ) in blue on imA ;plot( uv ) in red on imA;plot( uv_d) in pink on imA;>> green and red show alignment quality;>> ignore blue and pink");
 
 
     #if __Cerebro__loopcandi_consumer__IMSHOW == 1
@@ -974,7 +991,18 @@ bool Cerebro::process_loop_candidate_imagepair_consistent_pose_compute( int ii, 
     StaticPointFeatureMatching::make_3d_3d_collection__using__pfmatches_and_disparity( uv, a_3dImage, uv_d, b_3dImage,
         uv_X, uvd_Y );
     Matrix4d icp_b_T_a; string p3p__msg;
-    float p3p_goodness = StaticTheiaPoseCompute::P3P_ICP( uv_X, uvd_Y, icp_b_T_a, p3p__msg );
+    //--
+    // float p3p_goodness = StaticTheiaPoseCompute::P3P_ICP( uv_X, uvd_Y, icp_b_T_a, p3p__msg );
+    //--END
+
+    //--
+    icp_b_T_a = odom_b_T_a;
+    icp_b_T_a(0,3) = 0.0; icp_b_T_a(1,3) = 0.0; icp_b_T_a(2,3) = 0.0;
+    float p3p_goodness = StaticCeresPoseCompute::P3P_ICP( uv_X, uvd_Y, icp_b_T_a, p3p__msg );
+
+    //--END
+
+
     __Cerebro__loopcandi_consumer__IMP(
     cout << TermColor::YELLOW() << p3p_goodness << " icp_b_T_a = " << PoseManipUtils::prettyprintMatrix4d( icp_b_T_a ) << TermColor::RESET() << endl;
     )
@@ -995,8 +1023,8 @@ bool Cerebro::process_loop_candidate_imagepair_consistent_pose_compute( int ii, 
     MiscUtils::plot_point_sets( pi_dst_img, PI_world_point_uv_odom, cv::Scalar(255,0,0), false  );
     MiscUtils::plot_point_sets( pi_dst_img, uv, cv::Scalar(0,0,255), false  );
     MiscUtils::plot_point_sets( pi_dst_img, uv_d, cv::Scalar(255,0,255), false  );
-    cv::resize(pi_dst_img,pi_dst_img, cv::Size(), 0.5, 0.5 );
-    MiscUtils::append_status_image( pi_dst_img, string( "^this is image b=")+to_string(idx_2)+";plot( PI( icp_b_T_a * world_point_uv ) ) on imB in green;plot( PI( odom__b_T_a * world_point_uv ) ) on imB in blue;plot( uv ) on imB in red;plot( uv_d) on imB in pink");
+    cv::resize(pi_dst_img,pi_dst_img, cv::Size(), 0.6, 0.6 );
+    MiscUtils::append_status_image( pi_dst_img, string( "^this is image b=")+to_string(idx_2)+";plot( PI( icp_b_T_a * world_point_uv ) ) in green on imB ;plot( PI( odom__b_T_a * world_point_uv ) ) in blue on imB;plot( uv ) in red on imB;plot( uv_d) in pink on imB");
 
 
     #if __Cerebro__loopcandi_consumer__IMSHOW == 1

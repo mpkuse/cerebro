@@ -1,0 +1,11 @@
+%YAML:1.0
+---
+transform:
+   q_x: 0.
+   q_y: 0.
+   q_z: 0.
+   q_w: 1.
+   t_x: -49.8
+   t_y: 0.
+   t_z: 0.
+#4.98 cm for the realsense d435i device. This device has hardware undistort so can safely use the pinhole model 

@@ -169,6 +169,7 @@ def change_model_inputshape(model, new_input_shape=(None, 40, 40, 3), verbose=Fa
     Note: It uses custom_objects={'NetVLAD': NetVLADLayer}. If you have any other
     custom-layer change the code here accordingly.
     """
+    print '[change_model_inputshape], new_input_shape=', new_input_shape
     # replace input shape of first layer
     model._layers[0].batch_input_shape = new_input_shape
 
@@ -191,6 +192,7 @@ def change_model_inputshape(model, new_input_shape=(None, 40, 40, 3), verbose=Fa
             print '[Almost certainly FATAL] '
             print 'If you see the warning like wieghts cannot be transfer, this is usually bad. In this case make sure the desired input dimensions and those in the modeljson file are compatible'
             print("Could not transfer weights for layer {}".format(layer.name))
+            quit()
 
     # test new model on a random input image
     # X = np.random.rand(new_input_shape[0], new_input_shape[1], new_input_shape[2], new_input_shape[3] )

@@ -1,37 +1,27 @@
 <launch timeout="100.0">
 
     <!-- CONFIG FILE -->
-    <!-- <arg name="config_path" default="$(find cerebro)/config/vinsfusion/euroc/euroc_mono_imu_config.yaml" /> -->
-    <arg name="config_path" default="$(find cerebro)/config/vinsfusion/euroc/euroc_stereo_imu_config.yaml" />
-
+    <arg name="config_path" default="$(find cerebro)/config/vinsfusion/realsense_d435i/realsense_stereo_imu_config.yaml" />
 
 
     <!-- BAG -->
-    <arg name="bag_path" default="/Bulk_Data/ros_bags/euroc/" />
+    <arg name="bag_path" default="/Bulk_Data/ros_bags/realsense/" />
 
-    <!-- <arg name="bag_file" default="MH_01_easy.bag" /> -->
-    <!-- <arg name="bag_file" default="MH_02_easy.bag" /> -->
-    <!-- <arg name="bag_file" default="MH_03_medium.bag" /> -->
-    <!-- <arg name="bag_file" default="MH_04_difficult.bag" /> -->
-    <arg name="bag_file" default="MH_05_difficult.bag" />
-    <!-- <arg name="bag_file" default="V1_01_easy.bag" /> -->
-    <!--<arg name="bag_file" default="V1_02_medium.bag" />-->
-    <!--<arg name="bag_file" default="V1_03_difficult.bag" />-->
-    <!-- <arg name="bag_file" default="V2_01_easy.bag" /> -->
-    <!-- <arg name="bag_file" default="V2_02_medium.bag" /> -->
-    <!-- <arg name="bag_file" default="V2_03_difficult.bag" /> -->
+    <arg name="bag_file" default="2019-05-14-13-26-05.bag" doc="realsense in lab seq" />
 
-    <!-- <node pkg="rosbag" type="play" name="rosbag" args="$(arg bag_path)/$(arg bag_file) -s 35" output="log"/> -->
+
+
+    <!-- <node pkg="rosbag" type="play" name="rosbag" args="$(arg bag_path)/$(arg bag_file) -s 1 -d 2" output="log"/> -->
+
     <!-- END Bag -->
 
 
-    <!-- VINS-Fusion Odometry Estimator -->
+    <!-- VINS-Fusion Estimator -->
     <!-- unlike previous vins-mono, even the feature tracker is put inside 1 node ie. vins_node.
-    $(ubuntu) rosrun vins vins_node /app/catkin_ws/src/cerebro/config/vinsfusion/euroc/euroc_stereo_imu_config.yaml
+    $(ubuntu) rosrun vins vins_node /app/catkin_ws/src/cerebro/config/vinsfusion/mynteye/mynteye_stereo_imu_config.yaml
     -->
     <node name="vins_estimator" pkg="vins" type="vins_node" args=" $(arg config_path)" output="log">
     </node>
-
 
     <group if="0">
         <!-- VINS-Fusion loop_fusion -->
@@ -45,13 +35,15 @@
 
     <group if="1">
         <!-- Cerebro -->
-        <node name="cerebro_node" pkg="cerebro" type="cerebro_node" output="log">
+        <node name="cerebro_node" pkg="cerebro" type="cerebro_node" output="screen">
            <param name="config_file" type="string" value="$(arg config_path)" />
         </node>
 
         <!-- KERAS SERVER -->
         <!-- $(ubuntu) rosrun cerebro whole_image_desc_compute_server.py _config_file:=/app/catk_ws/src/cerebro/config/vinsfusion/euroc/euroc_stereo_imu_config.yaml -->
-        <node name="my_desc_server" pkg="cerebro" type="whole_image_desc_compute_server.py" output="screen">
+        <node name="my_desc_server" pkg="cerebro" type="whole_image_desc_compute_server.py" output="log">
+            <!-- <param name="kerasmodel_file" type="string" value="/models.keras/Apr2019/gray_conv6_K16Ghost1__centeredinput/core_model.500.keras" /> -->
+            <!-- <param name="kerasmodel_file" type="string" value="/models.keras/Apr2019/gray_mobilenet-conv7_K16__centeredinput/core_model.400.keras" /> -->
             <!-- <param name="kerasmodel_file" type="string" value="/models.keras/Apr2019/gray_conv6_K16Ghost1__centeredinput/core_model.500.keras" /> -->
             <!-- <param name="kerasmodel_file" type="string" value="$(find cerebro)/scripts/keras.models/Apr2019/gray_conv6_K16__centeredinput/core_model.1000.keras" /> -->
             <param name="kerasmodel_file" type="string" value="$(find cerebro)/scripts/keras.models/mobilenet_conv7_allpairloss.keras" />
@@ -62,7 +54,7 @@
            <!-- <param name="nrows" type="string" value="480" />
            <param name="ncols" type="string" value="752" />
            <param name="nchnls" type="string" value="1" /> -->
-           <param name="nchnls" type="string" value="3" />
+           <param name="nchnls" type="string" value="1" />
         </node>
 
         <!-- Pose graph (kidnap aware) -->
@@ -70,6 +62,5 @@
         <node name="keyframe_pose_graph_slam_node" pkg="solve_keyframe_pose_graph" type="keyframe_pose_graph_slam" output="log" >
         </node>
     </group>
-
 
 </launch>
