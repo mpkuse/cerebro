@@ -8,10 +8,11 @@
     <arg name="bag_path" default="/Bulk_Data/ros_bags/realsense/" />
 
     <arg name="bag_file" default="2019-05-14-13-26-05.bag" doc="realsense in lab seq" />
+    <!-- <arg name="bag_file" default="2019-05-16-14-57-55.bag" doc="loopy and 2 kidnaps" /> -->
 
 
 
-    <!-- <node pkg="rosbag" type="play" name="rosbag" args="$(arg bag_path)/$(arg bag_file) -s 1 -d 2" output="log"/> -->
+    <node pkg="rosbag" type="play" name="rosbag" args="$(arg bag_path)/$(arg bag_file) -s 1 -d 2" output="log"/>
 
     <!-- END Bag -->
 
@@ -35,7 +36,7 @@
 
     <group if="1">
         <!-- Cerebro -->
-        <node name="cerebro_node" pkg="cerebro" type="cerebro_node" output="screen">
+        <node name="cerebro_node" pkg="cerebro" type="cerebro_node" output="log">
            <param name="config_file" type="string" value="$(arg config_path)" />
         </node>
 
@@ -59,7 +60,7 @@
 
         <!-- Pose graph (kidnap aware) -->
         <!-- $(ubuntu) rosrun solve_keyframe_pose_graph keyframe_pose_graph_slam -->
-        <node name="keyframe_pose_graph_slam_node" pkg="solve_keyframe_pose_graph" type="keyframe_pose_graph_slam" output="log" >
+        <node name="keyframe_pose_graph_slam_node" pkg="solve_keyframe_pose_graph" type="keyframe_pose_graph_slam" output="screen" >
         </node>
     </group>
 

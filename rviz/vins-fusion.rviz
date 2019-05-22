@@ -195,7 +195,7 @@ Visualization Manager:
           Marker Topic: /cerebro_node/viz/framedata
           Name: Marker
           Namespaces:
-            loopcandidates_line: true
+            {}
           Queue Size: 100
           Value: true
         - Class: rviz/Image
@@ -219,13 +219,7 @@ Visualization Manager:
           Marker Topic: /keyframe_pose_graph_slam_node/viz/visualization_marker
           Name: Marker
           Namespaces:
-            latest_odometry: true
-            loopedges_on_opt_traj: true
-            odom-axis: true
-            odom-world##_cam_visual: true
-            opt_traj_axis: true
-            world##_cam_visual: true
-            world#0: true
+            {}
           Queue Size: 100
           Value: true
         - Class: rviz/Image
@@ -321,7 +315,7 @@ Visualization Manager:
           Marker Topic: /loop_fusion/pose_graph
           Name: Loop Fusion Edges
           Namespaces:
-            {}
+            CameraPoseVisualization: true
           Queue Size: 100
           Value: true
       Enabled: true
@@ -358,24 +352,24 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 34.8396912
+      Distance: 38.3243599
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.0599999987
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 10.1978931
-        Y: -0.283492178
-        Z: -0.37310636
+        X: 0.426539421
+        Y: -0.723993301
+        Z: -1.20114315
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.0500000007
       Name: Current View
       Near Clip Distance: 0.00999999978
-      Pitch: 1.21479666
+      Pitch: 1.30479681
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 4.79450226
+      Yaw: 4.68949175
     Saved:
       - Class: rviz/Orbit
         Distance: 49.6446877

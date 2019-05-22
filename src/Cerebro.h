@@ -64,12 +64,37 @@ private:
 
 
 
+
+    //--------------- Descriptor Computation Thread ------------------//
+public:
+    // This monitors the dataManager->data_map and makes sure the descriptor are uptodate.
+    // descriptors are computed by an external ros-service. in the future can have
+    // more similar threads to compute object bounding boxes, text and other perception related services.
+    void descriptor_computer_thread_enable() { b_descriptor_computer_thread = true; }
+    void descriptor_computer_thread_disable() { b_descriptor_computer_thread = false; }
+    void descriptor_computer_thread();
+
+private:
+    atomic<bool> b_descriptor_computer_thread;
+    atomic<bool> connected_to_descriptor_server;
+    atomic<bool> descriptor_size_available;
+    atomic<int> descriptor_size;
+
+
+    // Storage for Intelligence
+    std::mutex m_wholeImageComputedList;
+    vector<ros::Time> wholeImageComputedList; ///< A list of stamps where descriptors are computed and available.
+    //--------------- END Descriptor Computation Thread ------------------//
+
+
+
+
     //---------------- Populate Loop Candidates --------------------//
 public:
     // This is supposed to be run in a separate thread.
     void run_thread_enable() { b_run_thread = true; }
     void run_thread_disable() { b_run_thread = false; }
-    void run(); //< The loopcandidate (geometrically unverified) producer. 
+    void run(); //< The loopcandidate (geometrically unverified) producer.
 
     void descrip_N__dot__descrip_0_N(); //< Naive method of dot product DIY
 
@@ -130,16 +155,6 @@ private:
     bool retrive_stereo_pair( DataNode* node, cv::Mat& left_image, cv::Mat& right_image, bool bgr2gray=true );
     std::shared_ptr<StereoGeometry> stereogeom;
 
-    // uv : pf of im1
-    // _3dImage_uv : 3D image corresponding to im1-stereopair
-    // uv_d : pf of im2. len(uv) == len(uv_d)
-    // [Returns]
-    //  feature_position_uv: normalized image co-ordinates of uv where the depths are valid
-    //  feature_position_uv_d: normalized image co-ordinates of uv_d where the depths are valid
-    //  world_point: 3d points of uv.
-    bool make_3d_2d_collection__using__pfmatches_and_disparity( const MatrixXd& uv, const cv::Mat& _3dImage_uv,     const MatrixXd& uv_d,
-                                std::vector<Eigen::Vector2d>& feature_position_uv, std::vector<Eigen::Vector2d>& feature_position_uv_d,
-                                std::vector<Eigen::Vector3d>& world_point );
 
     mutable std::mutex m_processedLoops;
     vector< ProcessedLoopCandidate > processedloopcandi_list;
@@ -147,28 +162,6 @@ private:
 
 
     //------------------ END Geometry Thread ---------------------------//
-
-
-    //--------------- Descriptor Computation Thread ------------------//
-public:
-    // This monitors the dataManager->data_map and makes sure the descriptor are uptodate.
-    // descriptors are computed by an external ros-service. in the future can have
-    // more similar threads to compute object bounding boxes, text and other perception related services.
-    void descriptor_computer_thread_enable() { b_descriptor_computer_thread = true; }
-    void descriptor_computer_thread_disable() { b_descriptor_computer_thread = false; }
-    void descriptor_computer_thread();
-
-private:
-    atomic<bool> b_descriptor_computer_thread;
-    atomic<bool> connected_to_descriptor_server;
-    atomic<bool> descriptor_size_available;
-    atomic<int> descriptor_size;
-
-
-    // Storage for Intelligence
-    std::mutex m_wholeImageComputedList;
-    vector<ros::Time> wholeImageComputedList; ///< A list of stamps where descriptors are computed and available.
-    //--------------- END Descriptor Computation Thread ------------------//
 
 
     //--------------- kidnaped identification thread ------------------//

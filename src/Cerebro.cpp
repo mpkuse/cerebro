@@ -1,6 +1,8 @@
 #include "Cerebro.h"
 
-
+//-------------------------------------------------------------//
+//--- Setup Cerebro
+//-------------------------------------------------------------//
 Cerebro::Cerebro( ros::NodeHandle& nh )
 {
     b_run_thread = false;
@@ -25,6 +27,185 @@ void Cerebro::setPublishers( const string base_topic_name )
 
     m_pub_available = true;
 }
+
+//-------------------------------------------------------------//
+//--- END Setup Cerebro
+//-------------------------------------------------------------//
+
+
+//------------------------------------------------------------------//
+// per Keyframe Descriptor Computation
+//     Can have more threads to compute other aspects for keyframes
+//     like texts, objects visible etc. TODO
+//------------------------------------------------------------------//
+
+#define __Cerebro__descriptor_computer_thread( msg ) ;
+// #define __Cerebro__descriptor_computer_thread( msg ) msg
+
+#define __Cerebro__descriptor_computer_thread__imp( msg ) ;
+// #define __Cerebro__descriptor_computer_thread__imp( msg ) msg;
+void Cerebro::descriptor_computer_thread()
+{
+    assert( m_dataManager_available && "You need to set the DataManager in class Cerebro before execution of the run() thread can begin. You can set the dataManager by call to Cerebro::setDataManager()\n");
+    assert( b_descriptor_computer_thread && "You need to call descriptor_computer_thread_enable() before spawning the thread\n" );
+
+
+    // Service Call
+    // Sample Code : https://github.com/mpkuse/cerebro/blob/master/src/unittest/unittest_rosservice_client.cpp
+    connected_to_descriptor_server = false;
+    descriptor_size_available = false;
+    cout << "Attempt connecting to ros-service for 10sec (will give up after that)\n";
+    ros::ServiceClient client = nh.serviceClient<cerebro::WholeImageDescriptorCompute>( "/whole_image_descriptor_compute" );
+    client.waitForExistence( ros::Duration(12, 0) ); //wait maximum 10 sec
+    if( !client.exists() ) {
+        ROS_ERROR( "Connection to server NOT successful. Quiting the thread." );
+        return;
+    }
+    else std::cout << TermColor::GREEN() <<  "Connection to ros-service ``" << client.getService() << "`` established" << TermColor::RESET() << endl;
+    connected_to_descriptor_server = true;
+
+
+    // Send a zeros image to the server just to know the descriptor size
+    int nrows=-1, ncols=-1, desc_size=-1;
+    int nChannels = 3; //< This needs to be set correctly depending on the model_type
+    {
+        auto _abs_cam = dataManager->getAbstractCameraRef();
+        assert( _abs_cam && "[Cerebro::descriptor_computer_thread] request from cerebro to access camera from dataManager is invalid. This means that camera was not yet set in dataManager\n");
+        nrows = _abs_cam->imageHeight();
+        ncols = _abs_cam->imageWidth();
+        cv::Mat zero_image;
+        if( nChannels == 3 )
+            zero_image = cv::Mat::zeros( nrows, ncols, CV_8UC3 );
+        else if( nChannels == 1 )
+            zero_image = cv::Mat::zeros( nrows, ncols, CV_8UC3 );
+        else {
+            assert( false && "Invalid number of channels specified in Cerebro::descriptor_computer_thread() ");
+            cout << TermColor::RED() << "[ERROR] Ax Invalid number of channels specified in Cerebro::descriptor_computer_thread() " << endl << TermColor::RESET();
+            exit(3);
+        }
+
+        // create zero image sensor_msgs::Image
+        sensor_msgs::ImagePtr image_msg;
+        if( nChannels == 3 )
+            image_msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", zero_image).toImageMsg();
+        else if( nChannels == 1 )
+            image_msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", zero_image).toImageMsg();
+        else {
+            assert( false && "Invalid number of channels specified in Cerebro::descriptor_computer_thread() ");
+            cout << TermColor::RED() << "[ERROR] Bx Invalid number of channels specified in Cerebro::descriptor_computer_thread() " << endl << TermColor::RESET();
+            exit(3);
+        }
+        image_msg->header.stamp = ros::Time::now();
+        cerebro::WholeImageDescriptorCompute srv; //service message
+        srv.request.ima = *image_msg;
+        srv.request.a = 986;
+        // make request to server
+        if( client.call( srv ) ) {
+            __Cerebro__descriptor_computer_thread(std::cout <<  "Received response from server\t";)
+            __Cerebro__descriptor_computer_thread(std::cout << "desc.size=" << srv.response.desc.size() << std::endl;)
+            assert( srv.response.desc.size() > 0 && "The received descriptor appear to be of zero length. This is a fatal error.\n" );
+            desc_size = int( srv.response.desc.size() );
+        }
+    }
+    assert( nrows > 0 && ncols > 0 && desc_size > 0 );
+    cout << "[Cerebro::descriptor_computer_thread] nrows=" << nrows << "  ncols=" << ncols << " nChannels=" << nChannels << " ===>  desc_size=" << desc_size << endl;
+    this->descriptor_size = int(desc_size);
+    descriptor_size_available = true;
+
+
+
+
+
+    ros::Rate rate(20);
+    auto data_map = dataManager->getDataMapRef();
+    while( b_descriptor_computer_thread )
+    {
+        if( data_map->begin() == data_map->end() ) {
+            __Cerebro__descriptor_computer_thread( cout << "nothing to compute descriptor\n" );
+            std::this_thread::sleep_for( std::chrono::milliseconds( 1000 )  );
+            continue;
+        }
+        ros::Time lb = data_map->rbegin()->first - ros::Duration(10, 0); // look at recent 10sec.
+        auto S = data_map->lower_bound( lb );
+        auto E = data_map->end();
+        for( auto it = S; it != E ; it++ ) {
+            //descriptor does not exisit at this stamp, so compute it.
+            // Here I compute the whole image descriptor only at keyframes, you may try something like, if the pose is available compute it.
+            if( it->second->isWholeImageDescriptorAvailable() == false && it->second->isKeyFrame()  )
+            {
+                if( it->second->getNumberOfSuccessfullyTrackedFeatures() < 20 )
+                {
+                    __Cerebro__descriptor_computer_thread( cout << "[Cerebro::descriptor_computer_thread] skip computing whole-image-descriptor for this image because it appears to be a kidnapped image frame.\n" ; )
+                    continue;
+                }
+
+                __Cerebro__descriptor_computer_thread(ElapsedTime _time);
+                __Cerebro__descriptor_computer_thread(_time.tic());
+
+                // use it->second->getImage() to compute descriptor. call the service
+                const cv::Mat& image_curr = it->second->getImage();
+                sensor_msgs::ImagePtr image_msg;
+                if( nChannels == 3 )
+                    image_msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", image_curr).toImageMsg();
+                else if( nChannels == 1 )
+                    image_msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", image_curr).toImageMsg();
+                else {
+                    assert( false && "Invalid number of channels specified in Cerebro::descriptor_computer_thread() ");
+                    cout << TermColor::RED() << "[ERROR] Cx Invalid number of channels specified in Cerebro::descriptor_computer_thread() " << endl << TermColor::RESET();
+                    exit(3);
+                }
+                image_msg->header.stamp = ros::Time( it->first );
+                cerebro::WholeImageDescriptorCompute srv; //service message
+                srv.request.ima = *image_msg;
+                srv.request.a = 986;
+                if( client.call( srv ) ) {
+                    __Cerebro__descriptor_computer_thread(std::cout <<  "Received response from server\t";)
+                    __Cerebro__descriptor_computer_thread(std::cout << "desc.size=" << srv.response.desc.size() << std::endl;)
+                    assert( srv.response.desc.size() > 0 && "The received descriptor appear to be of zero length. This is a fatal error.\n" );
+
+                    VectorXd vec( srv.response.desc.size() ); // allocated a vector
+                    for( int j=0 ; j<srv.response.desc.size() ; j++ ) {
+                        vec(j) = srv.response.desc[j];
+                    }
+                    // std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+                    it->second->setWholeImageDescriptor( vec );
+
+                    {
+                        std::lock_guard<std::mutex> lk(m_wholeImageComputedList);
+                        this->wholeImageComputedList.push_back( it->first ); // note down where it was computed.
+                    }
+                    __Cerebro__descriptor_computer_thread(cout << "Computed descriptor at t=" << it->first - dataManager->getPose0Stamp() << "\t" << it->first << endl;)
+                    __Cerebro__descriptor_computer_thread(std::cout << "Computed descriptor in (millisec) = " << _time.toc_milli()  << endl;)
+
+
+                    __Cerebro__descriptor_computer_thread__imp(cout << TermColor::CYAN() << "Computed descriptor at t=" << it->first - dataManager->getPose0Stamp() << "\t" << it->first << TermColor::RESET() << endl);
+
+
+                }
+                else {
+                    ROS_ERROR( "Failed to call ros service" );
+                }
+            }
+        }
+
+        rate.sleep();
+    }
+
+
+}
+
+//------------------------------------------------------------------//
+// END per Keyframe Descriptor Computation
+//------------------------------------------------------------------//
+
+
+
+
+//------------------------------------------------------------------//
+//---------------- Populate Loop Candidates --------------------//
+//------------------------------------------------------------------//
+
 
 
 // #define __Cerebro__run__( msg ) msg ;
@@ -57,8 +238,8 @@ void Cerebro::run()
 ///
 
 // 1 will plot the result of dot product as image. 0 will not plot to image
-// #define __Cerebro__descrip_N__dot__descrip_0_N__implotting 0
-#define __Cerebro__descrip_N__dot__descrip_0_N__implotting 1
+#define __Cerebro__descrip_N__dot__descrip_0_N__implotting 0
+// #define __Cerebro__descrip_N__dot__descrip_0_N__implotting 1
 
 
 void Cerebro::descrip_N__dot__descrip_0_N()
@@ -278,185 +459,10 @@ void Cerebro::descrip_N__dot__descrip_0_N()
 }
 
 
-///-----------------------------------------------------------------
 
-// private function for descriptor_dot_product thread
-bool Cerebro::wait_until__connectedToDescServer_and_descSizeAvailable( int timeout_in_sec )  //blocking call
-{
-    assert( timeout_in_sec > 2 );
-    ros::Rate rate(10);
-    // wait until connected_to_descriptor_server=true and descriptor_size_available=true
-    int wait_itr = 0;
-    while( true ) {
-        if( this->connected_to_descriptor_server && this->descriptor_size_available)
-            break;
-        __Cerebro__run__(cout << wait_itr << " [Cerebro::wait_until__connectedToDescServer_and_descSizeAvailable] waiting for `descriptor_size_available` to be true\n";)
-        rate.sleep();
-        wait_itr++;
-        if( wait_itr > timeout_in_sec*10 ) {
-            __Cerebro__run__( cout << TermColor::RED() << "[Cerebro::wait_until__connectedToDescServer_and_descSizeAvailable] `this->connected_to_descriptor_server && this->descriptor_size_available` has not become true dispite waiting for about 15sec. So quiting the run thread.\n" << TermColor::RESET(); )
-            return false;
-        }
-    }
-    return true;
-}
-
-
-#define __Cerebro__descriptor_computer_thread( msg ) ;
-// #define __Cerebro__descriptor_computer_thread( msg ) msg
-
-#define __Cerebro__descriptor_computer_thread__imp( msg ) ;
-// #define __Cerebro__descriptor_computer_thread__imp( msg ) msg;
-void Cerebro::descriptor_computer_thread()
-{
-    assert( m_dataManager_available && "You need to set the DataManager in class Cerebro before execution of the run() thread can begin. You can set the dataManager by call to Cerebro::setDataManager()\n");
-    assert( b_descriptor_computer_thread && "You need to call descriptor_computer_thread_enable() before spawning the thread\n" );
-
-
-    // Service Call
-    // Sample Code : https://github.com/mpkuse/cerebro/blob/master/src/unittest/unittest_rosservice_client.cpp
-    connected_to_descriptor_server = false;
-    descriptor_size_available = false;
-    cout << "Attempt connecting to ros-service for 10sec (will give up after that)\n";
-    ros::ServiceClient client = nh.serviceClient<cerebro::WholeImageDescriptorCompute>( "/whole_image_descriptor_compute" );
-    client.waitForExistence( ros::Duration(12, 0) ); //wait maximum 10 sec
-    if( !client.exists() ) {
-        ROS_ERROR( "Connection to server NOT successful. Quiting the thread." );
-        return;
-    }
-    else std::cout << TermColor::GREEN() <<  "Connection to ros-service ``" << client.getService() << "`` established" << TermColor::RESET() << endl;
-    connected_to_descriptor_server = true;
-
-
-    // Send a zeros image to the server just to know the descriptor size
-    int nrows=-1, ncols=-1, desc_size=-1;
-    int nChannels = 3; //< This needs to be set correctly depending on the model_type
-    {
-        auto _abs_cam = dataManager->getAbstractCameraRef();
-        assert( _abs_cam && "[Cerebro::descriptor_computer_thread] request from cerebro to access camera from dataManager is invalid. This means that camera was not yet set in dataManager\n");
-        nrows = _abs_cam->imageHeight();
-        ncols = _abs_cam->imageWidth();
-        cv::Mat zero_image;
-        if( nChannels == 3 )
-            zero_image = cv::Mat::zeros( nrows, ncols, CV_8UC3 );
-        else if( nChannels == 1 )
-            zero_image = cv::Mat::zeros( nrows, ncols, CV_8UC3 );
-        else {
-            assert( false && "Invalid number of channels specified in Cerebro::descriptor_computer_thread() ");
-            cout << TermColor::RED() << "[ERROR] Ax Invalid number of channels specified in Cerebro::descriptor_computer_thread() " << endl << TermColor::RESET();
-            exit(3);
-        }
-
-        // create zero image sensor_msgs::Image
-        sensor_msgs::ImagePtr image_msg;
-        if( nChannels == 3 )
-            image_msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", zero_image).toImageMsg();
-        else if( nChannels == 1 )
-            image_msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", zero_image).toImageMsg();
-        else {
-            assert( false && "Invalid number of channels specified in Cerebro::descriptor_computer_thread() ");
-            cout << TermColor::RED() << "[ERROR] Bx Invalid number of channels specified in Cerebro::descriptor_computer_thread() " << endl << TermColor::RESET();
-            exit(3);
-        }
-        image_msg->header.stamp = ros::Time::now();
-        cerebro::WholeImageDescriptorCompute srv; //service message
-        srv.request.ima = *image_msg;
-        srv.request.a = 986;
-        // make request to server
-        if( client.call( srv ) ) {
-            __Cerebro__descriptor_computer_thread(std::cout <<  "Received response from server\t";)
-            __Cerebro__descriptor_computer_thread(std::cout << "desc.size=" << srv.response.desc.size() << std::endl;)
-            assert( srv.response.desc.size() > 0 && "The received descriptor appear to be of zero length. This is a fatal error.\n" );
-            desc_size = int( srv.response.desc.size() );
-        }
-    }
-    assert( nrows > 0 && ncols > 0 && desc_size > 0 );
-    cout << "[Cerebro::descriptor_computer_thread] nrows=" << nrows << "  ncols=" << ncols << " nChannels=" << nChannels << " ===>  desc_size=" << desc_size << endl;
-    this->descriptor_size = int(desc_size);
-    descriptor_size_available = true;
-
-
-
-
-
-    ros::Rate rate(20);
-    auto data_map = dataManager->getDataMapRef();
-    while( b_descriptor_computer_thread )
-    {
-        if( data_map->begin() == data_map->end() ) {
-            __Cerebro__descriptor_computer_thread( cout << "nothing to compute descriptor\n" );
-            std::this_thread::sleep_for( std::chrono::milliseconds( 1000 )  );
-            continue;
-        }
-        ros::Time lb = data_map->rbegin()->first - ros::Duration(10, 0); // look at recent 10sec.
-        auto S = data_map->lower_bound( lb );
-        auto E = data_map->end();
-        for( auto it = S; it != E ; it++ ) {
-            //descriptor does not exisit at this stamp, so compute it.
-            // Here I compute the whole image descriptor only at keyframes, you may try something like, if the pose is available compute it.
-            if( it->second->isWholeImageDescriptorAvailable() == false && it->second->isKeyFrame()  )
-            {
-                if( it->second->getNumberOfSuccessfullyTrackedFeatures() < 20 )
-                {
-                    __Cerebro__descriptor_computer_thread( cout << "[Cerebro::descriptor_computer_thread] skip computing whole-image-descriptor for this image because it appears to be a kidnapped image frame.\n" ; )
-                    continue;
-                }
-
-                __Cerebro__descriptor_computer_thread(ElapsedTime _time);
-                __Cerebro__descriptor_computer_thread(_time.tic());
-
-                // use it->second->getImage() to compute descriptor. call the service
-                const cv::Mat& image_curr = it->second->getImage();
-                sensor_msgs::ImagePtr image_msg;
-                if( nChannels == 3 )
-                    image_msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", image_curr).toImageMsg();
-                else if( nChannels == 1 )
-                    image_msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", image_curr).toImageMsg();
-                else {
-                    assert( false && "Invalid number of channels specified in Cerebro::descriptor_computer_thread() ");
-                    cout << TermColor::RED() << "[ERROR] Cx Invalid number of channels specified in Cerebro::descriptor_computer_thread() " << endl << TermColor::RESET();
-                    exit(3);
-                }
-                image_msg->header.stamp = ros::Time( it->first );
-                cerebro::WholeImageDescriptorCompute srv; //service message
-                srv.request.ima = *image_msg;
-                srv.request.a = 986;
-                if( client.call( srv ) ) {
-                    __Cerebro__descriptor_computer_thread(std::cout <<  "Received response from server\t";)
-                    __Cerebro__descriptor_computer_thread(std::cout << "desc.size=" << srv.response.desc.size() << std::endl;)
-                    assert( srv.response.desc.size() > 0 && "The received descriptor appear to be of zero length. This is a fatal error.\n" );
-
-                    VectorXd vec( srv.response.desc.size() ); // allocated a vector
-                    for( int j=0 ; j<srv.response.desc.size() ; j++ ) {
-                        vec(j) = srv.response.desc[j];
-                    }
-                    // std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-                    it->second->setWholeImageDescriptor( vec );
-
-                    {
-                        std::lock_guard<std::mutex> lk(m_wholeImageComputedList);
-                        this->wholeImageComputedList.push_back( it->first ); // note down where it was computed.
-                    }
-                    __Cerebro__descriptor_computer_thread(cout << "Computed descriptor at t=" << it->first - dataManager->getPose0Stamp() << "\t" << it->first << endl;)
-                    __Cerebro__descriptor_computer_thread(std::cout << "Computed descriptor in (millisec) = " << _time.toc_milli()  << endl;)
-
-
-                    __Cerebro__descriptor_computer_thread__imp(cout << TermColor::CYAN() << "Computed descriptor at t=" << it->first - dataManager->getPose0Stamp() << "\t" << it->first << TermColor::RESET() << endl);
-
-
-                }
-                else {
-                    ROS_ERROR( "Failed to call ros service" );
-                }
-            }
-        }
-
-        rate.sleep();
-    }
-
-
-}
+//------------------------------------------------------------------//
+//---------------- END Populate Loop Candidates --------------------//
+//------------------------------------------------------------------//
 
 
 
@@ -513,8 +519,9 @@ json Cerebro::foundLoops_as_JSON()
 
 }
 
-
-
+//--------------------------------------------------------------//
+//------------------ Geometry Thread ---------------------------//
+//--------------------------------------------------------------//
 
 // #define __Cerebro__loopcandi_consumer__(msg) msg;
 #define __Cerebro__loopcandi_consumer__(msg)  ;
@@ -726,65 +733,6 @@ bool Cerebro::retrive_stereo_pair( DataNode* node, cv::Mat& left_image, cv::Mat&
 
 
 
-bool Cerebro::make_3d_2d_collection__using__pfmatches_and_disparity( const MatrixXd& uv, const cv::Mat& _3dImage_uv,     const MatrixXd& uv_d,
-                            std::vector<Eigen::Vector2d>& feature_position_uv, std::vector<Eigen::Vector2d>& feature_position_uv_d,
-                            std::vector<Eigen::Vector3d>& world_point )
-{
-    assert( (uv.cols() == uv_d.cols() ) && "[Cerebro::make_3d_2d_collection__using__pfmatches_and_disparity] pf-matches need to be of same length. You provided of different lengths\n" );
-    assert( _3dImage_uv.type() == CV_32FC3 );
-
-    if( uv.cols() != uv_d.cols() ) {
-        cout << TermColor::RED() << "[Cerebro::make_3d_2d_collection__using__pfmatches_and_disparity] pf-matches need to be of same length. You provided of different lengths\n" << TermColor::RESET();
-        return false;
-    }
-
-    if( _3dImage_uv.type() != CV_32FC3 && _3dImage_uv.rows <= 0 && _3dImage_uv.cols <= 0  ) {
-        cout << TermColor::RED() << "[Cerebro::make_3d_2d_collection__using__pfmatches_and_disparity] _3dImage is expected to be of size CV_32FC3\n" << TermColor::RESET();
-        return false;
-    }
-
-
-
-    int c = 0;
-    MatrixXd ud_normalized = stereogeom->get_K().inverse() * uv_d;
-    MatrixXd u_normalized = stereogeom->get_K().inverse() * uv;
-    feature_position_uv.clear();
-    feature_position_uv_d.clear();
-    world_point.clear();
-
-    for( int k=0 ; k<uv.cols() ; k++ )
-    {
-        cv::Vec3f _3dpt = _3dImage_uv.at<cv::Vec3f>( (int)uv(1,k), (int)uv(0,k) );
-        if( _3dpt[2] < 0.1 || _3dpt[2] > 25.  )
-            continue;
-
-        c++;
-        #if 0
-        cout << TermColor::RED() << "---" << k << "---" << TermColor::RESET() << endl;
-        cout << "ud=" << ud.col(k).transpose() ;
-        cout << " <--> ";
-        cout << "u=" << u.col(k).transpose() ;
-        cout << "  3dpt of u=";
-        cout <<  TermColor::GREEN() << _3dpt[0] << " " << _3dpt[1] << " " << _3dpt[2] << " " << TermColor::RESET();
-        cout << endl;
-        #endif
-
-        feature_position_uv.push_back( Vector2d( u_normalized(0,k), u_normalized(1,k) ) );
-        feature_position_uv_d.push_back( Vector2d( ud_normalized(0,k), ud_normalized(1,k) ) );
-        world_point.push_back( Vector3d( _3dpt[0], _3dpt[1], _3dpt[2] ) );
-    }
-    __Cerebro__loopcandi_consumer__(
-        cout << "of the total " << uv.cols() << " point feature correspondences " << c << " had valid depths\n";
-    )
-    return true;
-
-    if( c < 30 ) {
-        cout << TermColor::RED() << "[ Cerebro::make_3d_2d_collection__using__pfmatches_and_disparity]too few valid 3d points between frames" <<  TermColor::RESET() << endl;
-        return false;
-    }
-
-}
-
 bool Cerebro::process_loop_candidate_imagepair_consistent_pose_compute( int ii, ProcessedLoopCandidate& proc_candi )
 {
     auto u = foundLoops_i( ii );
@@ -890,7 +838,7 @@ bool Cerebro::process_loop_candidate_imagepair_consistent_pose_compute( int ii, 
 
     //--
     op1__b_T_a = odom_b_T_a; // setting initial guess as odometry rel pose with translation as zero
-    op1__b_T_a(0,3) = 0.0; op1__b_T_a(1,3) = 0.0; op1__b_T_a(2,3) = 0.0;
+    // op1__b_T_a(0,3) = 0.0; op1__b_T_a(1,3) = 0.0; op1__b_T_a(2,3) = 0.0;
     float pnp_goodness = StaticCeresPoseCompute::PNP( world_point_uv, feature_position_uv_d, op1__b_T_a, pnp__msg  );
     //--END
     __Cerebro__loopcandi_consumer__IMP(
@@ -942,7 +890,7 @@ bool Cerebro::process_loop_candidate_imagepair_consistent_pose_compute( int ii, 
 
     //--
     op2__a_T_b = odom_b_T_a.inverse();  //initial guess same as odometry
-    op2__a_T_b(0,3)=0.0;op2__a_T_b(1,3)=0.0;op2__a_T_b(2,3)=0.0;
+    // op2__a_T_b(0,3)=0.0;op2__a_T_b(1,3)=0.0;op2__a_T_b(2,3)=0.0;
     float pnp_goodness_optioN_B = StaticCeresPoseCompute::PNP( world_point_uv_d, feature_position_uv, op2__a_T_b, pnp__msg_option_B  );
     //--END
 
@@ -997,7 +945,7 @@ bool Cerebro::process_loop_candidate_imagepair_consistent_pose_compute( int ii, 
 
     //--
     icp_b_T_a = odom_b_T_a;
-    icp_b_T_a(0,3) = 0.0; icp_b_T_a(1,3) = 0.0; icp_b_T_a(2,3) = 0.0;
+    // icp_b_T_a(0,3) = 0.0; icp_b_T_a(1,3) = 0.0; icp_b_T_a(2,3) = 0.0;
     float p3p_goodness = StaticCeresPoseCompute::P3P_ICP( uv_X, uvd_Y, icp_b_T_a, p3p__msg );
 
     //--END
@@ -1239,8 +1187,12 @@ bool Cerebro::process_loop_candidate_imagepair( int ii, ProcessedLoopCandidate& 
     std::vector<Eigen::Vector2d> feature_position_uv;
     std::vector<Eigen::Vector2d> feature_position_uv_d;
     std::vector<Eigen::Vector3d> world_point;
-    make_3d_2d_collection__using__pfmatches_and_disparity( uv, _3dImage__im1,     uv_d,
+
+
+    StaticPointFeatureMatching::make_3d_2d_collection__using__pfmatches_and_disparity( stereogeom, uv, _3dImage__im1,     uv_d,
                                 feature_position_uv, feature_position_uv_d, world_point );
+    // make_3d_2d_collection__using__pfmatches_and_disparity( uv, _3dImage__im1,     uv_d,
+                                // feature_position_uv, feature_position_uv_d, world_point );
     int n_valid_depths = world_point.size();
 
 
@@ -1575,8 +1527,15 @@ bool Cerebro::process_loop_candidate_imagepair( int ii, ProcessedLoopCandidate& 
 
 //////////// END pose computation //////////////////////////////
 
+
+//--------------------------------------------------------------//
+//------------------ END Geometry Thread -----------------------//
+//--------------------------------------------------------------//
+
+
+
 ///////////////////////////////////////////////////////////
-//////////////////////// KIDNAP ///////////////////////////
+//---------------------- KIDNAP -------------------------//
 ///////////////////////////////////////////////////////////
 
 // Kidnap identification thread. This thread monitors dataManager->getDataMapRef().size
@@ -1828,3 +1787,43 @@ void Cerebro::kidnap_header_callback( const std_msgs::HeaderConstPtr& rcvd_heade
     assert( false && "in Cerebro::kidnap_header_callback. rcvd_header->frame_id is something other than `kidnapped` or `unkidnapped`.");
 
 }
+
+
+
+
+
+
+///////////////////////////////////////////////////////////
+//---------------------- KIDNAP -------------------------//
+///////////////////////////////////////////////////////////
+
+
+
+//-----------------------------------------------------------------
+// Cerebro Private Utils
+//-----------------------------------------------------------------
+// private function for descriptor_dot_product thread
+bool Cerebro::wait_until__connectedToDescServer_and_descSizeAvailable( int timeout_in_sec )  //blocking call
+{
+    assert( timeout_in_sec > 2 );
+    ros::Rate rate(10);
+    // wait until connected_to_descriptor_server=true and descriptor_size_available=true
+    int wait_itr = 0;
+    while( true ) {
+        if( this->connected_to_descriptor_server && this->descriptor_size_available)
+            break;
+        __Cerebro__run__(cout << wait_itr << " [Cerebro::wait_until__connectedToDescServer_and_descSizeAvailable] waiting for `descriptor_size_available` to be true\n";)
+        rate.sleep();
+        wait_itr++;
+        if( wait_itr > timeout_in_sec*10 ) {
+            __Cerebro__run__( cout << TermColor::RED() << "[Cerebro::wait_until__connectedToDescServer_and_descSizeAvailable] `this->connected_to_descriptor_server && this->descriptor_size_available` has not become true dispite waiting for about 15sec. So quiting the run thread.\n" << TermColor::RESET(); )
+            return false;
+        }
+    }
+    return true;
+}
+
+
+//-----------------------------------------------------------------
+// END Cerebro Private Utils
+//-----------------------------------------------------------------

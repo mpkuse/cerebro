@@ -510,7 +510,7 @@ int main( int argc, char ** argv )
     ///////////////////////
     // Actual Logging.  //
     //////////////////////
-    #define __LOGGING__ 1 // make this 1 to enable logging. 0 to disable logging. rememeber to catkin_make after this change
+    #define __LOGGING__ 0 // make this 1 to enable logging. 0 to disable logging. rememeber to catkin_make after this change
     #if __LOGGING__
     // Note: If using roslaunch to launch this node and when LOGGING is enabled,
     // roslaunch sends a sigterm and kills this thread when ros::ok() returns false ie.
@@ -688,6 +688,7 @@ int main( int argc, char ** argv )
             // Json of the object
             json procloops_json_obj;
             if( c.asJson(procloops_json_obj) ) {
+                procloops_json_obj["processedLoops_i"] = i;
                 all_procloops_json_obj.push_back( procloops_json_obj );
             }
             else {

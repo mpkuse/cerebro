@@ -109,7 +109,7 @@ bool ProcessedLoopCandidate::makeLoopEdgeMsgWithConsistencyCheck( cerebro::LoopE
 
     ///////////////////////////////// Done with consistency check /////////////////////
 
-    if( pf_matches > 800 || (is_consistent_ypr && is_consistent_tr) ) {
+    if( pf_matches > 800 && (is_consistent_ypr && is_consistent_tr) ) {
     // put the final pose into `3d2d__2T1`
         _3d2d__2T1 = opX_b_T_a[0];
         isSet_3d2d__2T1 = true;
