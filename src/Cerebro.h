@@ -42,6 +42,20 @@ using json = nlohmann::json;
 using namespace Eigen;
 using namespace std;
 
+
+//comment this out to remove dependence on faiss. If using faiss, also remember to link to libfaiss.so. See my CMakeList file to know how to do it.
+// #define HAVE_FAISS
+
+#ifdef HAVE_FAISS
+// faiss is only used for generating loopcandidates.
+// only function that uses faiss is `Cerebro::faiss__naive_loopcandidate_generator()`
+// Although faiss is strictly not needed, it is a much // faster way for nearest neighbour search. If you don't want it
+// just use the naive implementation: descrip_N__dot__descrip_0_N().
+//    Note: Cerebro::descrip_N__dot__descrip_0_N() and Cerebro::faiss__naive_loopcandidate_generator()
+//    are exactly same in functionality.
+#include <faiss/IndexFlat.h>
+#endif //HAVE_FAISS
+
 class Cerebro
 {
 
@@ -82,8 +96,11 @@ private:
 
 
     // Storage for Intelligence
-    std::mutex m_wholeImageComputedList;
+    mutable std::mutex m_wholeImageComputedList;
     vector<ros::Time> wholeImageComputedList; ///< A list of stamps where descriptors are computed and available.
+public:
+    const int wholeImageComputedList_size() const; //size of the list. threadsafe
+    const ros::Time wholeImageComputedList_at(int k) const; //< returns kth element of the list. threadsafe
     //--------------- END Descriptor Computation Thread ------------------//
 
 
@@ -96,7 +113,12 @@ public:
     void run_thread_disable() { b_run_thread = false; }
     void run(); //< The loopcandidate (geometrically unverified) producer.
 
+
     void descrip_N__dot__descrip_0_N(); //< Naive method of dot product DIY
+    #ifdef HAVE_FAISS
+    void faiss__naive_loopcandidate_generator(); //< similar to descrip_N__dot__descrip_0_N() but uses facebook's faiss
+    #endif //HAVE_FAISS
+
 
 
 private:

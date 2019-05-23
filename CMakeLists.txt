@@ -176,7 +176,6 @@ add_executable(
 add_dependencies(cerebro_node cerebro_generate_messages_cpp)
 
 
-
 target_link_libraries(cerebro_node
   ${catkin_LIBRARIES}
   ${OpenCV_LIBRARIES}
@@ -186,6 +185,7 @@ target_link_libraries(cerebro_node
   ${THEIA_LIBRARIES}
 
   #${GPERFTOOLS_LIBRARIES}
+  #/usr/local/lib/libfaiss.so
 )
 
 if(COMPILE_UNIT_TEST)

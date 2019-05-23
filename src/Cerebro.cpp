@@ -195,6 +195,22 @@ void Cerebro::descriptor_computer_thread()
 
 }
 
+
+
+// these both functions are newly added. There are still some raw access
+// limited only to the function ``descrip_N__dot__descrip_0_N()``.
+const int Cerebro::wholeImageComputedList_size() const {
+    std::lock_guard<std::mutex> lk(m_wholeImageComputedList);
+    return wholeImageComputedList.size();
+}
+
+const ros::Time Cerebro::wholeImageComputedList_at(int k) const
+{
+    std::lock_guard<std::mutex> lk(m_wholeImageComputedList);
+    assert( k>=0 && k<wholeImageComputedList.size() && "[Cerebro::wholeImageComputedList_at]");
+    return wholeImageComputedList.at( k );
+}
+
 //------------------------------------------------------------------//
 // END per Keyframe Descriptor Computation
 //------------------------------------------------------------------//
@@ -208,11 +224,11 @@ void Cerebro::descriptor_computer_thread()
 
 
 
-// #define __Cerebro__run__( msg ) msg ;
-#define __Cerebro__run__( msg ) ;
+#define __Cerebro__run__( msg ) msg ;
+// #define __Cerebro__run__( msg ) ;
 
-// #define __Cerebro__run__debug( msg ) msg ;
-#define __Cerebro__run__debug( msg ) ;
+#define __Cerebro__run__debug( msg ) msg ;
+// #define __Cerebro__run__debug( msg ) ;
 
 /// TODO: In the future more intelligent schemes can be experimented with. Besure to run those in new threads and disable this thread.
 /// wholeImageComputedList is a list for which descriptors are computed. Similarly other threads can compute
@@ -220,16 +236,141 @@ void Cerebro::descriptor_computer_thread()
 void Cerebro::run()
 {
     descrip_N__dot__descrip_0_N();
+    // faiss__naive_loopcandidate_generator();
 }
 
 
+#ifdef HAVE_FAISS
 ///-----------------------------------------------------------------
 /// Nearest neighbors search using facebook research's faiss library's IndexFlatIP
 ///         Roughly follows : https://github.com/mpkuse/vins_mono_debug_pkg/blob/master/src_place_recog/faiss_try1.py
 
 // TODO>: Write a function similar in functionality to `descrip_N__dot__descrip_0_N`
 //        but using faiss
+void Cerebro::faiss__naive_loopcandidate_generator()
+{
+    assert( m_dataManager_available && "You need to set the DataManager in class Cerebro before execution of the run() thread can begin. You can set the dataManager by call to Cerebro::setDataManager()\n");
+    assert( b_run_thread && "you need to call run_thread_enable() before run() can start executing\n" );
 
+    //-----------------//
+    //---- Settings ---//
+    //-----------------//
+    const int start_adding_descriptors_to_index_after = 150;
+
+    //------ END -----//
+
+    // wait until connected_to_descriptor_server=true and descriptor_size_available=true
+    if( wait_until__connectedToDescServer_and_descSizeAvailable( 15 ) == false ) {
+        cout << TermColor::RED() << "[Cerebro::faiss__naive_loopcandidate_generator ERROR] wait_until__connectedToDescServer_and_descSizeAvailable returned false implying a timeout.\n" << TermColor::RESET();
+        return;
+    }
+    __Cerebro__run__( cout << TermColor::GREEN() <<"[Cerebro::faiss__naive_loopcandidate_generator] descriptor_size=" << this->descriptor_size << "  connected_to_descriptor_server && descriptor_size_available" << TermColor::RESET() << endl; )
+    assert( this->descriptor_size> 0 );
+
+
+    cout << TermColor::GREEN() << "init a faiss::IndexFlatIP("<< this->descriptor_size << ")" << TermColor::RESET() << endl;
+    faiss::IndexFlatIP index(this->descriptor_size);
+
+
+    ros::Rate rate(10);
+    int l=0, last_l=0;
+    int l_last_added_to_index = 0;
+
+    auto data_map = dataManager->getDataMapRef(); // this needs to be get every iteration else i dont get the ubdated values which are constantly being updated by other threads.
+    while( b_run_thread )
+    {
+        l=wholeImageComputedList_size();
+
+        if( l - last_l < 3 ) {
+            __Cerebro__run__debug( cout << "[Cerebro::faiss__naive_loopcandidate_generator]nothing new\n"; );
+            rate.sleep();
+            continue;
+        }
+
+        __Cerebro__run__( cout << TermColor::RED() << "---" << TermColor::RESET() << endl; )
+        __Cerebro__run__( cout << "l=" << l << endl; )
+        __Cerebro__run__debug( cout << "[Cerebro::faiss__naive_loopcandidate_generator] data_map.size() = " << data_map->size() << endl; )
+
+
+        // add
+        __Cerebro__run__(cout << TermColor::YELLOW();)
+        if( l> start_adding_descriptors_to_index_after ) {
+            for( int j=l_last_added_to_index ; j<l-start_adding_descriptors_to_index_after ; j++ ) {
+                __Cerebro__run__(
+                cout << "index.add( " << j << ")" ;
+                cout << "\t aka  index.add(" << wholeImageComputedList_at(j) << ")";
+                cout << endl;)
+                VectorXd X = data_map->at( wholeImageComputedList_at( j ) )->getWholeImageDescriptor();
+                VectorXf X_float = X.cast<float>();
+                float * X_raw = X_float.data();
+                #if 0 //see if the type casting was correct.
+                for( int g=0;g<5;g++ ) {
+                    // cout << "(" << X(g) << "," << X_float(g) << ") ";
+                    cout << "(" << X(g) << "," << X_raw[g] << ") ";
+                }
+                cout << endl;
+                #endif
+                index.add( 1, X_raw ); //-TODO
+            }
+            l_last_added_to_index = l-start_adding_descriptors_to_index_after;
+        } else {
+            __Cerebro__run__(cout << "not seen enough. so,, add nothing. Will start adding after "<< start_adding_descriptors_to_index_after<< " descriptors\n";)
+        }
+        __Cerebro__run__(cout << TermColor::RESET();)
+
+        // search
+        vector<float> tmp_;
+        vector<int> tmp_i;
+        for( int l_i=last_l ; l_i<l; l_i++ ) {
+            __Cerebro__run__(
+            cout << TermColor::MAGENTA();
+            cout << "index.search(" << l_i << ")\t";
+            cout << "index.search(" << wholeImageComputedList_at(l_i) << ")\t";
+            cout << "index.ntotal=" << index.ntotal << "\t";
+            // cout << endl;
+            )
+
+            if( index.ntotal < 5 )
+                continue;
+
+            VectorXd X = data_map->at( wholeImageComputedList_at( l_i ) )->getWholeImageDescriptor();
+            VectorXf X_float = X.cast<float>();
+            float * X_raw = X_float.data();
+            float distances[5];
+            faiss::Index::idx_t labels[5];
+            ElapsedTime time_to_search = ElapsedTime();
+            index.search( 1, X_raw, 5, distances, labels ); //TODO
+            cout << "search done in (ms): " << time_to_search.toc_milli() << endl;
+            for( int g=0 ; g<5; g++ ) {
+                // cout << g << " labels=" << labels[g] << " distances=" << distances[g] << endl;
+                // cout << l_i << "<--("<< distances[g] << ")-->" << labels[g] << "\t";
+                printf( "%4d<--(%4.2f)-->%d\t", l_i, distances[g], labels[g] );
+            }
+            cout << endl;
+            __Cerebro__run__(cout << TermColor::RESET();)
+            tmp_.push_back(  distances[0] );
+            tmp_i.push_back( labels[0] );
+        }
+
+        int _n = tmp_.size();
+        if( _n ==3 && tmp_[_n-1] > 0.9 && abs(tmp_i[0] - tmp_i[1]) < 12 && abs(tmp_i[0] - tmp_i[2]) < 12  )
+        {
+            cout << TermColor::RED() << "loop found" << l-1 << "<--->" << tmp_i[2] << TermColor::RESET();
+
+            {
+            std::lock_guard<std::mutex> lk_foundloops(m_foundLoops);
+            foundLoops.push_back( std::make_tuple( wholeImageComputedList[l-1], wholeImageComputedList[tmp_i[2]], tmp_[2] ) );
+            }
+        }
+
+        last_l = l;
+        rate.sleep();
+    }
+    cout << "[Cerebro::faiss__naive_loopcandidate_generator()] Finished\n";
+}
+
+
+#endif //HAVE_FAISS
 
 ///-----------------------------------------------------------------
 
@@ -409,7 +550,7 @@ void Cerebro::descrip_N__dot__descrip_0_N()
 
 
             // Criteria for a recognized place
-            if( abs(u_argmax - um_argmax) < LOCALITY_THRESH && abs(u_argmax-umm_argmax) < 8 && u_max > DOT_PROD_THRESH  )
+            if( abs(u_argmax - um_argmax) < LOCALITY_THRESH && abs(u_argmax-umm_argmax) < LOCALITY_THRESH && u_max > DOT_PROD_THRESH  )
             {
                 std::lock_guard<std::mutex> lk(m_wholeImageComputedList);
 
