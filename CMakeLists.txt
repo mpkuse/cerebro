@@ -22,8 +22,10 @@ find_package(Ceres REQUIRED)
 find_package(OpenCV 3 REQUIRED)
 #set( CMAKE_CXX_FLAGS "-fpermissive -std=c++11 -O3 -Wall -Wextra -pedantic" )
 
-find_package(Theia REQUIRED)
-include_directories(${THEIA_INCLUDE_DIRS})
+# Removing the dependence on theia for the production code.
+# If you want to compile unit tests, some of those need theia-sfm as dependence.
+#find_package(Theia REQUIRED)
+#include_directories(${THEIA_INCLUDE_DIRS})
 
 find_package(Boost REQUIRED COMPONENTS filesystem program_options system)
 include_directories(${Boost_INCLUDE_DIRS})
@@ -44,7 +46,7 @@ set(CMAKE_BUILD_TYPE Release)
 
 #----------END GPERFTOOLS
 
-option(COMPILE_UNIT_TEST "Compile unit tests" ON) #OFF by default. catkin_make -DCOMPILE_UNIT_TEST=ON will compile it. OFF will skip it
+option(COMPILE_UNIT_TEST "Compile unit tests" OFF) #OFF by default. catkin_make -DCOMPILE_UNIT_TEST=ON will compile it. OFF will skip it
 
 
 ################################################
@@ -182,7 +184,7 @@ target_link_libraries(cerebro_node
   ${CMAKE_THREAD_LIBS_INIT}
   ${CERES_LIBRARIES}
   ${Boost_LIBRARIES}
-  ${THEIA_LIBRARIES}
+  #${THEIA_LIBRARIES}
 
   #${GPERFTOOLS_LIBRARIES}
   #/usr/local/lib/libfaiss.so

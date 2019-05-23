@@ -1,5 +1,8 @@
 #pragma once
 
+//ceres
+#include <ceres/ceres.h>
+
 template <typename T>
 T NormalizeAngle(const T& angle_degrees) {
   if (angle_degrees > T(180.0))

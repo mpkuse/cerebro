@@ -12,7 +12,7 @@
 #include "utils/ElapsedTime.h"
 #include "utils/PoseManipUtils.h"
 
-#include <theia/theia.h>
+// #include <theia/theia.h>
 #include <vector>
 
 #include <Eigen/Dense>
@@ -23,7 +23,7 @@
 using namespace Eigen;
 using namespace std;
 
-
+#if 0
 /////////// DlsPnp-RANSAC ///////////////////
 // Data
 struct CorrespondencePair_3d2d {
@@ -97,9 +97,9 @@ public:
     }
 };
 /////////// END DlsPnp-RANSAC ///////////////////
+#endif
 
-
-
+#if 0
 //////////////////// AlignPointCloudsUmeyama with Ransac ///////////////////////
 // Data
 struct CorrespondencePair_3d3d {
@@ -176,7 +176,11 @@ public:
 
 };
 
-// TODO: Write an ceres based iterative PnP and P3P for better control and 4DOF optimization
+//////////////////// AlignPointCloudsUmeyama with Ransac ///////////////////////
+
+#endif
+
+// Write an ceres based iterative PnP and P3P for better control and 4DOF optimization
 class StaticCeresPoseCompute
 {
 public:

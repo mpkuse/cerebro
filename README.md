@@ -99,10 +99,10 @@ your ROS works correctly.
 - Eigen3
 - Ceres
 - OpenCV3 (should also work with 2.4 (not tested), 3.3 (tested Ok) and 3.4 (tested ok))
-- [Theia-sfm](http://theia-sfm.org/)
-    - oiio
-    - RocksDB
-    - OpenExr
+- [Theia-sfm](http://theia-sfm.org/). *As of May2019 dependence on theia-sfm has been eliminated. The code is able to compile even when you do not have Theia-sfm installed. The pose estimation PNP/P3P has been implemented from scratch using ceres. *
+    - [OpenImageIO](https://github.com/OpenImageIO/oiio) (Release-1.7.6RC1) <br/>
+    - [RocksDB](https://github.com/facebook/rocksdb) (v5.9.2) <br/>
+    - OpenExr <br/>
 - Tensorflow (tested on 1.11.0)
 - Keras (atleast 2.2.4), I noticed issues in jsonmodel with 2.2.2, 2.2.2 still works though!
 

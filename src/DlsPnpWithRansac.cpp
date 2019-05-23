@@ -2,7 +2,7 @@
 #include "DlsPnpWithRansac.h"
 
 
-
+#if 0
 // Theia's ICP
 // [Input]
 //      uv_X: a 3d point cloud expressed in some frame-of-ref, call it frame-of-ref of `uv`
@@ -244,7 +244,7 @@ float StaticTheiaPoseCompute::PNP( const std::vector<Vector3d>& w_X, const std::
 
 }
 
-
+#endif 
 
 
 

@@ -1224,6 +1224,7 @@ bool Cerebro::process_loop_candidate_imagepair_consistent_pose_compute( int ii, 
 
 }
 
+#if 0
 bool Cerebro::process_loop_candidate_imagepair( int ii, ProcessedLoopCandidate& proc_candi )
 {
     auto u = foundLoops_i( ii );
@@ -1665,7 +1666,7 @@ bool Cerebro::process_loop_candidate_imagepair( int ii, ProcessedLoopCandidate& 
 
 
 }
-
+#endif
 //////////// END pose computation //////////////////////////////
 
 

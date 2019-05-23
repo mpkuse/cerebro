@@ -35,7 +35,7 @@ using json = nlohmann::json;
 // ROS-Service Defination
 #include <cerebro/WholeImageDescriptorCompute.h>
 
-#include <theia/theia.h>
+// #include <theia/theia.h>
 
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
@@ -166,7 +166,7 @@ private:
     // helpers
 
     // Processed foundLoops_i[ j ] and writes the info in the object `proc_candi`
-    bool process_loop_candidate_imagepair( int j, ProcessedLoopCandidate& proc_candi );
+    // bool process_loop_candidate_imagepair( int j, ProcessedLoopCandidate& proc_candi );
 
     // This function processes the jth loopcandidate and fills in the ProcessedLoopCandidate.
     // The return status means that some poses were computed. It doesn't mean the poses were consistent.
