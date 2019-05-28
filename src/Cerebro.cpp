@@ -49,6 +49,11 @@ void Cerebro::descriptor_computer_thread()
     assert( m_dataManager_available && "You need to set the DataManager in class Cerebro before execution of the run() thread can begin. You can set the dataManager by call to Cerebro::setDataManager()\n");
     assert( b_descriptor_computer_thread && "You need to call descriptor_computer_thread_enable() before spawning the thread\n" );
 
+    //---------
+    // Send a zeros image to the server just to know the descriptor size
+    int nrows=-1, ncols=-1, desc_size=-1;
+    int nChannels = 3; //< ***This needs to be set correctly depending on the model_type****
+    //----------
 
     // Service Call
     // Sample Code : https://github.com/mpkuse/cerebro/blob/master/src/unittest/unittest_rosservice_client.cpp
@@ -65,9 +70,7 @@ void Cerebro::descriptor_computer_thread()
     connected_to_descriptor_server = true;
 
 
-    // Send a zeros image to the server just to know the descriptor size
-    int nrows=-1, ncols=-1, desc_size=-1;
-    int nChannels = 3; //< This needs to be set correctly depending on the model_type
+
     {
         auto _abs_cam = dataManager->getAbstractCameraRef();
         assert( _abs_cam && "[Cerebro::descriptor_computer_thread] request from cerebro to access camera from dataManager is invalid. This means that camera was not yet set in dataManager\n");
@@ -237,6 +240,8 @@ void Cerebro::run()
 {
     descrip_N__dot__descrip_0_N();
     // faiss__naive_loopcandidate_generator();
+    // faiss_clique_loopcandidate_generator();
+
 }
 
 
@@ -256,6 +261,8 @@ void Cerebro::faiss__naive_loopcandidate_generator()
     //---- Settings ---//
     //-----------------//
     const int start_adding_descriptors_to_index_after = 150;
+    const int LOCALITY_THRESH = 12;
+    const float DOT_PROD_THRESH = 0.9;
 
     //------ END -----//
 
@@ -276,7 +283,7 @@ void Cerebro::faiss__naive_loopcandidate_generator()
     int l=0, last_l=0;
     int l_last_added_to_index = 0;
 
-    auto data_map = dataManager->getDataMapRef(); // this needs to be get every iteration else i dont get the ubdated values which are constantly being updated by other threads.
+    auto data_map = dataManager->getDataMapRef();
     while( b_run_thread )
     {
         l=wholeImageComputedList_size();
@@ -340,22 +347,26 @@ void Cerebro::faiss__naive_loopcandidate_generator()
             faiss::Index::idx_t labels[5];
             ElapsedTime time_to_search = ElapsedTime();
             index.search( 1, X_raw, 5, distances, labels ); //TODO
-            cout << "search done in (ms): " << time_to_search.toc_milli() << endl;
+            __Cerebro__run__(cout << "search done in (ms): " << time_to_search.toc_milli() << endl;)
             for( int g=0 ; g<5; g++ ) {
+                __Cerebro__run__(
                 // cout << g << " labels=" << labels[g] << " distances=" << distances[g] << endl;
                 // cout << l_i << "<--("<< distances[g] << ")-->" << labels[g] << "\t";
                 printf( "%4d<--(%4.2f)-->%d\t", l_i, distances[g], labels[g] );
+                )
             }
-            cout << endl;
+            __Cerebro__run__(cout << endl;)
             __Cerebro__run__(cout << TermColor::RESET();)
             tmp_.push_back(  distances[0] );
             tmp_i.push_back( labels[0] );
         }
 
         int _n = tmp_.size();
-        if( _n ==3 && tmp_[_n-1] > 0.9 && abs(tmp_i[0] - tmp_i[1]) < 12 && abs(tmp_i[0] - tmp_i[2]) < 12  )
+        if( _n ==3 && tmp_[_n-1] > DOT_PROD_THRESH && abs(tmp_i[0] - tmp_i[1]) < LOCALITY_THRESH && abs(tmp_i[0] - tmp_i[2]) < LOCALITY_THRESH  )
         {
+            __Cerebro__run__(
             cout << TermColor::RED() << "loop found" << l-1 << "<--->" << tmp_i[2] << TermColor::RESET();
+            )
 
             {
             std::lock_guard<std::mutex> lk_foundloops(m_foundLoops);
@@ -369,6 +380,164 @@ void Cerebro::faiss__naive_loopcandidate_generator()
     cout << "[Cerebro::faiss__naive_loopcandidate_generator()] Finished\n";
 }
 
+
+// #define __faiss_clique_loopcandidate_generator__imp(msg) msg;
+#define __faiss_clique_loopcandidate_generator__imp(msg) ;
+
+// #define __faiss_clique_loopcandidate_generator__debug(msg) msg;
+#define __faiss_clique_loopcandidate_generator__debug(msg) ;
+
+// #define __faiss_clique_loopcandidate_generator__addtoindex(msg) msg;
+#define __faiss_clique_loopcandidate_generator__addtoindex(msg) ;
+
+#define __faiss_clique_loopcandidate_generator__search(msg) msg;
+// #define __faiss_clique_loopcandidate_generator__search(msg) ;
+void Cerebro::faiss_clique_loopcandidate_generator()
+{
+    assert( m_dataManager_available && "You need to set the DataManager in class Cerebro before execution of the run() thread can begin. You can set the dataManager by call to Cerebro::setDataManager()\n");
+    assert( b_run_thread && "you need to call run_thread_enable() before run() can start executing\n" );
+    //-----------------//
+    //---- Settings ---//
+    //-----------------//
+    const int start_adding_descriptors_to_index_after = 150;
+    const int K_NEAREST_NEIGHBOURS=5;
+
+    // wait until connected_to_descriptor_server=true and descriptor_size_available=true
+    if( wait_until__connectedToDescServer_and_descSizeAvailable( 15 ) == false ) {
+        cout << TermColor::RED() << "[Cerebro::faiss__naive_loopcandidate_generator ERROR] wait_until__connectedToDescServer_and_descSizeAvailable returned false implying a timeout.\n" << TermColor::RESET();
+        return;
+    }
+    __faiss_clique_loopcandidate_generator__imp( cout << TermColor::GREEN() <<"[Cerebro::faiss__naive_loopcandidate_generator] descriptor_size=" << this->descriptor_size << "  connected_to_descriptor_server && descriptor_size_available" << TermColor::RESET() << endl; )
+    assert( this->descriptor_size> 0 );
+
+    // init faiss index
+    __faiss_clique_loopcandidate_generator__imp(
+    cout << TermColor::GREEN() << "init a faiss::IndexFlatIP("<< this->descriptor_size << ")" << TermColor::RESET() << endl;
+    )
+    faiss::IndexFlatIP index(this->descriptor_size);
+
+    ros::Rate rate(10);
+    auto data_map = dataManager->getDataMapRef();
+
+    int l=0, last_l=0, l_last_added_to_index=0;
+    std::map< int, std::map< int, float> > data_strc;
+
+
+    float * distances = new float[K_NEAREST_NEIGHBOURS];
+    faiss::Index::idx_t * labels = new faiss::Index::idx_t[K_NEAREST_NEIGHBOURS];
+
+    while( b_run_thread ) {
+        l = wholeImageComputedList_size();
+        if( l<= last_l ) {
+            __faiss_clique_loopcandidate_generator__debug( cout << "[Cerebro::faiss_clique_loopcandidate_generator] nothing new\n";)
+            rate.sleep();
+            continue;
+        }
+
+        __faiss_clique_loopcandidate_generator__imp(
+        cout << TermColor::RED() << "--- " << TermColor::RESET() << l << "\t";
+        cout << "new [" << last_l << " to " << l << ")\n";
+        )
+
+
+        //--------- add
+        __faiss_clique_loopcandidate_generator__addtoindex(cout << TermColor::YELLOW();)
+        if( l>start_adding_descriptors_to_index_after) {
+            for( int j=l_last_added_to_index ; j<l-start_adding_descriptors_to_index_after ; j++ )
+            {
+                __faiss_clique_loopcandidate_generator__addtoindex(
+                cout << "index.add( " << j << ")" ;
+                cout << "\t aka  index.add(" << wholeImageComputedList_at(j) << ")\n";
+                )
+
+                VectorXd X = data_map->at( wholeImageComputedList_at( j ) )->getWholeImageDescriptor();
+                VectorXf X_float = X.cast<float>();
+                float * X_raw = X_float.data();
+                #if 0 //see if the type casting was correct.
+                for( int g=0;g<5;g++ ) {
+                    // cout << "(" << X(g) << "," << X_float(g) << ") ";
+                    cout << "(" << X(g) << "," << X_raw[g] << ") ";
+                }
+                cout << endl;
+                #endif
+                index.add( 1, X_raw );
+            }
+            l_last_added_to_index = l-start_adding_descriptors_to_index_after;
+        } else {
+            __faiss_clique_loopcandidate_generator__addtoindex(
+            cout << "not seen enough. so,, add nothing. Will start adding after "<< start_adding_descriptors_to_index_after<< " descriptors\n";
+            )
+        }
+        __faiss_clique_loopcandidate_generator__addtoindex(cout << TermColor::RESET();)
+
+
+
+        //----------- search
+        cout << TermColor::MAGENTA();
+        for( int l_i = last_l ; l_i < l ; l_i++ ) {
+            // cout << "\t\tindex.search(" << l_i << ")\t";
+            // cout << "index.search(" << wholeImageComputedList_at(l_i) << ")\t";
+            // cout << "index.ntotal=" << index.ntotal << "\n";
+            if( index.ntotal < K_NEAREST_NEIGHBOURS )
+                break;
+
+            // l_i's descriptor
+            VectorXd X = data_map->at( wholeImageComputedList_at( l_i ) )->getWholeImageDescriptor();
+            VectorXf X_float = X.cast<float>();
+            float * X_raw = X_float.data();
+
+            // ElapsedTime time_to_search = ElapsedTime();
+            index.search( 1, X_raw, K_NEAREST_NEIGHBOURS, distances, labels );
+            // cout << "search done in (ms): " << time_to_search.toc_milli() << endl;
+            for( int g=0 ; g<K_NEAREST_NEIGHBOURS; g++ ) {
+                if( distances[g] > 0.85 )
+                    cout << TermColor::GREEN();
+                else cout << TermColor::MAGENTA();
+                printf( "%4d<--(%4.2f)-->%d\t", l_i, distances[g], labels[g] );
+
+                #if 1
+                int l_i___ = int(l_i / 10);
+                int label___ = int( labels[g] / 10 );
+                if( data_strc.count(l_i___) == 0 ) {
+                    map<int, float> mmm;
+                    mmm[label___] = (distances[g]>0.8)?distances[g]:0.0;
+                    data_strc[l_i___] = mmm;
+                } else {
+                    if( data_strc.at(l_i___).count( label___)==0 ) {
+                        data_strc.at(l_i___)[ label___ ] = (distances[g]>0.8)?distances[g]:0.0;
+                    } else {
+                        data_strc.at(l_i___).at( label___ ) += (distances[g]>0.8)?distances[g]:0.0;
+                    }
+                }
+
+                #endif
+            }
+            cout << endl ;
+        }
+        cout << TermColor::RESET();
+
+        last_l = l;
+        rate.sleep();
+    }
+
+
+    // Printout the datastructure
+    for( auto it=data_strc.begin() ; it!=data_strc.end() ; it++ ) {
+        auto mmm = it->second;
+        cout << it->first << " : ";
+        for( auto it2=mmm.begin() ; it2!=mmm.end() ; it2++ ) {
+            if( it2->second > 0 )
+                printf( "%04d,%02.2f ; ", it2->first, it2->second );
+        }
+        cout << endl;
+    }
+
+    delete [] distances;
+    delete [] labels;
+    cout << "[Cerebro::faiss_clique_loopcandidate_generator] Finished Thread\n";
+
+
+}
 
 #endif //HAVE_FAISS
 
@@ -973,15 +1142,17 @@ bool Cerebro::process_loop_candidate_imagepair_consistent_pose_compute( int ii, 
         stereogeom, uv, a_3dImage, uv_d,
                                 feature_position_uv, feature_position_uv_d, world_point_uv);
     Matrix4d op1__b_T_a; string pnp__msg;
+    #if 1
     //--
-    // float pnp_goodness = StaticTheiaPoseCompute::PNP( world_point_uv, feature_position_uv_d, op1__b_T_a, pnp__msg  );
+    float pnp_goodness = StaticTheiaPoseCompute::PNP( world_point_uv, feature_position_uv_d, op1__b_T_a, pnp__msg  );
     //--END
-
+    #else
     //--
     op1__b_T_a = odom_b_T_a; // setting initial guess as odometry rel pose with translation as zero
     // op1__b_T_a(0,3) = 0.0; op1__b_T_a(1,3) = 0.0; op1__b_T_a(2,3) = 0.0;
     float pnp_goodness = StaticCeresPoseCompute::PNP( world_point_uv, feature_position_uv_d, op1__b_T_a, pnp__msg  );
     //--END
+    #endif
     __Cerebro__loopcandi_consumer__IMP(
     cout << TermColor::YELLOW() << "pnp_goodness=" << pnp_goodness << " op1__b_T_a = " << PoseManipUtils::prettyprintMatrix4d( op1__b_T_a ) << TermColor::RESET() << endl;
     )
@@ -1025,15 +1196,17 @@ bool Cerebro::process_loop_candidate_imagepair_consistent_pose_compute( int ii, 
         stereogeom, uv_d, b_3dImage, uv,
                                 feature_position_uv_d, feature_position_uv, world_point_uv_d);
     Matrix4d op2__a_T_b, op2__b_T_a; string pnp__msg_option_B;
+    #if 1
     //--
-    // float pnp_goodness_optioN_B = StaticTheiaPoseCompute::PNP( world_point_uv_d, feature_position_uv, op2__a_T_b, pnp__msg_option_B  );
+    float pnp_goodness_optioN_B = StaticTheiaPoseCompute::PNP( world_point_uv_d, feature_position_uv, op2__a_T_b, pnp__msg_option_B  );
     //--END
-
+    #else
     //--
     op2__a_T_b = odom_b_T_a.inverse();  //initial guess same as odometry
     // op2__a_T_b(0,3)=0.0;op2__a_T_b(1,3)=0.0;op2__a_T_b(2,3)=0.0;
     float pnp_goodness_optioN_B = StaticCeresPoseCompute::PNP( world_point_uv_d, feature_position_uv, op2__a_T_b, pnp__msg_option_B  );
     //--END
+    #endif
 
     op2__b_T_a = op2__a_T_b.inverse();
     __Cerebro__loopcandi_consumer__IMP(
@@ -1080,16 +1253,18 @@ bool Cerebro::process_loop_candidate_imagepair_consistent_pose_compute( int ii, 
     StaticPointFeatureMatching::make_3d_3d_collection__using__pfmatches_and_disparity( uv, a_3dImage, uv_d, b_3dImage,
         uv_X, uvd_Y );
     Matrix4d icp_b_T_a; string p3p__msg;
+    #if 1
     //--
-    // float p3p_goodness = StaticTheiaPoseCompute::P3P_ICP( uv_X, uvd_Y, icp_b_T_a, p3p__msg );
+    float p3p_goodness = StaticTheiaPoseCompute::P3P_ICP( uv_X, uvd_Y, icp_b_T_a, p3p__msg );
     //--END
-
+    #else
     //--
     icp_b_T_a = odom_b_T_a;
     // icp_b_T_a(0,3) = 0.0; icp_b_T_a(1,3) = 0.0; icp_b_T_a(2,3) = 0.0;
     float p3p_goodness = StaticCeresPoseCompute::P3P_ICP( uv_X, uvd_Y, icp_b_T_a, p3p__msg );
 
     //--END
+    #endif
 
 
     __Cerebro__loopcandi_consumer__IMP(

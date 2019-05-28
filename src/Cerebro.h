@@ -43,8 +43,9 @@ using namespace Eigen;
 using namespace std;
 
 
-//comment this out to remove dependence on faiss. If using faiss, also remember to link to libfaiss.so. See my CMakeList file to know how to do it.
-// #define HAVE_FAISS
+//comment this out to remove dependence on faiss.
+// If using faiss, also remember to link to libfaiss.so. See my CMakeList file to know how to do it.
+#define HAVE_FAISS
 
 #ifdef HAVE_FAISS
 // faiss is only used for generating loopcandidates.
@@ -117,6 +118,8 @@ public:
     void descrip_N__dot__descrip_0_N(); //< Naive method of dot product DIY
     #ifdef HAVE_FAISS
     void faiss__naive_loopcandidate_generator(); //< similar to descrip_N__dot__descrip_0_N() but uses facebook's faiss
+
+    void faiss_clique_loopcandidate_generator();
     #endif //HAVE_FAISS
 
 

@@ -141,7 +141,7 @@ which is expected to be consumed the pose-graph solver.
 
 If you wish to train your own model, you may use  [my learning code here](https://github.com/mpkuse/cartwheel_train).
 
-**Threads:**
+**Threads in cerebro_node:**
 - *Main Thread* : ros-callbacks
 - *data_association_th* : Sync the incoming image data and incoming data vins_estimator.
 - *desc_th* : Consumes the images to produce whole-image-descriptors.
@@ -150,6 +150,14 @@ If you wish to train your own model, you may use  [my learning code here](https:
 - *kidnap_th* : Identifies kidnap. If kidnap publishes the reset signals for vins_estimator.
 - *viz_th* : Publishes the image-pair, and more things for debugging and analysis.
 
+
+**Nvidia TX2**: Often times for live run, you might want to run the
+ros-server on a Nvidia-TX2. I recommend compiling tensorflow from scratch.
+The thing is prebuilt binaries may not be compatible with the version
+of CUDA and CUDNN on your device. Also some binaries may not be
+compatible to arm (could likely be built for x86). Before you can
+compile tensorflow you need java, bazel. See this [gist](https://gist.github.com/vellamike/7c26158c93e89ef155c1cc953bbba956). Also tools and repos from [jetsonhacks](https://github.com/jetsonhacks)
+might come in handy. 
 
 ### Pose Graph Solver
 Use my pose graph solver, [github-repo](https://github.com/mpkuse/solve_keyframe_pose_graph).

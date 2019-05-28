@@ -12,7 +12,6 @@
 #include "utils/ElapsedTime.h"
 #include "utils/PoseManipUtils.h"
 
-// #include <theia/theia.h>
 #include <vector>
 
 #include <Eigen/Dense>
@@ -23,7 +22,10 @@
 using namespace Eigen;
 using namespace std;
 
-#if 0
+
+#define __USE_THEIASFM //comment this out to compile with theia-sfm
+#ifdef __USE_THEIASFM
+#include <theia/theia.h>
 /////////// DlsPnp-RANSAC ///////////////////
 // Data
 struct CorrespondencePair_3d2d {
@@ -99,7 +101,7 @@ public:
 /////////// END DlsPnp-RANSAC ///////////////////
 #endif
 
-#if 0
+#ifdef __USE_THEIASFM
 //////////////////// AlignPointCloudsUmeyama with Ransac ///////////////////////
 // Data
 struct CorrespondencePair_3d3d {
