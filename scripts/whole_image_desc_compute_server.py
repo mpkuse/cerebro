@@ -521,40 +521,13 @@ class HDF5ModelImageDescriptor:
 
         LOG_DIR = '/'.join( kerasmodel_file.split('/')[0:-1] )
         print '+++++++++++++++++++++++++++++++++++++++++++++++++++++++'
-        print '++++++++++ (JSONModelImageDescriptor) LOG_DIR=', LOG_DIR
+        print '++++++++++ (HDF5ModelImageDescriptor) LOG_DIR=', LOG_DIR
         print '++++++++++ im_rows=', im_rows, ' im_cols=', im_cols, ' im_chnls=', im_chnls
         print '+++++++++++++++++++++++++++++++++++++++++++++++++++++++'
         model_type = LOG_DIR.split('/')[-1]
-        # code.interact( local=locals() )
+
 
         assert os.path.isdir( LOG_DIR ), "The LOG_DIR doesnot exist, or there is a permission issue. LOG_DIR="+LOG_DIR
-        assert os.path.isfile(  LOG_DIR+'/model.json'  ), "model.json does not exist in LOG_DIR="+LOG_DIR+'. This file is needed to load the network architecture from json format. This file should have been created when you learned the model using script in github.com/mpkuse/cartwheel_train'
-
-
-        if False:
-            #----- @ Load Model Structure from JSON
-            # Load JSON formatted model
-            json_string = open_json_file( LOG_DIR+'/model.json' )
-            # print '======================='
-            # pprint.pprint( json_string, indent=4 )
-            # print '======================='
-            model = keras.models.model_from_json(str(json_string),  custom_objects={'NetVLADLayer': NetVLADLayer, 'GhostVLADLayer':GhostVLADLayer} )
-            old_input_shape = model._layers[0].input_shape
-
-            model._layers[0]
-            print 'OLD MODEL: ', 'input_shape=', str(old_input_shape)
-            model.summary()
-            model_visual_fname = None
-            # model_visual_fname = '/app/core.png'
-            if model_visual_fname is not None:
-                print 'Writing Model Visual to: ', model_visual_fname
-                keras.utils.plot_model( model, to_file=model_visual_fname, show_shapes=True )
-
-            #----- @ Load Weights
-            assert os.path.isfile( kerasmodel_file ), 'The model weights file doesnot exists or there is a permission issue.'+"kerasmodel_file="+kerasmodel_file
-            model_fname = kerasmodel_file
-            print tcol.OKGREEN, 'Load model: ', model_fname, tcol.ENDC
-            model.load_weights(  model_fname )
 
 
         # Load from HDF5
@@ -604,7 +577,7 @@ class HDF5ModelImageDescriptor:
         """
         ## Get Image out of req
         cv_image = CvBridge().imgmsg_to_cv2( req.ima )
-        print '[Handle Request] cv_image.shape', cv_image.shape, '\ta=', req.a, '\tt=', req.ima.header.stamp
+        print '[HDF5ModelImageDescriptor Handle Request] cv_image.shape', cv_image.shape, '\ta=', req.a, '\tt=', req.ima.header.stamp
         if len(cv_image.shape)==2:
             # print 'Input dimensions are NxM but I am expecting it to be NxMxC, so np.expand_dims'
             cv_image = np.expand_dims( cv_image, -1 )
@@ -629,9 +602,9 @@ class HDF5ModelImageDescriptor:
 
         ## Compute Descriptor
         start_time = time.time()
-        i__image = np.expand_dims( cv_image.astype('float32'), 0 )
+        # i__image = np.expand_dims( cv_image.astype('float32'), 0 )
         # i__image = (np.expand_dims( cv_image.astype('float32'), 0 ) - 128.)/255. [-0.5,0.5]
-        # i__image = (np.expand_dims( cv_image.astype('float32'), 0 ) - 128.)*2.0/255. #[-1,1]
+        i__image = (np.expand_dims( cv_image.astype('float32'), 0 ) - 128.)*2.0/255. #[-1,1]
 
         u = self.model.predict( i__image )
 

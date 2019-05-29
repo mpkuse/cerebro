@@ -548,8 +548,8 @@ void Cerebro::faiss_clique_loopcandidate_generator()
 ///
 
 // 1 will plot the result of dot product as image. 0 will not plot to image
-#define __Cerebro__descrip_N__dot__descrip_0_N__implotting 0
-// #define __Cerebro__descrip_N__dot__descrip_0_N__implotting 1
+// #define __Cerebro__descrip_N__dot__descrip_0_N__implotting 0
+#define __Cerebro__descrip_N__dot__descrip_0_N__implotting 1
 
 
 void Cerebro::descrip_N__dot__descrip_0_N()

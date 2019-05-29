@@ -43,19 +43,21 @@
         <!-- KERAS SERVER -->
         <!-- $(ubuntu) rosrun cerebro whole_image_desc_compute_server.py _config_file:=/app/catk_ws/src/cerebro/config/vinsfusion/euroc/euroc_stereo_imu_config.yaml -->
         <node name="my_desc_server" pkg="cerebro" type="whole_image_desc_compute_server.py" output="log">
-            <!-- <param name="kerasmodel_file" type="string" value="/models.keras/Apr2019/gray_conv6_K16Ghost1__centeredinput/core_model.500.keras" /> -->
-            <!-- <param name="kerasmodel_file" type="string" value="/models.keras/Apr2019/gray_mobilenet-conv7_K16__centeredinput/core_model.400.keras" /> -->
-            <!-- <param name="kerasmodel_file" type="string" value="/models.keras/Apr2019/gray_conv6_K16Ghost1__centeredinput/core_model.500.keras" /> -->
-            <!-- <param name="kerasmodel_file" type="string" value="$(find cerebro)/scripts/keras.models/Apr2019/gray_conv6_K16__centeredinput/core_model.1000.keras" /> -->
-            <param name="kerasmodel_file" type="string" value="$(find cerebro)/scripts/keras.models/mobilenet_conv7_allpairloss.keras" />
+          <!-- <param name="kerasmodel_file" type="string" value="$(find cerebro)/scripts/keras.models/mobilenet_conv7_allpairloss.keras" /> -->
+          <!-- <param name="kerasmodel_file" type="string" value="$(find cerebro)/scripts/keras.models/modelarch_and_weights.h5" /> -->
+          <param name="kerasmodel_file" type="string" value="$(find cerebro)/scripts/keras.models/June2019/centeredinput-m1to1-240x320x3__mobilenet-conv_pw_6_relu__K16__allpairloss/modelarch_and_weights.700.h5" />
+
 
 
            <param name="config_file" type="string" value="$(arg config_path)" />
            <!--         OR -->
-           <!-- <param name="nrows" type="string" value="480" />
+           <!--
+           <param name="nrows" type="string" value="480" />
            <param name="ncols" type="string" value="752" />
-           <param name="nchnls" type="string" value="1" /> -->
-           <param name="nchnls" type="string" value="1" />
+            -->
+
+           <!-- <param name="nchnls" type="string" value="1" />  -->
+           <param name="nchnls" type="string" value="3" />
         </node>
 
         <!-- Pose graph (kidnap aware) -->
