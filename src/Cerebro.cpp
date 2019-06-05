@@ -59,11 +59,12 @@ void Cerebro::descriptor_computer_thread()
     // Sample Code : https://github.com/mpkuse/cerebro/blob/master/src/unittest/unittest_rosservice_client.cpp
     connected_to_descriptor_server = false;
     descriptor_size_available = false;
-    cout << "Attempt connecting to ros-service for 10sec (will give up after that)\n";
+    int n_sec_wait_for_connection = 35;
+    cout << "[Cerebro::descriptor_computer_thread]Attempt connecting to ros-service for " << n_sec_wait_for_connection << " sec (will give up after that)\n";
     ros::ServiceClient client = nh.serviceClient<cerebro::WholeImageDescriptorCompute>( "/whole_image_descriptor_compute" );
-    client.waitForExistence( ros::Duration(12, 0) ); //wait maximum 10 sec
+    client.waitForExistence( ros::Duration(n_sec_wait_for_connection, 0) ); //wait maximum 10 sec
     if( !client.exists() ) {
-        ROS_ERROR( "Connection to server NOT successful. Quiting the thread." );
+        ROS_ERROR( "[Cerebro::descriptor_computer_thread]Connection to server NOT successful. I tried waiting for %d sec, still couldnt establish connection. Quiting the thread.", n_sec_wait_for_connection );
         return;
     }
     else std::cout << TermColor::GREEN() <<  "Connection to ros-service ``" << client.getService() << "`` established" << TermColor::RESET() << endl;
@@ -267,7 +268,7 @@ void Cerebro::faiss__naive_loopcandidate_generator()
     //------ END -----//
 
     // wait until connected_to_descriptor_server=true and descriptor_size_available=true
-    if( wait_until__connectedToDescServer_and_descSizeAvailable( 15 ) == false ) {
+    if( wait_until__connectedToDescServer_and_descSizeAvailable( 35 ) == false ) {
         cout << TermColor::RED() << "[Cerebro::faiss__naive_loopcandidate_generator ERROR] wait_until__connectedToDescServer_and_descSizeAvailable returned false implying a timeout.\n" << TermColor::RESET();
         return;
     }
@@ -296,7 +297,7 @@ void Cerebro::faiss__naive_loopcandidate_generator()
 
         __Cerebro__run__( cout << TermColor::RED() << "---" << TermColor::RESET() << endl; )
         __Cerebro__run__( cout << "l=" << l << endl; )
-        __Cerebro__run__debug( cout << "[Cerebro::faiss__naive_loopcandidate_generator] data_map.size() = " << data_map->size() << endl; )
+        __Cerebro__run__debug( cout << "[Cerebro::faiss__naive_loopcandidate_generator] data_map.size() = " << data_map->size() << "\tper_image_descriptor_size=" << this->descriptor_size << endl; )
 
 
         // add
@@ -403,7 +404,7 @@ void Cerebro::faiss_clique_loopcandidate_generator()
     const int K_NEAREST_NEIGHBOURS=5;
 
     // wait until connected_to_descriptor_server=true and descriptor_size_available=true
-    if( wait_until__connectedToDescServer_and_descSizeAvailable( 15 ) == false ) {
+    if( wait_until__connectedToDescServer_and_descSizeAvailable( 35 ) == false ) {
         cout << TermColor::RED() << "[Cerebro::faiss__naive_loopcandidate_generator ERROR] wait_until__connectedToDescServer_and_descSizeAvailable returned false implying a timeout.\n" << TermColor::RESET();
         return;
     }
@@ -548,8 +549,8 @@ void Cerebro::faiss_clique_loopcandidate_generator()
 ///
 
 // 1 will plot the result of dot product as image. 0 will not plot to image
-// #define __Cerebro__descrip_N__dot__descrip_0_N__implotting 0
-#define __Cerebro__descrip_N__dot__descrip_0_N__implotting 1
+#define __Cerebro__descrip_N__dot__descrip_0_N__implotting 0
+// #define __Cerebro__descrip_N__dot__descrip_0_N__implotting 1
 
 
 void Cerebro::descrip_N__dot__descrip_0_N()
@@ -582,7 +583,7 @@ void Cerebro::descrip_N__dot__descrip_0_N()
     }
     #endif
 
-    if( wait_until__connectedToDescServer_and_descSizeAvailable( 15 ) == false ) {
+    if( wait_until__connectedToDescServer_and_descSizeAvailable( 35 ) == false ) {
         cout << TermColor::RED() << "[ Cerebro::descrip_N__dot__descrip_0_N ERROR] wait_until__connectedToDescServer_and_descSizeAvailable returned false implying a timeout.\n" << TermColor::RESET();
         return;
     }
@@ -621,7 +622,7 @@ void Cerebro::descrip_N__dot__descrip_0_N()
 
         __Cerebro__run__( cout << TermColor::RED() << "---" << TermColor::RESET() << endl; )
         __Cerebro__run__( cout << "l=" << l << endl; )
-        __Cerebro__run__debug( cout << "[Cerebro::descrip_N__dot__descrip_0_N] data_map.size() = " << data_map->size() << endl; )
+        __Cerebro__run__debug( cout << "[Cerebro::descrip_N__dot__descrip_0_N] data_map.size() = " << data_map->size() << "\tper_image_descriptor_size="<< this->descriptor_size << endl; )
 
 
         ///------------ Extract v, v-1, v-2. The latest 3 descriptors.
@@ -2129,7 +2130,7 @@ bool Cerebro::wait_until__connectedToDescServer_and_descSizeAvailable( int timeo
     while( true ) {
         if( this->connected_to_descriptor_server && this->descriptor_size_available)
             break;
-        __Cerebro__run__(cout << wait_itr << " [Cerebro::wait_until__connectedToDescServer_and_descSizeAvailable] waiting for `descriptor_size_available` to be true\n";)
+        __Cerebro__run__(cout << wait_itr << " [Cerebro::wait_until__connectedToDescServer_and_descSizeAvailable] waiting for `descriptor_size_available` to be true. timeout_in_sec=" << timeout_in_sec << "\n";)
         rate.sleep();
         wait_itr++;
         if( wait_itr > timeout_in_sec*10 ) {

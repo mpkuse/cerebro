@@ -31,10 +31,10 @@
     <!-- <arg name="bag_file" default="/kidnap/2019-01-14-17-20-06.bag" doc="lab kidnap. easy"/> -->
     <!-- <arg name="bag_file" default="/kidnap/2019-02-14-12-00-21.bag" doc="3 kidnaps in lab. This gives the chained case for pose computation between worlds"/> -->
     <!-- <arg name="bag_file" default="/kidnap/2019-02-14-17-19-29.bag" doc="4 kidnaps in lab"/> -->
-    <arg name="bag_file" default="/kidnap/2019-02-21-17-10-30.bag" doc="0:-; 1:-; 2:merge(0), merge(1). 2nd merges with both 0 and 1."/>
+    <!-- <arg name="bag_file" default="/kidnap/2019-02-21-17-10-30.bag" doc="0:-; 1:-; 2:merge(0), merge(1). 2nd merges with both 0 and 1."/> -->
     <!-- <arg name="bag_file" default="/kidnap/2019-02-21-17-38-58.bag" doc="0:-; 1:-; 2:merge(0), merge(1). 2nd merges with both 0 and 1."/> -->
     <!-- <arg name="bag_file" default="/kidnap/2019-03-07-14-58-00.bag" doc="2 independent runs"/> -->
-    <!-- <arg name="bag_file" default="/kidnap/2019-03-14-16-12-22.bag" doc="7 kidnaps. 0:; 1:; all next merges with 1. Final merge with 0 and 3."/> -->
+    <arg name="bag_file" default="/kidnap/2019-03-14-16-12-22.bag" doc="7 kidnaps. 0:; 1:; all next merges with 1. Final merge with 0 and 3."/>
     <!-- <arg name="bag_file" default="/kidnap/2019-03-14-16-36-58.bag" doc="10 kidnaps. 0; 1; merge everything with 1. finall all merge to zero. very complicated dependence structure of the walk,"/> -->
 
 
@@ -57,7 +57,7 @@
 
 
 
-    <node pkg="rosbag" type="play" name="rosbag" args="$(arg bag_path)/$(arg bag_file) -s 1 -d 2" output="log"/>
+    <node pkg="rosbag" type="play" name="rosbag" args="$(arg bag_path)/$(arg bag_file) -s 1 -d 10" output="log"/>
 
     <!-- END Bag -->
 
@@ -90,7 +90,8 @@
         <node name="my_desc_server" pkg="cerebro" type="whole_image_desc_compute_server.py" output="screen">
             <!-- <param name="kerasmodel_file" type="string" value="$(find cerebro)/scripts/keras.models/modelarch_and_weights.h5" /> -->
             <!-- <param name="kerasmodel_file" type="string" value="/models.keras/June2019/centeredinput-m1to1-240x320x3__mobilenet-conv_pw_6_relu__K16__allpairloss/modelarch_and_weights.500.h5" /> -->
-            <param name="kerasmodel_file" type="string" value="$(find cerebro)/scripts/keras.models/June2019/centeredinput-m1to1-240x320x3__mobilenet-conv_pw_6_relu__K16__allpairloss/modelarch_and_weights.700.h5" />
+            <!-- <param name="kerasmodel_file" type="string" value="$(find cerebro)/scripts/keras.models/June2019/centeredinput-m1to1-240x320x3__mobilenet-conv_pw_6_relu__K16__allpairloss/modelarch_and_weights.700.h5" /> -->
+            <param name="kerasmodel_file" type="string" value="$(find cerebro)/scripts/keras.models/June2019/centeredinput-m1to1-240x320x3__mobilenetv2-block_9_add__K16__allpairloss/modelarch_and_weights.800.h5" />
 
 
            <param name="config_file" type="string" value="$(arg config_path)" />

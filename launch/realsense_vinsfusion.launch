@@ -45,8 +45,8 @@
         <node name="my_desc_server" pkg="cerebro" type="whole_image_desc_compute_server.py" output="log">
           <!-- <param name="kerasmodel_file" type="string" value="$(find cerebro)/scripts/keras.models/mobilenet_conv7_allpairloss.keras" /> -->
           <!-- <param name="kerasmodel_file" type="string" value="$(find cerebro)/scripts/keras.models/modelarch_and_weights.h5" /> -->
-          <param name="kerasmodel_file" type="string" value="$(find cerebro)/scripts/keras.models/June2019/centeredinput-m1to1-240x320x3__mobilenet-conv_pw_6_relu__K16__allpairloss/modelarch_and_weights.700.h5" />
-
+          <!-- <param name="kerasmodel_file" type="string" value="$(find cerebro)/scripts/keras.models/June2019/centeredinput-m1to1-240x320x3__mobilenet-conv_pw_6_relu__K16__allpairloss/modelarch_and_weights.700.h5" /> -->
+          <param name="kerasmodel_file" type="string" value="$(find cerebro)/scripts/keras.models/June2019/centeredinput-m1to1-240x320x3__mobilenetv2-block_9_add__K16__allpairloss/modelarch_and_weights.800.h5" />
 
 
            <param name="config_file" type="string" value="$(arg config_path)" />

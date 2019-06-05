@@ -65,13 +65,13 @@ and nvidia-docker installed.
 $(host) export ROS_HOSTNAME=`hostname`
 $(host) roscore
 # assume that host has the ip address 172.17.0.1 in docker-network aka docker0
-$(host) docker run --runtime=nvidia -it \
+$(host) docker run --runtime=nvidia -it --rm \
         --add-host `hostname`:172.17.0.1 \
         --env ROS_MASTER_URI=http://`hostname`:11311/ \
         --env CUDA_VISIBLE_DEVICES=0 \
         --hostname happy_go \
         --name happy_go  \
-        mpkuse/kusevisionkit:vins-kidnap bash
+        mpkuse/kusevisionkit:ros-kinetic-vins-tf-faiss bash
 $(host) rviz # inside rviz open config cerebro/config/good-viz.rviz. If you open rviz in a new tab you might need to do set ROS_HOSTNAME again.
 $(docker) roslaunch cerebro mynteye_vinsfusion.launch
             OR
@@ -79,14 +79,15 @@ $(docker) roslaunch cerebro euroc_vinsfusion.launch
 $(host) rosbag play 1.bag
 ```
 
-Edit the launch file as needed.
 
 
 If you are unfamiliar with docker, you may want to read [my blog post](https://kusemanohar.wordpress.com/2018/10/03/docker-for-computer-vision-researchers/)
 on using docker for computer vision researchers.
 You might want to have a look at my test ros-package to ensure things work with docker [docker_ros_test](https://github.com/mpkuse/docker_ros_test).
-
-
+List of all my docker-images can be found [here](https://hub.docker.com/r/mpkuse/kusevisionkit).
+Other docker images that work:
+- mpkuse/kusevisionkit:ros-kinetic-vins-tf-faiss (preferred)
+- mpkuse/kusevisionkit:vins-kidnap
 
 
 ## How to compile (from scratch)
@@ -157,7 +158,7 @@ The thing is prebuilt binaries may not be compatible with the version
 of CUDA and CUDNN on your device. Also some binaries may not be
 compatible to arm (could likely be built for x86). Before you can
 compile tensorflow you need java, bazel. See this [gist](https://gist.github.com/vellamike/7c26158c93e89ef155c1cc953bbba956). Also tools and repos from [jetsonhacks](https://github.com/jetsonhacks)
-might come in handy. 
+might come in handy.
 
 ### Pose Graph Solver
 Use my pose graph solver, [github-repo](https://github.com/mpkuse/solve_keyframe_pose_graph).
@@ -215,6 +216,10 @@ $(host) xhost +local:root
 $(host)
 docker run --runtime=nvidia -it  -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix -v /media/mpkuse/Bulk_Data/:/Bulk_Data  -v /home/mpkuse/docker_ws_slam:/app  --add-host `hostname`:172.17.0.1  --env ROS_MASTER_URI=http://`hostname`:11311/  --env CUDA_VISIBLE_DEVICES=0  --hostname happy_go   --name happy_go  mpkuse/kusevisionkit:ros-kinetic-vins bash
 ```
+
+Other docker images that work:
+- mpkuse/kusevisionkit:ros-kinetic-vins-tf-faiss (preferred)
+- mpkuse/kusevisionkit:vins-kidnap
 
 Each of my classes can export the data they hold as json objects and image files. Look at the
 end of `main()` in `cerebro_node.cpp` and modify as needed to extract more debug data. Similarly
