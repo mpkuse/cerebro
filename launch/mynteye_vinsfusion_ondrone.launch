@@ -81,12 +81,13 @@
 
     <group if="1">
         <!-- Cerebro -->
-        <node name="cerebro_node" pkg="cerebro" type="cerebro_node" output="log">
+        <node name="cerebro_node" pkg="cerebro" type="cerebro_node" output="screen">
            <param name="config_file" type="string" value="$(arg config_path)" />
         </node>
 
         <!-- KERAS SERVER -->
         <!-- $(ubuntu) rosrun cerebro whole_image_desc_compute_server.py _config_file:=/app/catk_ws/src/cerebro/config/vinsfusion/euroc/euroc_stereo_imu_config.yaml -->
+        <group if="0" >
         <node name="my_desc_server" pkg="cerebro" type="whole_image_desc_compute_server.py" output="screen">
             <!-- <param name="kerasmodel_file" type="string" value="$(find cerebro)/scripts/keras.models/modelarch_and_weights.h5" /> -->
             <!-- <param name="kerasmodel_file" type="string" value="/models.keras/June2019/centeredinput-m1to1-240x320x3__mobilenet-conv_pw_6_relu__K16__allpairloss/modelarch_and_weights.500.h5" /> -->
@@ -109,6 +110,7 @@
         <!-- $(ubuntu) rosrun solve_keyframe_pose_graph keyframe_pose_graph_slam -->
         <node name="keyframe_pose_graph_slam_node" pkg="solve_keyframe_pose_graph" type="keyframe_pose_graph_slam" output="log" >
         </node>
+      </group>
     </group>
 
 </launch>

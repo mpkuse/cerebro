@@ -442,7 +442,7 @@ int main( int argc, char ** argv )
     viz.setCerebro( &cer );
     viz.setVizPublishers( "/cerebro_node/viz/" );
     viz.run_thread_enable();
-    std::thread viz_th( &Visualization::run, &viz, 20 ); //TODO something wrong with the logic in publish. another solution could be we keep #seq in DataNode.
+    std::thread viz_th( &Visualization::run, &viz, 10 ); //TODO something wrong with the logic in publish. another solution could be we keep #seq in DataNode.
 
 
     fs.release();
