@@ -39,11 +39,11 @@ void Cerebro::setPublishers( const string base_topic_name )
 //     like texts, objects visible etc. TODO
 //------------------------------------------------------------------//
 
-// #define __Cerebro__descriptor_computer_thread( msg ) ;
-#define __Cerebro__descriptor_computer_thread( msg ) msg
+#define __Cerebro__descriptor_computer_thread( msg ) ;
+// #define __Cerebro__descriptor_computer_thread( msg ) msg
 
-// #define __Cerebro__descriptor_computer_thread__imp( msg ) ;
-#define __Cerebro__descriptor_computer_thread__imp( msg ) msg;
+#define __Cerebro__descriptor_computer_thread__imp( msg ) ;
+// #define __Cerebro__descriptor_computer_thread__imp( msg ) msg;
 void Cerebro::descriptor_computer_thread()
 {
     assert( m_dataManager_available && "You need to set the DataManager in class Cerebro before execution of the run() thread can begin. You can set the dataManager by call to Cerebro::setDataManager()\n");
@@ -122,115 +122,12 @@ void Cerebro::descriptor_computer_thread()
 
     ros::Rate rate(20);
     auto data_map = dataManager->getDataMapRef();
-    int n_computed = 0;
-
-    #if 1
-    while(b_descriptor_computer_thread && data_map->begin() == data_map->end() ) {
-        __Cerebro__descriptor_computer_thread( cout << "nothing to compute descriptor\n" );
-        std::this_thread::sleep_for( std::chrono::milliseconds( 1000 )  );
-        continue;
-    }
 
 
-    auto it = data_map->begin();
-    while( b_descriptor_computer_thread )
-    {
-        if( it->second->isWholeImageDescriptorAvailable() == false && it->second->isKeyFrame()  )
-        {
-            n_computed++;
-            if( n_computed %2 != 0 ) {
-                cout << "...SKIP...\n";
-
-            } else {
-
-                //
-                // Compute Descriptors at the current iterator position
-                //
-
-                __Cerebro__descriptor_computer_thread(cout << TermColor::MAGENTA() << "[Cerebro::descriptor_computer_thread]--- process t=" << it->first << TermColor::RESET() << " n_computed=" << n_computed << endl;)
-                // std::this_thread::sleep_for( std::chrono::milliseconds( 120 )  );
-
-                if( it->second->getNumberOfSuccessfullyTrackedFeatures() < 20 )
-                {
-                    __Cerebro__descriptor_computer_thread( cout << "[Cerebro::descriptor_computer_thread] skip computing whole-image-descriptor for this image because it appears to be a kidnapped image frame.\n" ; )
-                    // continue;
-                }
-                else
-                {
-
-
-                _est_desc_compute_time_ms.tic();
-
-                // use it->second->getImage() to compute descriptor. call the service
-                const cv::Mat& image_curr = it->second->getImage();
-                sensor_msgs::ImagePtr image_msg;
-                if( nChannels == 3 )
-                    image_msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", image_curr).toImageMsg();
-                else if( nChannels == 1 )
-                    image_msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", image_curr).toImageMsg();
-                else {
-                    assert( false && "Invalid number of channels specified in Cerebro::descriptor_computer_thread() ");
-                    cout << TermColor::RED() << "[ERROR] Cx Invalid number of channels specified in Cerebro::descriptor_computer_thread() " << endl << TermColor::RESET();
-                    exit(3);
-                }
-                image_msg->header.stamp = ros::Time( it->first );
-                cerebro::WholeImageDescriptorCompute srv; //service message
-                srv.request.ima = *image_msg;
-                srv.request.a = 986;
-                if( client.call( srv ) ) {
-                    __Cerebro__descriptor_computer_thread(std::cout <<  "Received response from server\t";)
-                    __Cerebro__descriptor_computer_thread(std::cout << "desc.size=" << srv.response.desc.size() << std::endl;)
-                    assert( srv.response.desc.size() > 0 && "The received descriptor appear to be of zero length. This is a fatal error.\n" );
-
-                    VectorXd vec( srv.response.desc.size() ); // allocated a vector
-                    for( int j=0 ; j<srv.response.desc.size() ; j++ ) {
-                        vec(j) = srv.response.desc[j];
-                    }
-                    // std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-                    it->second->setWholeImageDescriptor( vec );
-
-
-                    {
-                        std::lock_guard<std::mutex> lk(m_wholeImageComputedList);
-                        this->wholeImageComputedList.push_back( it->first ); // note down where it was computed.
-                    }
-                    __Cerebro__descriptor_computer_thread(cout << "Computed descriptor at t=" << it->first - dataManager->getPose0Stamp() << "\t" << it->first << endl;)
-                    estimated_descriptor_compute_time_ms = _est_desc_compute_time_ms.toc_milli();
-                    __Cerebro__descriptor_computer_thread(std::cout << "Computed descriptor in (millisec) = " << estimated_descriptor_compute_time_ms  << endl;)
-
-
-                    __Cerebro__descriptor_computer_thread__imp(cout << TermColor::CYAN() << "Computed descriptor at t=" << it->first - dataManager->getPose0Stamp() << "\t" << it->first << TermColor::RESET() << endl);
-
-
-                }
-                else {
-                    ROS_ERROR( "Failed to call ros service" );
-                }
-                } //if( it->second->getNumberOfSuccessfullyTrackedFeatures() < 20 )
-
-
-
-            }
-
-        }
-
-
-        // bookkeeping
-        auto it_p = it;
-        it++;
-        if( it == data_map->end() )
-        {
-            it = it_p;
-            __Cerebro__descriptor_computer_thread( cout << "iterator is at the end(). Sleep for 1000ms\n" );
-            std::this_thread::sleep_for( std::chrono::milliseconds( 1000 )  );
-            continue;
-        }
-    }
-    #endif
-
-    // old working code
-    #if 0
+    ros::Time last_proc_timestamp =ros::Time();
+    int n_computed=0;
+    ElapsedTime _time;
+    int incoming_diff_ms = 0;
     while( b_descriptor_computer_thread )
     {
         if( data_map->begin() == data_map->end() ) {
@@ -245,10 +142,21 @@ void Cerebro::descriptor_computer_thread()
         for( auto it = S; it != E ; it++ ) {
             //descriptor does not exisit at this stamp, so compute it.
             // Here I compute the whole image descriptor only at keyframes, you may try something like, if the pose is available compute it.
-            if( it->second->isWholeImageDescriptorAvailable() == false && it->second->isKeyFrame()  )
+            if( it->second->isWholeImageDescriptorAvailable() == false && it->second->isKeyFrame() && it->first >  last_proc_timestamp )
             {
-              __Cerebro__descriptor_computer_thread(cout << TermColor::MAGENTA() << "[Cerebro::descriptor_computer_thread]--- process t=" << it->first << TermColor::RESET() << " n_computed=" << n_computed << endl;)
+              __Cerebro__descriptor_computer_thread(cout << TermColor::MAGENTA() << "[Cerebro::descriptor_computer_thread]--- process t=" << it->first << "\trel_t=" <<  it->first - dataManager->getPose0Stamp() << TermColor::RESET() << " n_computed=" << n_computed << endl;)
               n_computed++;
+              incoming_diff_ms = (it->first - last_proc_timestamp).toSec() * 1000. ;
+             __Cerebro__descriptor_computer_thread(  cout << "incoming_diff_ms = " << incoming_diff_ms << "\testimated_descriptor_compute_time_ms=" << estimated_descriptor_compute_time_ms << endl; )
+             float skip_frac = 1.0 - incoming_diff_ms/estimated_descriptor_compute_time_ms;
+              last_proc_timestamp = it->first;
+
+              if( n_computed%2 == 0 ) // simple skip
+              if( n_computed>4 && (float) rand()/ (RAND_MAX) < skip_frac ) // dynamic skip
+              {
+                  __Cerebro__descriptor_computer_thread( cout << "\t\t...SKIP...\n"; )
+                  continue;
+              }
 
 
                 if( it->second->getNumberOfSuccessfullyTrackedFeatures() < 20 )
@@ -257,8 +165,7 @@ void Cerebro::descriptor_computer_thread()
                     continue;
                 }
 
-                __Cerebro__descriptor_computer_thread(ElapsedTime _time);
-                __Cerebro__descriptor_computer_thread(_time.tic());
+                _time.tic();
 
                 // use it->second->getImage() to compute descriptor. call the service
                 const cv::Mat& image_curr = it->second->getImage();
@@ -277,8 +184,8 @@ void Cerebro::descriptor_computer_thread()
                 srv.request.ima = *image_msg;
                 srv.request.a = 986;
                 if( client.call( srv ) ) {
-                    __Cerebro__descriptor_computer_thread(std::cout <<  "Received response from server\t";)
-                    __Cerebro__descriptor_computer_thread(std::cout << "desc.size=" << srv.response.desc.size() << std::endl;)
+                    // __Cerebro__descriptor_computer_thread(std::cout <<  "Received response from server\t";)
+                    // __Cerebro__descriptor_computer_thread(std::cout << "desc.size=" << srv.response.desc.size() << std::endl;)
                     assert( srv.response.desc.size() > 0 && "The received descriptor appear to be of zero length. This is a fatal error.\n" );
 
                     VectorXd vec( srv.response.desc.size() ); // allocated a vector
@@ -294,24 +201,29 @@ void Cerebro::descriptor_computer_thread()
                         std::lock_guard<std::mutex> lk(m_wholeImageComputedList);
                         this->wholeImageComputedList.push_back( it->first ); // note down where it was computed.
                     }
-                    __Cerebro__descriptor_computer_thread(cout << "Computed descriptor at t=" << it->first - dataManager->getPose0Stamp() << "\t" << it->first << endl;)
-                    __Cerebro__descriptor_computer_thread(std::cout << "Computed descriptor in (millisec) = " << _time.toc_milli()  << endl;)
+                    // __Cerebro__descriptor_computer_thread(cout << "Computed descriptor at t=" << it->first - dataManager->getPose0Stamp() << "\t" << it->first << endl;)
+                    // __Cerebro__descriptor_computer_thread(std::cout << "Computed descriptor in (millisec) = " << _time.toc_milli()  << endl;)
+                    // __Cerebro__descriptor_computer_thread__imp(cout << TermColor::CYAN() << "Computed descriptor at t=" << it->first - dataManager->getPose0Stamp() << "\t" << it->first << TermColor::RESET() << endl);
 
-
-                    __Cerebro__descriptor_computer_thread__imp(cout << TermColor::CYAN() << "Computed descriptor at t=" << it->first - dataManager->getPose0Stamp() << "\t" << it->first << TermColor::RESET() << endl);
+                     estimated_descriptor_compute_time_ms = _time.toc_milli();
+                    __Cerebro__descriptor_computer_thread__imp(
+                    cout << "Computed descriptor at t=" << it->first << " of dim=" << srv.response.desc.size()  << " in millisec=" << estimated_descriptor_compute_time_ms << endl;
+                    )
 
 
                 }
                 else {
                     ROS_ERROR( "Failed to call ros service" );
                 }
+
             }
         }
 
         rate.sleep();
     }
-    #endif
 
+
+    cout << "[Cerebro::descriptor_computer_thread] Finished\n";
 
 }
 
@@ -344,11 +256,11 @@ const ros::Time Cerebro::wholeImageComputedList_at(int k) const
 
 
 
-#define __Cerebro__run__( msg ) msg ;
-// #define __Cerebro__run__( msg ) ;
+// #define __Cerebro__run__( msg ) msg ;
+#define __Cerebro__run__( msg ) ;
 
-#define __Cerebro__run__debug( msg ) msg ;
-// #define __Cerebro__run__debug( msg ) ;
+// #define __Cerebro__run__debug( msg ) msg ;
+#define __Cerebro__run__debug( msg ) ;
 
 /// TODO: In the future more intelligent schemes can be experimented with. Besure to run those in new threads and disable this thread.
 /// wholeImageComputedList is a list for which descriptors are computed. Similarly other threads can compute
@@ -954,8 +866,8 @@ json Cerebro::foundLoops_as_JSON()
 #define __Cerebro__loopcandi_consumer__(msg)  ;
 // ^This will also imshow image-pairs with gms-matches marked.
 
-#define __Cerebro__loopcandi_consumer__IMP( msg ) msg;
-// #define __Cerebro__loopcandi_consumer__IMP( msg ) ;
+// #define __Cerebro__loopcandi_consumer__IMP( msg ) msg;
+#define __Cerebro__loopcandi_consumer__IMP( msg ) ;
 // ^Important Text only printing
 
 
