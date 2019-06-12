@@ -39,11 +39,11 @@ void Cerebro::setPublishers( const string base_topic_name )
 //     like texts, objects visible etc. TODO
 //------------------------------------------------------------------//
 
-#define __Cerebro__descriptor_computer_thread( msg ) ;
-// #define __Cerebro__descriptor_computer_thread( msg ) msg
+// #define __Cerebro__descriptor_computer_thread( msg ) ;
+#define __Cerebro__descriptor_computer_thread( msg ) msg
 
-#define __Cerebro__descriptor_computer_thread__imp( msg ) ;
-// #define __Cerebro__descriptor_computer_thread__imp( msg ) msg;
+// #define __Cerebro__descriptor_computer_thread__imp( msg ) ;
+#define __Cerebro__descriptor_computer_thread__imp( msg ) msg;
 void Cerebro::descriptor_computer_thread()
 {
     assert( m_dataManager_available && "You need to set the DataManager in class Cerebro before execution of the run() thread can begin. You can set the dataManager by call to Cerebro::setDataManager()\n");
@@ -586,7 +586,7 @@ void Cerebro::descrip_N__dot__descrip_0_N()
     assert( m_dataManager_available && "You need to set the DataManager in class Cerebro before execution of the run() thread can begin. You can set the dataManager by call to Cerebro::setDataManager()\n");
     assert( b_run_thread && "you need to call run_thread_enable() before run() can start executing\n" );
 
-
+    cout << TermColor::GREEN() << "[Cerebro::descrip_N__dot__descrip_0_N] Start thread" << TermColor::RESET() << endl;
     //---
     //--- Main settings for this function
     //---
@@ -794,7 +794,7 @@ void Cerebro::descrip_N__dot__descrip_0_N()
         rate.sleep();
     }
 
-
+    cout << TermColor::RED() << "[Cerebro::descrip_N__dot__descrip_0_N] Finished thread" << TermColor::RESET() << endl;
 }
 
 
@@ -862,17 +862,17 @@ json Cerebro::foundLoops_as_JSON()
 //------------------ Geometry Thread ---------------------------//
 //--------------------------------------------------------------//
 
-// #define __Cerebro__loopcandi_consumer__(msg) msg;
-#define __Cerebro__loopcandi_consumer__(msg)  ;
+#define __Cerebro__loopcandi_consumer__(msg) msg;
+// #define __Cerebro__loopcandi_consumer__(msg)  ;
 // ^This will also imshow image-pairs with gms-matches marked.
 
-// #define __Cerebro__loopcandi_consumer__IMP( msg ) msg;
-#define __Cerebro__loopcandi_consumer__IMP( msg ) ;
+#define __Cerebro__loopcandi_consumer__IMP( msg ) msg;
+// #define __Cerebro__loopcandi_consumer__IMP( msg ) ;
 // ^Important Text only printing
 
 
-// #define __Cerebro__loopcandi_consumer__IMSHOW 0 // will not produce the images (ofcourse will not show as well)
-#define __Cerebro__loopcandi_consumer__IMSHOW 1 // produce the images and log them, will not imshow
+#define __Cerebro__loopcandi_consumer__IMSHOW 0 // will not produce the images (ofcourse will not show as well)
+// #define __Cerebro__loopcandi_consumer__IMSHOW 1 // produce the images and log them, will not imshow
 // #define __Cerebro__loopcandi_consumer__IMSHOW 2 // produce the images and imshow them, don't log
 
 // Just uncomment it to disable consistency check.
@@ -881,7 +881,7 @@ void Cerebro::loopcandiate_consumer_thread()
 {
     assert( m_dataManager_available && "You need to set the DataManager in class Cerebro before execution of the run() thread can begin. You can set the dataManager by call to Cerebro::setDataManager()\n");
     assert( b_loopcandidate_consumer && "you need to call loopcandidate_consumer_enable() before loopcandiate_consumer_thread() can start executing\n" );
-
+    cout << TermColor::GREEN() <<   "[Cerebro::loopcandiate_consumer_thread] Start thread" << TermColor::RESET() << endl;
 
     // init StereoGeometry
     bool stereogeom_status = init_stereogeom();
@@ -971,7 +971,7 @@ void Cerebro::loopcandiate_consumer_thread()
 
     }
 
-    cout << "disable called, quitting loopcandiate_consumer_thread\n";
+    cout << TermColor::RED() <<  "[Cerebro::loopcandiate_consumer_thread] disable called, quitting loopcandiate_consumer_thread" << TermColor::RESET() << endl;
 
 }
 
@@ -1444,8 +1444,6 @@ bool Cerebro::process_loop_candidate_imagepair( int ii, ProcessedLoopCandidate& 
     DataNode * node_1 = data_map->find( t_curr )->second;
     DataNode * node_2 = data_map->find( t_prev )->second;
 
-    // cv::Mat im_1 = node_1->getImage();
-    // cv::Mat im_2 = node_2->getImage();
 
     __Cerebro__loopcandi_consumer__IMP(
     cout << TermColor::BLUE() << "{"<<ii <<  "} process: "<< idx_1 << "<--->" << idx_2 << TermColor::RESET() << endl;

@@ -348,11 +348,12 @@ int main( int argc, char ** argv )
     // [A]
     // Data associate thread: looks at the callback buffers and sets the data in the std::map
     dataManager.data_association_thread_enable();
+    // dataManager.data_association_thread_disable();
     std::thread data_association_th( &DataManager::data_association_thread, &dataManager, 15 );
 
     dataManager.trial_thread_enable();
-    dataManager.trial_thread_disable();
-    std::thread dm_trial_th( &DataManager::trial_thread, &dataManager );
+    // dataManager.trial_thread_disable();
+    std::thread dm_trial_th( &DataManager::trial_thread, &dataManager, "/dev/pts/18" );
 
     // [A.1] Another thread in class dataManager which will deallocate images in nonkeyframes.
     dataManager.clean_up_useless_images_thread_enable();
@@ -404,7 +405,7 @@ int main( int argc, char ** argv )
     //      This whole image descriptor is stored in `node->setWholeImageDescriptor`
     //      and the index of computation stored in `wholeImageComputedList`.
     cer.descriptor_computer_thread_enable();
-    // cer.descriptor_computer_thread_disable();
+    cer.descriptor_computer_thread_disable();
     std::thread desc_th( &Cerebro::descriptor_computer_thread, &cer ); //runs @20hz
 
 
@@ -416,7 +417,7 @@ int main( int argc, char ** argv )
     //      comeout to be +ve it declares 'loop found' and queues up this pair into the
     //      list `foundLoops`
     cer.run_thread_enable();
-    // cer.run_thread_disable();
+    cer.run_thread_disable();
     std::thread dot_product_th( &Cerebro::run, &cer ); //< descrip_N__dot__descrip_0_N. runs @ 10hz
 
 
@@ -426,13 +427,13 @@ int main( int argc, char ** argv )
     //      If new candidates are present in the list it computes the relative-pose
     //      using GMSMatcher and theia-sfm's pnp. The depth is computed from stereogeom (class StereoGeometry)
     cer.loopcandidate_consumer_enable();
-    // cer.loopcandidate_consumer_disable();
+    cer.loopcandidate_consumer_disable();
     std::thread loopcandidate_consumer_th( &Cerebro::loopcandiate_consumer_thread, &cer ); // runs @1hz
 
     // [D]
     // Kidnap Identification Thread
     cer.kidnaped_thread_enable();
-    // cer.kidnaped_thread_disable();
+    cer.kidnaped_thread_disable();
     std::thread kidnap_th( &Cerebro::kidnaped_thread, &cer, 5 );
 
     // [E]

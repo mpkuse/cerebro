@@ -149,6 +149,7 @@ If you wish to train your own model, you may use  [my learning code here](https:
 - *loopcandidate_consumer_th* : Computes the relative pose at the loopcandidates. Publishes the loopEdge.
 - *kidnap_th* : Identifies kidnap. If kidnap publishes the reset signals for vins_estimator.
 - *viz_th* : Publishes the image-pair, and more things for debugging and analysis.
+- *dm_cleanup_th* : Deallocate/Store to file images to reduce RAM consumption.
 
 
 **Nvidia TX2**: Often times for live run, you might want to run the
@@ -157,7 +158,7 @@ The thing is prebuilt binaries may not be compatible with the version
 of CUDA and CUDNN on your device. Also some binaries may not be
 compatible to arm (could likely be built for x86). Before you can
 compile tensorflow you need java, bazel. See this [gist](https://gist.github.com/vellamike/7c26158c93e89ef155c1cc953bbba956). Also tools and repos from [jetsonhacks](https://github.com/jetsonhacks)
-might come in handy. 
+might come in handy.
 
 ### Pose Graph Solver
 Use my pose graph solver, [github-repo](https://github.com/mpkuse/solve_keyframe_pose_graph).

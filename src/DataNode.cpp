@@ -5,8 +5,14 @@ void DataNode::setImageFromMsg( const sensor_msgs::ImageConstPtr msg )
 {
     std::lock_guard<std::mutex> lk(m);
 
+    auto tmp = cv_bridge::toCvShare(msg, "bgr8" )->image;
+
     // this->image = cv_bridge::toCvShare(msg, "bgr8" )->image;
-    this->image = (cv_bridge::toCvCopy(msg, "bgr8" )->image).clone();
+    // this->image = (cv_bridge::toCvCopy(msg, "bgr8" )->image).clone();
+    // this->image = (cv_bridge::toCvShare(msg, "bgr8" )->image).clone();
+
+    this->image = tmp.clone();
+    tmp.release();
 
 
     //
@@ -39,12 +45,14 @@ void DataNode::setImageFromMsg( const sensor_msgs::ImageConstPtr msg, short cam_
     // See [this link](https://answers.opencv.org/question/14285/how-to-free-memory-through-cvmat/)
     // So, the point is, if using cv::Mat, it is important to understand who owns the memory.
     // cv::Mat::clone() does a deep copy. it is important to .clone here for
-    // the deallocation to work correctly. 
+    // the deallocation to work correctly.
 
-    assert( __image.rows > 0 && __image.cols > 0 && !image.empty() && "In DataNode::setImageFromMsg with cam_id image that is being set from sensor_msgs::Image is invalid.");
+    assert( this->all_images.at(cam_id).rows > 0 && this->all_images.at(cam_id).cols > 0 && ! this->all_images.at(cam_id).empty() && "In DataNode::setImageFromMsg with cam_id image that is being set from sensor_msgs::Image is invalid.");
 
 
     this->t_all_images[cam_id] = msg->header.stamp;
+
+    __image.release();
 
 }
 
@@ -54,14 +62,24 @@ void DataNode::print_image_cvinfo()
     cout << "[DataNode::print_image_cvinfo]\n";
 
     if( m_image ) {
-        cout << "main image: " << MiscUtils::cvmat_info( image ) << endl;
+        cout << "[DataNode::print_image_cvinfo] main image: " << MiscUtils::cvmat_info( image ) << endl;
+        cout << TermColor::iBLUE() << "[DataNode::print_image_cvinfo] refcount=" << image.u->refcount << TermColor::RESET() << endl;
+    }
+
+    for( auto it=all_images.begin() ; it!=all_images.end() ; it++ ) {
+        cout << TermColor::iBLUE() << "[DataNode::print_image_cvinfo] image#" << it->first << " refcount=" << it->second.u->refcount << TermColor::RESET() << endl;
     }
 
     cout << "[DataNode::print_image_cvinfo] Done\n";
 }
 
+// #define __DATANODE__deallocate_all_images( msg ) msg;
+#define __DATANODE__deallocate_all_images( msg ) ;
 void DataNode::deallocate_all_images()
 {
+    __DATANODE__deallocate_all_images(
+    cout << "[DataNode::deallocate_all_images] getT= " << getT() << " getT_image()="<< getT_image() << "\n";
+    )
     std::lock_guard<std::mutex> lk(m);
 
     // deallocate main image
@@ -71,10 +89,13 @@ void DataNode::deallocate_all_images()
         t_image = ros::Time();
         m_image = false;
     }
+    // cout << "[DataNode::deallocate_all_images] After Deallocate image.u->refcount=" << image.u->refcount << endl;
 
     // deallocate other images with cam_id
     for( auto it=all_images.begin() ; it!=all_images.end() ; it++ ) {
         it->second.release();
+        it->second.deallocate();
+        // cout << "[DataNode::deallocate_all_images] image# " << it->first << ", After Deallocate it->second.u->refcount=" << image.u->refcount << endl;
     }
     all_images.clear();
     t_all_images.clear();

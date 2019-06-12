@@ -71,6 +71,7 @@ using namespace Eigen;
 #include "camodocal/camera_models/CameraFactory.h"
 
 #include "DataNode.h"
+#include "ImageDataManager.h"
 
 #include "utils/nlohmann/json.hpp"
 using json = nlohmann::json;
@@ -157,6 +158,8 @@ private:
     // std::map< ros::Time, DataNode* >  data_map; //original
     std::shared_ptr< t__DataNode > data_map = std::make_shared<t__DataNode>();
 
+    std::shared_ptr< ImageDataManager> img_data_mgr = std::make_shared<ImageDataManager>(); 
+
     bool pose_0_available = false;
     ros::Time pose_0; // time of 1st pose
 
@@ -228,7 +231,7 @@ private:
 
 public:
     // Just a trial thread
-    void trial_thread();
+    void trial_thread(const string fname);
     void trial_thread_enable() { b_trial_thread = true; }
     void trial_thread_disable() { b_trial_thread = false; }
 

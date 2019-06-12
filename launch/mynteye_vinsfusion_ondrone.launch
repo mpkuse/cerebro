@@ -110,7 +110,7 @@
         <!-- $(ubuntu) rosrun solve_keyframe_pose_graph keyframe_pose_graph_slam -->
         <node name="keyframe_pose_graph_slam_node" pkg="solve_keyframe_pose_graph" type="keyframe_pose_graph_slam" output="log" >
         </node>
-      </group>
+    </group>
     </group>
 
 </launch>

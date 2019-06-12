@@ -559,15 +559,21 @@ string DataManager::print_queue_size( int verbose=1 ) const
 //////////////////////////////////////////////////////////////////////////////
 /////////////////////////// Thread mains /////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
-
-void DataManager::trial_thread()
+#define _XOUT_ myfile
+void DataManager::trial_thread( const string fname )
 {
     cout << TermColor::GREEN() << "Start DataManager::trial_thread "<< TermColor::RESET() << endl;
-    cout << "HI\n ";
     ros::Rate looprate(10);
+
+
+    #if 0
+    ofstream myfile;
+    myfile.open (fname);
+    cout << "[DataManager::trial_thread] Dump output to file: " << fname << endl;
+
     while( b_trial_thread )
     {
-        cout << "trial_thread\n";
+        _XOUT_ << "trial_thread\n";
 
         // berks__old
         // auto S = data_map.begin(); //.lower_bound( lb );
@@ -575,41 +581,57 @@ void DataManager::trial_thread()
 
         auto S = data_map->begin();
         auto E = data_map->end();
-        cout << "S=" << S->first << "  E=" << E->first <<  endl;
+        _XOUT_ << "S=" << S->first << "  E=" << E->first <<  endl;
+        int n_green = 0, n_cyan = 0 , n_blue = 0;
         for( auto it = S ; it != E ; it++ )
         {
             #if 1
             if( it->second->isImageAvailable() && it->second->isImageAvailable(1) ) {
-                cout << TermColor::GREEN();
+                _XOUT_ << TermColor::GREEN();n_green++;
             } else {
-                if( it->second->isImageAvailable() )
-                    cout << TermColor::CYAN() ;
-                else
-                    cout << TermColor::BLUE() ;
+                if( it->second->isImageAvailable() ) {
+                    _XOUT_ << TermColor::CYAN() ;n_cyan++;
+                }
+                else {
+                    _XOUT_ << TermColor::BLUE() ;n_blue++;
+                }
             }
 
             if( it->second->isPoseAvailable() && it->second->getNumberOfSuccessfullyTrackedFeatures() < 0 ) {
-                cout << "A" ;
+                _XOUT_ << "A" ;
                 // cout << it->second->getNumberOfSuccessfullyTrackedFeatures() << ",";
             }
             if( !it->second->isPoseAvailable() && it->second->getNumberOfSuccessfullyTrackedFeatures() < 0 ) {
-                cout << "B" ;
+                _XOUT_ << "B" ;
                 // cout << it->second->getNumberOfSuccessfullyTrackedFeatures() << ",";  // this means there thise node has no pose and no tracked features data
             }
             if( it->second->isPoseAvailable() && ! (it->second->getNumberOfSuccessfullyTrackedFeatures() < 0 ) ) {
-                cout << "C" ;
+                _XOUT_ << "C" ;
                 // cout << it->second->getNumberOfSuccessfullyTrackedFeatures() << ",";
             }
             if( !it->second->isPoseAvailable() && ! (it->second->getNumberOfSuccessfullyTrackedFeatures() < 0 )  ){
-                cout << "D"; // has no pose data but has tracked features. Pose actually takes some time to arrive. tracked features will be avaiaable first,
+                _XOUT_ << "D"; // has no pose data but has tracked features. Pose actually takes some time to arrive. tracked features will be avaiaable first,
             }
-            cout << TermColor::RESET() ;
+            _XOUT_ << TermColor::RESET() ;
             #endif
         }
-        cout << endl;
+        _XOUT_ << endl;
+        _XOUT_ << "n_green=" << n_green << "  ";
+        _XOUT_ << "n_cyan=" << n_cyan << "  ";
+        _XOUT_ << "n_blue=" << n_blue << "  ";
+        _XOUT_ << endl;
 
 
 
+        looprate.sleep();
+    }
+    myfile.close();
+    #endif
+
+
+    while( b_trial_thread )
+    {
+        img_data_mgr->print_status(fname);
         looprate.sleep();
     }
 
@@ -617,12 +639,12 @@ void DataManager::trial_thread()
 }
 
 
-// #define ___clean_up_cout(msg) msg;
-#define ___clean_up_cout(msg) ;
+#define ___clean_up_cout(msg) msg;
+// #define ___clean_up_cout(msg) ;
 void DataManager::clean_up_useless_images_thread()
 {
 
-    cout << TermColor::GREEN() << "Start DataManager::clean_up_useless_images_thread "<< TermColor::RESET() << endl;
+    cout << TermColor::GREEN() << "[DataManager::clean_up_useless_images_thread] Start thread "<< TermColor::RESET() << endl;
     ros::Rate looprate(0.3);
     // data_association_thread_disable();
     while( b_clean_up_useless_images_thread )
@@ -642,9 +664,11 @@ void DataManager::clean_up_useless_images_thread()
         auto S = data_map->begin();
         auto E = data_map->upper_bound( data_map->rbegin()->first - ros::Duration( 10.0 ) );
         int q=0;
-        ___clean_up_cout( cout << S->first << " to " << E->first << endl; )
+        ___clean_up_cout( cout << S->first << " to " << E->first << "\t"; )
+        ___clean_up_cout( cout << S->first-getPose0Stamp() << " to " << E->first - getPose0Stamp() << endl; )
         // for( auto it = data_map.begin() ; it->first < E->first ; it++ ) { //berks__old
         for( auto it = data_map->begin() ; it->first < E->first ; it++ ) {
+            #if 0 //old, where images where stored inside datanode.
             if( it->second->isImageAvailable() && !it->second->isKeyFrame() ) {
             // if( it->second->isImageAvailable()  ) {
                 ___clean_up_cout(
@@ -654,16 +678,23 @@ void DataManager::clean_up_useless_images_thread()
                 it->second->deallocate_all_images();
             }
             else {
-                ___clean_up_cout( cout << TermColor::YELLOW() << "not deallocate coz t=" << it->first << " is a keyframe (has pose info)" << q++ << TermColor::RESET() << endl; )
+                ___clean_up_cout( cout << TermColor::YELLOW() << "not deallocate coz t=" << it->first << " aka t=" << it->first - getPose0Stamp() << "is a keyframe (has pose info)" << q++ << TermColor::RESET() << endl; )
+            }
+            #endif
+
+            if( it->second->isKeyFrame() ) {
+                img_data_mgr->stashImage( "left_image", it->first );
+                img_data_mgr->stashImage( "right_image", it->first );
+            } else {
+                img_data_mgr->rmImage( "left_image", it->first );
+                img_data_mgr->rmImage( "right_image", it->first );
             }
         }
     }
-    cout << TermColor::RED() << "END DataManager::clean_up_useless_images_thread "<< TermColor::RESET() << endl;
+    cout << TermColor::RED() << "[DataManager::clean_up_useless_images_thread] Finished Thread"<< TermColor::RESET() << endl;
 
 }
 
-// #define _12335_print( str ) cout << "[data_association_thread]" << str;
-#define _12335_print( str ) ;
 
 // #define __DataManager__data_association_thread__( msg ) msg;
 #define __DataManager__data_association_thread__( msg ) ;
@@ -671,7 +702,7 @@ void DataManager::clean_up_useless_images_thread()
 void DataManager::data_association_thread( int max_loop_rate_in_hz )
 {
     assert( max_loop_rate_in_hz > 0 && max_loop_rate_in_hz < 200 && "[DataManager::data_association_thread] I am expecting the loop rate to be between 1-50" );
-    _12335_print( "Start thread");
+    cout << TermColor::GREEN() << "[DataManager::data_association_thread] Start thread" << TermColor::RESET() << endl;
     assert( b_data_association_thread && "You have not enabled thread execution. Call function DataManager::data_association_thread_enable() before you spawn this thread\n");
     float requested_loop_time_ms = 1000. / max_loop_rate_in_hz;
 
@@ -681,9 +712,11 @@ void DataManager::data_association_thread( int max_loop_rate_in_hz )
 
         //------------------------ Process here--------------------------------
         // std::this_thread::sleep_for( std::chrono::milliseconds(2000) );
-        _12335_print( "---\n" );
-        _12335_print( print_queue_size(2 ) ); //< sizes of buffer queues
-        _12335_print( "\t\tSize_of_data_map = "+ to_string( data_map.size() ) + "\n" );
+        __DataManager__data_association_thread__(
+        cout << "---\n" ;
+        cout << print_queue_size(2 ) ; //< sizes of buffer queues
+        cout << "\t\tSize_of_data_map = "+ to_string( data_map->size() ) + "\n" ;
+        )
 
 
         // deqeue all raw images and make DataNodes of each of them, s
@@ -698,7 +731,11 @@ void DataManager::data_association_thread( int max_loop_rate_in_hz )
                 cout << TermColor::GREEN() << ">>>>>>>>> Added a new DataNode in data_map with poped() rawimage t=" << img_msg->header.stamp << " #####> ie." << img_msg->header.stamp - pose_0 << TermColor::RESET() << endl;
             )
             DataNode * n = new DataNode( img_msg->header.stamp );
+            #if 0
             n->setImageFromMsg( img_msg );
+            #else
+            img_data_mgr->setNewImageFromMsg( "left_image", img_msg );
+            #endif
 
             // data_map.insert( std::make_pair(img_msg->header.stamp, n) ); //berks__old
             data_map->insert( std::make_pair(img_msg->header.stamp, n) );
@@ -721,7 +758,11 @@ void DataManager::data_association_thread( int max_loop_rate_in_hz )
             //     data_map.at( t )->setImageFromMsg( img_1_msg, 1 );
             // }
             if( data_map->count(t) > 0 ) {
+                #if 0
                 data_map->at( t )->setImageFromMsg( img_1_msg, 1 );
+                #else
+                img_data_mgr->setNewImageFromMsg( "right_image", img_1_msg );
+                #endif
             }
             else {
                 // assert( false && "[DataManager::data_association_thread] attempting to set additional image into datanode. However that datanode is not found in the map. This cannot be happening\n");
@@ -831,7 +872,9 @@ void DataManager::data_association_thread( int max_loop_rate_in_hz )
                 data_map.at( t )->setTrackedFeatIdsFromMsg( ptcld_msg );
                 data_map.at( t )->setAsKeyFrame();
                 #else
-                // cout << "setNumberOfSuccessfullyTrackedFeatures " << t << " " << ptcld_msg->points.size() << endl;
+                __DataManager__data_association_thread__(
+                cout << "setNumberOfSuccessfullyTrackedFeatures " << t << " " << ptcld_msg->points.size() << endl;
+                )
                 //berks__old
                 data_map->at( t )->setNumberOfSuccessfullyTrackedFeatures( ptcld_msg->points.size() );
                 data_map->at( t )->setAsKeyFrame();
@@ -915,17 +958,17 @@ void DataManager::data_association_thread( int max_loop_rate_in_hz )
 
         // sleep_for( requested_loop_time - ellapsed )
         int sleep_for = int(requested_loop_time_ms - (float) ellapsed.count()) ;
-        _12335_print( "Loop iteration done in "<< ellapsed.count() << " ms; sleep_for=" << sleep_for << " ms" << endl; )
+        __DataManager__data_association_thread__( cout << "Loop iteration done in "<< ellapsed.count() << " ms; sleep_for=" << sleep_for << " ms" << endl;  )
 
         if( sleep_for > 0 )
             std::this_thread::sleep_for( std::chrono::milliseconds( sleep_for )  );
         else {
-            _12335_print( "Queueing in thread `data_association_thread`" );
+            __DataManager__data_association_thread__( cout << "Queueing in thread `data_association_thread`\n" ; )
             ROS_WARN( "Queueing in thread `data_association_thread`" );
         }
 
     }
 
-    _12335_print( "Finish thread");
+    cout << TermColor::RED() << "[DataManager::data_association_thread] Finished thread" << TermColor::RESET() << endl;
 
 }
