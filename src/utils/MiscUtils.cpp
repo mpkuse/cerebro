@@ -31,6 +31,25 @@ string MiscUtils::cvmat_info( const cv::Mat& mat )
     return buffer.str();
 }
 
+string MiscUtils::imgmsg_info(const sensor_msgs::ImageConstPtr &img_msg)
+{
+    std::stringstream buffer;
+    buffer << "---\n";
+    buffer << "\theader:\n";
+    buffer << "\t\tseq: " << img_msg->header.seq << endl;
+    buffer << "\t\tstamp: " << img_msg->header.stamp << endl;
+    buffer << "\t\tframe_id: " << img_msg->header.frame_id << endl;
+    buffer << "\twidth:" << img_msg->width << endl;
+    buffer << "\theight:" << img_msg->height << endl;
+    buffer << "\tencoding:" << img_msg->encoding << endl;
+    buffer << "\tis_bigendian:" << (int) img_msg->is_bigendian << endl;
+    buffer << "\tstep:" << img_msg->step << endl;
+    buffer << "\tdata:" << "[..." << img_msg->step * img_msg->height << " sized array...]" << endl;
+
+    return buffer.str();
+
+}
+
 
 cv::Mat MiscUtils::getImageFromMsg(const sensor_msgs::ImageConstPtr &img_msg)
 {

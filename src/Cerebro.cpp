@@ -39,11 +39,11 @@ void Cerebro::setPublishers( const string base_topic_name )
 //     like texts, objects visible etc. TODO
 //------------------------------------------------------------------//
 
-// #define __Cerebro__descriptor_computer_thread( msg ) ;
-#define __Cerebro__descriptor_computer_thread( msg ) msg
+#define __Cerebro__descriptor_computer_thread( msg ) ;
+// #define __Cerebro__descriptor_computer_thread( msg ) msg
 
-// #define __Cerebro__descriptor_computer_thread__imp( msg ) ;
-#define __Cerebro__descriptor_computer_thread__imp( msg ) msg;
+#define __Cerebro__descriptor_computer_thread__imp( msg ) ;
+// #define __Cerebro__descriptor_computer_thread__imp( msg ) msg;
 void Cerebro::descriptor_computer_thread()
 {
     assert( m_dataManager_available && "You need to set the DataManager in class Cerebro before execution of the run() thread can begin. You can set the dataManager by call to Cerebro::setDataManager()\n");
@@ -122,6 +122,7 @@ void Cerebro::descriptor_computer_thread()
 
     ros::Rate rate(20);
     auto data_map = dataManager->getDataMapRef();
+    auto img_data_mgr = dataManager->getImageManagerRef();
 
 
     ros::Time last_proc_timestamp =ros::Time();
@@ -168,18 +169,46 @@ void Cerebro::descriptor_computer_thread()
                 _time.tic();
 
                 // use it->second->getImage() to compute descriptor. call the service
-                const cv::Mat& image_curr = it->second->getImage();
+                cv::Mat image_curr;
+                #if 0 // set this to 1 to get image from data_map (deprecated way), 0 to get image from image_manager.
+                // old code in which images were stored in nodes
+                image_curr = it->second->getImage();
+                #else
+                // using image data manager
+                {
+                    cv::Mat tmp_img;
+                    img_data_mgr->getImage( "left_image", it->first, tmp_img );
+                    if( nChannels == 3 && tmp_img.channels() == 1 )
+                        cv::cvtColor( tmp_img, image_curr, CV_GRAY2BGR );
+                    else if( nChannels==1 && tmp_img.channels() == 3)
+                        cv::cvtColor( tmp_img, image_curr, CV_BGR2GRAY );
+                    else
+                        image_curr = tmp_img;
+                }
+
+                __Cerebro__descriptor_computer_thread(
+                cout << "image from mgr info: " << MiscUtils::cvmat_info(image_curr) << endl;
+                cout << "nChannels=" << nChannels << endl;
+                )
+                #endif
+
                 sensor_msgs::ImagePtr image_msg;
-                if( nChannels == 3 )
+                if( nChannels == 3 ) {
                     image_msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", image_curr).toImageMsg();
-                else if( nChannels == 1 )
+                }
+                else if( nChannels == 1 ) {
+                    cout << "cv_bridge mono8 encoding\n";
                     image_msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", image_curr).toImageMsg();
+                }
                 else {
                     assert( false && "Invalid number of channels specified in Cerebro::descriptor_computer_thread() ");
                     cout << TermColor::RED() << "[ERROR] Cx Invalid number of channels specified in Cerebro::descriptor_computer_thread() " << endl << TermColor::RESET();
                     exit(3);
                 }
                 image_msg->header.stamp = ros::Time( it->first );
+
+
+
                 cerebro::WholeImageDescriptorCompute srv; //service message
                 srv.request.ima = *image_msg;
                 srv.request.a = 986;
@@ -1034,13 +1063,30 @@ bool Cerebro::init_stereogeom()
 
 bool Cerebro::retrive_stereo_pair( DataNode* node, cv::Mat& left_image, cv::Mat& right_image, bool bgr2gray )
 {
+    #if 0
     // raw stereo-images in gray
     if( !(node->isImageAvailable()) || !(node->isImageAvailable(1)) ) {
         cout << TermColor::RED() << "[Cerebro::retrive_stereo_pair] Either of the node images (stereo-pair was not available). This is probably not fatal, this loopcandidate will be skipped." << TermColor::RESET() << endl;
         return false;
     }
+
     const cv::Mat& bgr_left_image = node->getImage();
     const cv::Mat& bgr_right_image = node->getImage(1);
+    #else
+    auto img_data_mgr = dataManager->getImageManagerRef();
+
+    if( img_data_mgr->isImageRetrivable( "left_image", node->getT() )==false
+                ||
+        img_data_mgr->isImageRetrivable( "left_image", node->getT() ) == false )
+    {
+        cout << TermColor::RED() << "[Cerebro::retrive_stereo_pair] Either of the node images (stereo-pair was not available). This is probably not fatal, this loopcandidate will be skipped." << TermColor::RESET() << endl;
+        return false;
+    }
+
+    cv::Mat bgr_left_image, bgr_right_image;
+    img_data_mgr->getImage( "left_image", node->getT(), bgr_left_image );
+    img_data_mgr->getImage( "right_image", node->getT(), bgr_right_image );
+    #endif
 
     if( bgr2gray ) {
 

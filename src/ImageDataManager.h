@@ -48,13 +48,17 @@ public:
     bool rmImage( const string ns, const ros::Time t );
     bool stashImage( const string ns, const ros::Time t );
 
-    bool isImageRetrivable( const string ns, const ros::Time t );
+    bool isImageRetrivable( const string ns, const ros::Time t ) const;
 
     bool print_status( string fname );
 
 private:
     mutable std::mutex m;
     const string STASH_DIR;
+    const string key_to_imagename( const string ns, const ros::Time t ) const
+    {
+        return STASH_DIR+"/"+ns+"__"+to_string(t.toNSec())+".jpg";
+    }
 
     // key: (namespace, t)
     std::map< std::pair<string , ros::Time>, MEMSTAT > status; //status at each timestamp

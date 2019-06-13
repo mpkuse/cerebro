@@ -33,6 +33,7 @@ class MiscUtils
 public:
     static string type2str(int type);
     static string cvmat_info( const cv::Mat& mat );
+    static string imgmsg_info(const sensor_msgs::ImageConstPtr &img_msg);
     static cv::Mat getImageFromMsg(const sensor_msgs::ImageConstPtr &img_msg);
 
     static std::vector<std::string>
