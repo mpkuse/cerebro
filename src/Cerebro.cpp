@@ -239,9 +239,10 @@ const ros::Time Cerebro::wholeImageComputedList_at(int k) const
 /// scene-object labels, text etc etc in addition to currently computed whole-image-descriptor
 void Cerebro::run()
 {
-    descrip_N__dot__descrip_0_N();
+    // descrip_N__dot__descrip_0_N();
     // faiss__naive_loopcandidate_generator();
     // faiss_clique_loopcandidate_generator();
+    faiss_multihypothesis_tracking();
 
 }
 
@@ -539,6 +540,159 @@ void Cerebro::faiss_clique_loopcandidate_generator()
 
 
 }
+
+
+
+#define ___faiss_multihypothesis_tracking___add(msg) msg;
+// #define ___faiss_multihypothesis_tracking___add(msg) ;
+
+#define ___faiss_multihypothesis_tracking___search(msg) msg;
+// #define ___faiss_multihypothesis_tracking___search(msg) ;
+void Cerebro::faiss_multihypothesis_tracking()
+{
+    assert( m_dataManager_available && "You need to set the DataManager in class Cerebro before execution of the run() thread can begin. You can set the dataManager by call to Cerebro::setDataManager()\n");
+    assert( b_run_thread && "you need to call run_thread_enable() before run() can start executing\n" );
+    //-----------------//
+    //---- Settings ---//
+    //-----------------//
+    const int start_adding_descriptors_to_index_after = 150;
+    const int K_NEAREST_NEIGHBOURS=5;
+
+    //-----------------//
+    //----   Wait  ----//
+    //-----------------//
+    // wait until connected_to_descriptor_server=true and descriptor_size_available=true
+    if( wait_until__connectedToDescServer_and_descSizeAvailable( 35 ) == false ) {
+        cout << TermColor::RED() << "[Cerebro::faiss__naive_loopcandidate_generator ERROR] wait_until__connectedToDescServer_and_descSizeAvailable returned false implying a timeout.\n" << TermColor::RESET();
+        return;
+    }
+    cout << TermColor::GREEN() <<"[Cerebro::faiss_multihypothesis_tracking] descriptor_size=" << this->descriptor_size << "  connected_to_descriptor_server && descriptor_size_available" << TermColor::RESET() << endl;
+    assert( this->descriptor_size> 0 );
+
+    //---------------------//
+    //--- init faiss index //
+    //---------------------//
+    cout << TermColor::GREEN() << "[[Cerebro::faiss_multihypothesis_tracking]] init a faiss::IndexFlatIP("<< this->descriptor_size << ")" << TermColor::RESET() << endl;
+    faiss::IndexFlatIP index(this->descriptor_size);
+
+
+    // init (misc)
+    ros::Rate rate(10);
+    auto data_map = dataManager->getDataMapRef();
+    HypothesisManager * hyp_manager = new HypothesisManager(); // there is a delete at the end of this function
+
+    int l=0, last_l=0, l_last_added_to_index=0;
+
+
+    float * distances = new float[K_NEAREST_NEIGHBOURS];
+    faiss::Index::idx_t * labels = new faiss::Index::idx_t[K_NEAREST_NEIGHBOURS];
+
+    //---------------------//
+    // While
+    //      index.add( i-150 )
+    //      index.search( i )
+    //---------------------//
+    while( b_run_thread ) {
+        l = wholeImageComputedList_size();
+        if( l<= last_l ) {
+            cout << "[Cerebro::faiss_multihypothesis_tracking] nothing new\n";
+            rate.sleep();
+            continue;
+        }
+
+        // looks like new descriptors are available.
+        cout << TermColor::RED() << "--- " << TermColor::RESET() << l << "\t";
+        cout << "new [" << last_l << " to " << l << ")\n";
+
+
+
+        //--------- add
+        ___faiss_multihypothesis_tracking___add(cout << TermColor::YELLOW();)
+        if( l>start_adding_descriptors_to_index_after) {
+            for( int j=l_last_added_to_index ; j<l-start_adding_descriptors_to_index_after ; j++ )
+            {
+                ___faiss_multihypothesis_tracking___add(
+                cout << "index.add( " << j << ")" ;
+                cout << "\t aka  index.add(" << wholeImageComputedList_at(j) << ")\n";)
+
+
+                VectorXd X = data_map->at( wholeImageComputedList_at( j ) )->getWholeImageDescriptor();
+                VectorXf X_float = X.cast<float>();
+                float * X_raw = X_float.data();
+                #if 0 //see if the type casting was correct.
+                for( int g=0;g<5;g++ ) {
+                    // cout << "(" << X(g) << "," << X_float(g) << ") ";
+                    cout << "(" << X(g) << "," << X_raw[g] << ") ";
+                }
+                cout << endl;
+                #endif
+                index.add( 1, X_raw );
+            }
+            l_last_added_to_index = l-start_adding_descriptors_to_index_after;
+        } else {
+            ___faiss_multihypothesis_tracking___add(
+                cout << "not seen enough. so,, add nothing. Will start adding after "<< start_adding_descriptors_to_index_after<< " descriptors\n";
+            )
+
+        }
+        ___faiss_multihypothesis_tracking___add(cout << TermColor::RESET();)
+
+
+
+        //----------- search
+        cout << TermColor::MAGENTA();
+        for( int l_i = last_l ; l_i < l ; l_i++ ) {
+            cout << "\t\tindex.search(" << l_i << ")\t";
+            cout << "index.search(" << wholeImageComputedList_at(l_i) << ")\t";
+            cout << "index.ntotal=" << index.ntotal << "\n";
+            if( index.ntotal < K_NEAREST_NEIGHBOURS )
+                break;
+
+            // l_i's descriptor
+            VectorXd X = data_map->at( wholeImageComputedList_at( l_i ) )->getWholeImageDescriptor();
+            VectorXf X_float = X.cast<float>();
+            float * X_raw = X_float.data();
+
+            // ElapsedTime time_to_search = ElapsedTime();
+            index.search( 1, X_raw, K_NEAREST_NEIGHBOURS, distances, labels );
+            // cout << "search done in (ms): " << time_to_search.toc_milli() << endl;
+
+            // Loop over all the nearest neighbours
+            for( int g=0 ; g<K_NEAREST_NEIGHBOURS; g++ ) {
+                if( distances[g] > 0.85 )
+                    cout << TermColor::GREEN();
+                else cout << TermColor::MAGENTA();
+                printf( "%4d<--(%4.2f)-->%d\t", l_i, distances[g], labels[g] );
+                cout << endl << TermColor::RESET();
+
+
+                if( distances[g] > 0.85  ) {
+                    // Send (l_i, labels[g], distances[g] ) to HypothesisManager
+                    hyp_manager->add_node( l_i, labels[g], distances[g] );
+                }
+            }
+
+            // HypothesisManager->Digest()
+            cout << endl ;
+        }
+        cout << TermColor::RESET();
+
+        last_l = l;
+        rate.sleep();
+    }
+
+
+
+    delete [] distances;
+    delete [] labels;
+    delete hyp_manager;
+    cout << "[Cerebro::faiss_multihypothesis_tracking] Finished Thread\n";
+
+
+}
+
+
+
 
 #endif //HAVE_FAISS
 
@@ -838,8 +992,8 @@ json Cerebro::foundLoops_as_JSON()
 #define __Cerebro__loopcandi_consumer__(msg)  ;
 // ^This will also imshow image-pairs with gms-matches marked.
 
-#define __Cerebro__loopcandi_consumer__IMP( msg ) msg;
-// #define __Cerebro__loopcandi_consumer__IMP( msg ) ;
+// #define __Cerebro__loopcandi_consumer__IMP( msg ) msg;
+#define __Cerebro__loopcandi_consumer__IMP( msg ) ;
 // ^Important Text only printing
 
 

@@ -170,6 +170,7 @@ add_executable(
         src/Visualization.cpp
         src/ProcessedLoopCandidate.cpp
         src/DlsPnpWithRansac.cpp
+        src/HypothesisManager.cpp
         ${KuseUtilsSources}
         ${CamodocalCameraModelSources}
 )
@@ -187,7 +188,7 @@ target_link_libraries(cerebro_node
   ${THEIA_LIBRARIES}
 
   #${GPERFTOOLS_LIBRARIES}
-  #/usr/local/lib/libfaiss.so
+  /usr/local/lib/libfaiss.so
 )
 
 if(COMPILE_UNIT_TEST)

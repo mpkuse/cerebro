@@ -10,7 +10,7 @@ import code
 import time
 import os
 import scipy.io
-
+import hashlib
 
 import keras
 from keras_helpers import *
@@ -499,6 +499,9 @@ class HDF5ModelImageDescriptor:
         config.gpu_options.per_process_gpu_memory_fraction = 0.2
         # config.gpu_options.visible_device_list = "0"
         set_session(tf.Session(config=config))
+        keras.backend.tensorflow_backend.set_learning_phase(0)
+
+        self.request_count = 0
 
         # Blackbox 4
         # self.im_rows = 512
@@ -529,30 +532,49 @@ class HDF5ModelImageDescriptor:
 
         assert os.path.isdir( LOG_DIR ), "The LOG_DIR doesnot exist, or there is a permission issue. LOG_DIR="+LOG_DIR
 
+        # See if cached file exists, if yes load it else do as usual
+        digest = '/tmp/'+str(hashlib.sha256(kerasmodel_file).hexdigest())+'.h5'
+        print 'Check for exisitance of file', digest
+        if  os.path.isfile(digest):
+            print 'The cached file, ', digest, ' seems to exists, load that file'
+            print tcol.OKGREEN, 'Load model (from cache): ', digest, tcol.ENDC
+            model = keras.models.load_model(  digest, custom_objects={'NetVLADLayer': NetVLADLayer, 'GhostVLADLayer':GhostVLADLayer} )
+            model.summary()
+            print tcol.OKGREEN, 'Load model (from cache): ', digest, tcol.ENDC
 
-        # Load from HDF5
-        assert os.path.isfile( kerasmodel_file ), 'The model weights file doesnot exists or there is a permission issue.'+"kerasmodel_file="+kerasmodel_file
-        model_fname = kerasmodel_file
-        print tcol.OKGREEN, 'Load model: ', model_fname, tcol.ENDC
-        model = keras.models.load_model(  model_fname, custom_objects={'NetVLADLayer': NetVLADLayer, 'GhostVLADLayer':GhostVLADLayer} )
-        old_input_shape = model._layers[0].input_shape
-        print 'OLD MODEL: ', 'input_shape=', str(old_input_shape)
-        model.summary()
-        model_visual_fname = None
-        if model_visual_fname is not None:
-            print 'Writing Model Visual to: ', model_visual_fname
-            keras.utils.plot_model( model, to_file=model_visual_fname, show_shapes=True )
+            self.model = model
+            self.model_type = model_type
+
+        else:
+            # Load from HDF5
+            assert os.path.isfile( kerasmodel_file ), 'The model weights file doesnot exists or there is a permission issue.'+"kerasmodel_file="+kerasmodel_file
+            model_fname = kerasmodel_file
+            print tcol.OKGREEN, 'Load model: ', model_fname, tcol.ENDC
+            model = keras.models.load_model(  model_fname, custom_objects={'NetVLADLayer': NetVLADLayer, 'GhostVLADLayer':GhostVLADLayer} )
+            old_input_shape = model._layers[0].input_shape
+            print 'OLD MODEL: ', 'input_shape=', str(old_input_shape)
+            model.summary()
+            model_visual_fname = None
+            if model_visual_fname is not None:
+                print 'Writing Model Visual to: ', model_visual_fname
+                keras.utils.plot_model( model, to_file=model_visual_fname, show_shapes=True )
 
 
 
-        # Replace Input Layer
-        new_model = change_model_inputshape( model, new_input_shape=(1,self.im_rows,self.im_cols,self.im_chnls) )
-        new_input_shape = new_model._layers[0].input_shape
-        print 'OLD MODEL: ', 'input_shape=', str(old_input_shape)
-        print 'NEW MODEL: input_shape=', str(new_input_shape)
+            # Replace Input Layer
+            new_model = change_model_inputshape( model, new_input_shape=(1,self.im_rows,self.im_cols,self.im_chnls) )
+            new_input_shape = new_model._layers[0].input_shape
+            print 'OLD MODEL: ', 'input_shape=', str(old_input_shape)
+            print 'NEW MODEL: input_shape=', str(new_input_shape)
 
-        self.model = new_model
-        self.model_type = model_type
+            self.model = new_model
+            self.model_type = model_type
+
+            # Write to cache
+            if True:
+                digest = '/tmp/'+str(hashlib.sha256(kerasmodel_file).hexdigest())+'.h5'
+                print tcol.WARNING, '}}}}}}}}\nWrite out cache in '+digest+'\n}}}}}}}}', tcol.ENDC
+                self.model.save( digest )
 
 
         # Doing this is a hack to force keras to allocate GPU memory. Don't comment this,
@@ -577,7 +599,7 @@ class HDF5ModelImageDescriptor:
         """
         ## Get Image out of req
         cv_image = CvBridge().imgmsg_to_cv2( req.ima )
-        print '[HDF5ModelImageDescriptor Handle Request] cv_image.shape', cv_image.shape, '\ta=', req.a, '\tt=', req.ima.header.stamp
+        print '[HDF5ModelImageDescriptor Handle Request#%d] cv_image.shape' %(self.request_count), cv_image.shape, '\ta=', req.a, '\tt=', req.ima.header.stamp
         if len(cv_image.shape)==2:
             # print 'Input dimensions are NxM but I am expecting it to be NxMxC, so np.expand_dims'
             cv_image = np.expand_dims( cv_image, -1 )
@@ -616,6 +638,7 @@ class HDF5ModelImageDescriptor:
         print '\tdesc minmax=', np.min( u ), np.max( u ),
         print '\tnorm=', np.linalg.norm(u[0])
         print '\tmodel_type=', self.model_type
+        self.request_count += 1
 
 
 

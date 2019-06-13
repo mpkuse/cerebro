@@ -20,6 +20,7 @@
 #include "DataManager.h"
 #include "ProcessedLoopCandidate.h"
 #include "DlsPnpWithRansac.h"
+#include "HypothesisManager.h"
 
 #include "utils/TermColor.h"
 #include "utils/ElapsedTime.h"
@@ -45,7 +46,7 @@ using namespace std;
 
 //comment this out to remove dependence on faiss.
 // If using faiss, also remember to link to libfaiss.so. See my CMakeList file to know how to do it.
-// #define HAVE_FAISS
+#define HAVE_FAISS
 
 #ifdef HAVE_FAISS
 // faiss is only used for generating loopcandidates.
@@ -120,6 +121,9 @@ public:
     void faiss__naive_loopcandidate_generator(); //< similar to descrip_N__dot__descrip_0_N() but uses facebook's faiss
 
     void faiss_clique_loopcandidate_generator();
+
+
+    void faiss_multihypothesis_tracking();
     #endif //HAVE_FAISS
 
 

@@ -13,6 +13,8 @@ Panels:
         - /Cerebro1
         - /Cerebro1/Marker1
         - /Cerebro1/Marker1/Namespaces1
+        - /Solve Pose Graph Opt1
+        - /Solve Pose Graph Opt1/Marker1
         - /Solve Pose Graph Opt1/Marker1/Namespaces1
         - /Solve Pose Graph Opt1/Debug Node Marker1/Namespaces1
         - /VINS-fusion1
@@ -67,12 +69,12 @@ Visualization Manager:
     - Class: rviz/Group
       Displays:
         - Class: rviz/Axes
-          Enabled: true
+          Enabled: false
           Length: 1
           Name: Axes
           Radius: 0.200000003
           Reference Frame: <Fixed Frame>
-          Value: true
+          Value: false
         - Alpha: 0.5
           Cell Size: 1
           Class: rviz/Grid
@@ -225,17 +227,7 @@ Visualization Manager:
             odom-world##_cam_visual: true
             opt_traj_axis: true
             world##_cam_visual: true
-            world#-1: true
-            world#-2: true
-            world#-3: true
-            world#-4: true
-            world#-5: true
             world#0: true
-            world#1: true
-            world#2: true
-            world#3: true
-            world#4: true
-            world#5: true
           Queue Size: 100
           Value: true
         - Class: rviz/Image
@@ -368,24 +360,24 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 39.8508339
+      Distance: 150.751984
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.0599999987
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -1.23494852
-        Y: 1.83541954
-        Z: -0.514362931
+        X: 5.68552971
+        Y: -2.48078251
+        Z: -9.27598476
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.0500000007
       Name: Current View
       Near Clip Distance: 0.00999999978
-      Pitch: 1.30479681
+      Pitch: 1.56979632
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 4.68949175
+      Yaw: 4.72452068
     Saved:
       - Class: rviz/Orbit
         Distance: 49.6446877
