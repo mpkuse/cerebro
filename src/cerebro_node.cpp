@@ -352,7 +352,7 @@ int main( int argc, char ** argv )
     std::thread data_association_th( &DataManager::data_association_thread, &dataManager, 15 );
 
     dataManager.trial_thread_enable();
-    dataManager.trial_thread_disable();
+    // dataManager.trial_thread_disable();
     std::thread dm_trial_th( &DataManager::trial_thread, &dataManager );
 
     // [A.1] Another thread in class dataManager which will deallocate images in nonkeyframes.

@@ -82,8 +82,10 @@ bool ImageDataManager::setNewImageFromMsg( const string ns, const sensor_msgs::I
 
 // #define __ImageDataManager__getImage( msg ) msg;
 #define __ImageDataManager__getImage( msg ) ;
-bool ImageDataManager::getImage( const string ns, const ros::Time t, cv::Mat& outImg ) const
+bool ImageDataManager::getImage( const string ns, const ros::Time t, cv::Mat& outImg )
 {
+    decrement_hit_counts_and_deallocate_expired();
+
     std::lock_guard<std::mutex> lk(m);
 
     auto key = std::make_pair(ns,t);
@@ -100,7 +102,8 @@ bool ImageDataManager::getImage( const string ns, const ros::Time t, cv::Mat& ou
             {
                 const string fname = key_to_imagename(ns, t);
                 // __ImageDataManager__getImage(
-                cout << TermColor::iYELLOW() << "[ImageDataManager::getImage] retrived (fname=" << fname << ") at ns=" << ns << " t=" << t << ".\nthis is a quickfix implementation better way is to implement a caching way. TODO." << TermColor::RESET() << endl;
+                cout << TermColor::iYELLOW() << "[ImageDataManager::getImage] retrived (fname=" << fname << ") at ns=" << ns << " t=" << t << TermColor::RESET() << endl;
+                // cout << "this is a quickfix implementation better way is to implement a caching way. TODO." << endl;
                 // )
                 outImg = cv::imread( fname, -1 ); //-1 is for read as it is.
                 if( !outImg.data )
@@ -109,6 +112,21 @@ bool ImageDataManager::getImage( const string ns, const ros::Time t, cv::Mat& ou
                     exit(1);
                     return false;
                 }
+
+                //=----------------cache hit this
+                cout << TermColor::iYELLOW() << "\t\tchange the status to MEMSTAT::AVAILABLE_ON_RAM_DUETO_HIT and set expiry to 10\n" << TermColor::RESET();
+                status[key] = MEMSTAT::AVAILABLE_ON_RAM_DUETO_HIT;
+                image_data[key] = outImg;
+                hit_count[key] = 10;
+                //=----------------
+                return true;
+            }
+
+            if( status.at(key) == MEMSTAT::AVAILABLE_ON_RAM_DUETO_HIT )
+            {
+                cout << TermColor::iBLUE() << "[ImageDataManager::getImage]  retrived (AVAILABLE_ON_RAM_DUETO_HIT) at ns=" << ns << " t=" << t << TermColor::RESET()  << endl;
+                outImg = image_data.at(key);
+                hit_count[key] +=5;
                 return true;
             }
 
@@ -192,7 +210,7 @@ bool ImageDataManager::stashImage( const string ns, const ros::Time t )
             cout << TermColor::iCYAN() << "[ImageDataManager] imwrite(" << sfname  << ")\t elapsed_time_ms=" << elp.toc_milli() << TermColor::RESET() << endl ;
             )
 
-            // todo: tune jpg quality for saving on more disk space. default is 95/100 for jpg. 
+            // todo: tune jpg quality for saving on more disk space. default is 95/100 for jpg.
             cv::imwrite( sfname, it_b->second );
 
             // erase from map
@@ -220,7 +238,14 @@ bool ImageDataManager::isImageRetrivable( const string ns, const ros::Time t ) c
     std::lock_guard<std::mutex> lk(m);
     auto key = std::make_pair( ns, t );
     if( status.count( key ) > 0 ) {
-        if( status.at( key ) == MEMSTAT::AVAILABLE_ON_RAM || status.at( key ) == MEMSTAT::AVAILABLE_ON_DISK ) {
+        if(
+            status.at( key ) == MEMSTAT::AVAILABLE_ON_RAM
+                ||
+            status.at( key ) == MEMSTAT::AVAILABLE_ON_DISK
+                ||
+            status.at( key ) == MEMSTAT::AVAILABLE_ON_RAM_DUETO_HIT
+          )
+        {
             return true;
         }
         else {
@@ -234,30 +259,35 @@ bool ImageDataManager::isImageRetrivable( const string ns, const ros::Time t ) c
 
 // _ImageDataManager_printstatus_cout cout
 #define _ImageDataManager_printstatus_cout myfile
-bool ImageDataManager::print_status( string fname )
+bool ImageDataManager::print_status( string fname ) const
 {
-    std::lock_guard<std::mutex> lk(m);
+    // std::lock_guard<std::mutex> lk(m); //no need of locks in a const function (readonly). 
 
     ofstream myfile;
     myfile.open (fname);
 
-    int AVAILABLE_ON_RAM=0, AVAILABLE_ON_DISK=0, UNAVAILABLE=0;
+    int AVAILABLE_ON_RAM=0, AVAILABLE_ON_DISK=0, UNAVAILABLE=0, ETC=0;
     for( auto it=status.begin() ; it!=status.end() ; it++ )
     {
         if( it->second == MEMSTAT::AVAILABLE_ON_RAM ) {
             _ImageDataManager_printstatus_cout << TermColor::iGREEN() << " " << TermColor::RESET();
             AVAILABLE_ON_RAM++;
         }
-
+        else
         if( it->second == MEMSTAT::AVAILABLE_ON_DISK ) {
             _ImageDataManager_printstatus_cout << TermColor::iYELLOW() << " " << TermColor::RESET();
             AVAILABLE_ON_DISK++;
         }
-
+        else
         if( it->second == MEMSTAT::UNAVAILABLE ) {
             _ImageDataManager_printstatus_cout << TermColor::iMAGENTA() << " " << TermColor::RESET();
             UNAVAILABLE++;
         }
+        else {
+        if( it->second == MEMSTAT::AVAILABLE_ON_RAM_DUETO_HIT )
+           _ImageDataManager_printstatus_cout << TermColor::iBLUE() << std::setw(2) << hit_count.at(it->first) << TermColor::RESET();
+           ETC++;
+       }
 
 
     }
@@ -265,9 +295,50 @@ bool ImageDataManager::print_status( string fname )
     _ImageDataManager_printstatus_cout <<  TermColor::iGREEN() << "AVAILABLE_ON_RAM=" << AVAILABLE_ON_RAM << " " << TermColor::RESET() ;
     _ImageDataManager_printstatus_cout << TermColor::iYELLOW() << "AVAILABLE_ON_DISK=" << AVAILABLE_ON_DISK << " " << TermColor::RESET();
     _ImageDataManager_printstatus_cout << TermColor::iMAGENTA() << "UNAVAILABLE=" << UNAVAILABLE << " " << TermColor::RESET();
-    _ImageDataManager_printstatus_cout << "TOTAL=" << AVAILABLE_ON_RAM+AVAILABLE_ON_DISK+UNAVAILABLE << " ";
+    _ImageDataManager_printstatus_cout << TermColor::iBLUE() << "ETC=" << ETC << " " << TermColor::RESET();
+    _ImageDataManager_printstatus_cout << "TOTAL=" << AVAILABLE_ON_RAM+AVAILABLE_ON_DISK+UNAVAILABLE+ETC << " ";
     _ImageDataManager_printstatus_cout << endl;
 
     myfile.close();
     return true;
+}
+
+
+// #define __ImageDataManager__decrement_hit_counts_and_deallocate_expired(msg) msg;
+#define __ImageDataManager__decrement_hit_counts_and_deallocate_expired(msg) ;
+int ImageDataManager::decrement_hit_counts_and_deallocate_expired()
+{
+    // decrement all by 1
+    int n_elements_in_hitlist = 0;
+    for( auto it=hit_count.begin() ; it!=hit_count.end() ; it++ )
+    {
+        it->second--;
+        __ImageDataManager__decrement_hit_counts_and_deallocate_expired(
+        cout << "[decrement_hit_counts_and_deallocate_expired]" << std::get<0>(it->first) << "," << std::get<1>(it->first) << " expry=" << it->second << endl;
+        )
+        n_elements_in_hitlist++;
+    }
+
+    // deallocate expired
+    int n_removed = 0;
+    for( auto it=hit_count.begin() ; it!=hit_count.end() ; it++ )
+    {
+        if( it->second <= 0 )
+        {
+            std::lock_guard<std::mutex> lk(m);
+            __ImageDataManager__decrement_hit_counts_and_deallocate_expired(
+            cout << "[decrement_hit_counts_and_deallocate_expired] REMOVE: " <<  std::get<0>(it->first) << "," << std::get<1>(it->first) << endl;
+            )
+            auto key = it->first;
+            image_data.erase(key);
+            hit_count.erase(key);
+            status[key] = MEMSTAT::AVAILABLE_ON_DISK;
+            n_removed++;
+        }
+    }
+
+    __ImageDataManager__decrement_hit_counts_and_deallocate_expired(
+    cout << "[decrement_hit_counts_and_deallocate_expired] n_elements_in_hitlist=" << n_elements_in_hitlist << "\tn_removed=" << tn_removed<< endl;
+    )
+
 }
