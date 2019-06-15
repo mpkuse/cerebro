@@ -353,7 +353,7 @@ int main( int argc, char ** argv )
 
     dataManager.trial_thread_enable();
     dataManager.trial_thread_disable();
-    std::thread dm_trial_th( &DataManager::trial_thread, &dataManager, "/dev/pts/20" );
+    std::thread dm_trial_th( &DataManager::trial_thread, &dataManager );
 
     // [A.1] Another thread in class dataManager which will deallocate images in nonkeyframes.
     dataManager.clean_up_useless_images_thread_enable();
@@ -443,7 +443,7 @@ int main( int argc, char ** argv )
     viz.setCerebro( &cer );
     viz.setVizPublishers( "/cerebro_node/viz/" );
     viz.run_thread_enable();
-    viz.run_thread_disable();
+    // viz.run_thread_disable();
     std::thread viz_th( &Visualization::run, &viz, 10 ); //TODO something wrong with the logic in publish. another solution could be we keep #seq in DataNode.
 
 

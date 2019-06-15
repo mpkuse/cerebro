@@ -175,9 +175,10 @@ void Cerebro::descriptor_computer_thread()
                 image_curr = it->second->getImage();
                 #else
                 // using image data manager
-                {
+                { //dont remove these braces, it is used for scoping and automatic deallocation
                     cv::Mat tmp_img;
                     img_data_mgr->getImage( "left_image", it->first, tmp_img );
+
                     if( nChannels == 3 && tmp_img.channels() == 1 )
                         cv::cvtColor( tmp_img, image_curr, CV_GRAY2BGR );
                     else if( nChannels==1 && tmp_img.channels() == 3)
@@ -891,12 +892,12 @@ json Cerebro::foundLoops_as_JSON()
 //------------------ Geometry Thread ---------------------------//
 //--------------------------------------------------------------//
 
-#define __Cerebro__loopcandi_consumer__(msg) msg;
-// #define __Cerebro__loopcandi_consumer__(msg)  ;
+// #define __Cerebro__loopcandi_consumer__(msg) msg;
+#define __Cerebro__loopcandi_consumer__(msg)  ;
 // ^This will also imshow image-pairs with gms-matches marked.
 
-#define __Cerebro__loopcandi_consumer__IMP( msg ) msg;
-// #define __Cerebro__loopcandi_consumer__IMP( msg ) ;
+// #define __Cerebro__loopcandi_consumer__IMP( msg ) msg;
+#define __Cerebro__loopcandi_consumer__IMP( msg ) ;
 // ^Important Text only printing
 
 

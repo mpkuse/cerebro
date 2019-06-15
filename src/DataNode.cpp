@@ -1,6 +1,6 @@
 #include "DataNode.h"
 
-
+#if 0
 void DataNode::setImageFromMsg( const sensor_msgs::ImageConstPtr msg )
 {
     std::lock_guard<std::mutex> lk(m);
@@ -100,6 +100,7 @@ void DataNode::deallocate_all_images()
     all_images.clear();
     t_all_images.clear();
 }
+#endif
 
 void DataNode::setPoseFromMsg( const nav_msgs::OdometryConstPtr msg )
 {
@@ -232,7 +233,7 @@ int DataNode::getNumberOfSuccessfullyTrackedFeatures() const
 }
 
 
-
+#if 0
 const cv::Mat& DataNode::getImage() const {
     std::lock_guard<std::mutex> lk(m);
     assert( isImageAvailable() && "[DataNode::getImage] you requested the image before setting it");
@@ -246,6 +247,7 @@ const cv::Mat& DataNode::getImage(short cam_id) const {
     // return this->all_images[cam_id];
     return this->all_images.at(cam_id);
 }
+#endif
 
 const Matrix4d& DataNode::getPose() const{
     std::lock_guard<std::mutex> lk(m);
@@ -305,6 +307,8 @@ const VectorXi& DataNode::getFeatIds() const  {
      std::lock_guard<std::mutex> lk(m);
      return stamp;
  }
+
+ #if 0
  const ros::Time DataNode::getT_image() const {
      std::lock_guard<std::mutex> lk(m);
      assert( isImageAvailable() );
@@ -316,7 +320,7 @@ const VectorXi& DataNode::getFeatIds() const  {
     //  return t_all_images[cam_id];
      return t_all_images.at(cam_id);
  }
-
+#endif
 
 
  const ros::Time DataNode::getT_pose() const {
@@ -354,7 +358,7 @@ void DataNode::prettyPrint()
     }
     else { cout << "Not Available\n" ;}
 
-
+    #if 0
     if( isImageAvailable() ) {
         cv::Mat _im = this->getImage();
         cout << "\t\tImage: " << _im.rows << "x" << _im.cols << "x" << _im.channels()
@@ -362,6 +366,7 @@ void DataNode::prettyPrint()
 
     }
     else { cout << "\tImage: N/A\n"; }
+    #endif 
 
     if( isPoseAvailable() ) {
         Matrix4d _pose = this->getPose();

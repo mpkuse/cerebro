@@ -404,15 +404,19 @@ json DataManager::asJson()
 
         DataNode * __u = it->second;
         curr_obj["getT"] = __u->getT().toSec();
+        #if 0
         curr_obj["getT_image"] = __u->getT_image().toSec();
+        #endif
         // curr_obj["getT_image_1"] = __u->getT_image(1).toSec();
         curr_obj["getT_pose"] = __u->getT_pose().toSec();
         curr_obj["getT_uv"] = __u->getT_uv().toSec();
         __json_debuggin( cout << "B\n"; )
 
         curr_obj["isKeyFrame"] = __u->isKeyFrame();
+        #if 0
         curr_obj["isImageAvailable"] = __u->isImageAvailable();
         curr_obj["isImageAvailable_1"] = __u->isImageAvailable(1);
+        #endif
         curr_obj["isPoseAvailable"] = __u->isPoseAvailable();
         curr_obj["isPtCldAvailable"] = __u->isPtCldAvailable();
         curr_obj["isUnVnAvailable"] = __u->isUnVnAvailable();
@@ -595,7 +599,7 @@ string DataManager::print_queue_size( int verbose=1 ) const
 /////////////////////////// Thread mains /////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 #define _XOUT_ myfile
-void DataManager::trial_thread( const string fname )
+void DataManager::trial_thread( )
 {
     cout << TermColor::GREEN() << "Start DataManager::trial_thread "<< TermColor::RESET() << endl;
     ros::Rate looprate(10);
@@ -666,7 +670,7 @@ void DataManager::trial_thread( const string fname )
 
     while( b_trial_thread )
     {
-        img_data_mgr->print_status(fname);
+        img_data_mgr->print_status( "/dev/pts/21");
         this->print_datamap_status( "/dev/pts/22" );
         looprate.sleep();
     }
@@ -675,8 +679,8 @@ void DataManager::trial_thread( const string fname )
 }
 
 
-// #define ___clean_up_cout(msg) msg;
-#define ___clean_up_cout(msg) ;
+#define ___clean_up_cout(msg) msg;
+// #define ___clean_up_cout(msg) ;
 void DataManager::clean_up_useless_images_thread()
 {
     //---
@@ -701,13 +705,14 @@ void DataManager::clean_up_useless_images_thread()
         // auto S = data_map.begin();
         // auto E = data_map.upper_bound( data_map.rbegin()->first - ros::Duration( 3.0 ) );
 
-        auto S = data_map->begin();
+        auto S = data_map->upper_bound( data_map->rbegin()->first - ros::Duration( keep_last_n_sec_in_ram+5 ) );
+        // auto S = data_map->begin();
         auto E = data_map->upper_bound( data_map->rbegin()->first - ros::Duration( keep_last_n_sec_in_ram ) );
         int q=0;
         ___clean_up_cout( cout << "[DataManager::clean_up_useless_images_thread] "  <<  S->first << " to " << E->first << "\t"; )
         ___clean_up_cout( cout << S->first-getPose0Stamp() << " to " << E->first - getPose0Stamp() << endl; )
         // for( auto it = data_map.begin() ; it->first < E->first ; it++ ) { //berks__old
-        for( auto it = data_map->begin() ; it->first < E->first ; it++ ) {
+        for( auto it = S ; it->first < E->first ; it++ ) {
             #if 0 //old, where images where stored inside datanode.
             if( it->second->isImageAvailable() && !it->second->isKeyFrame() ) {
             // if( it->second->isImageAvailable()  ) {

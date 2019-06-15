@@ -99,10 +99,10 @@ bool ImageDataManager::getImage( const string ns, const ros::Time t, cv::Mat& ou
             if( status.at(key) == MEMSTAT::AVAILABLE_ON_DISK )
             {
                 const string fname = key_to_imagename(ns, t);
-                __ImageDataManager__getImage(
+                // __ImageDataManager__getImage(
                 cout << TermColor::iYELLOW() << "[ImageDataManager::getImage] retrived (fname=" << fname << ") at ns=" << ns << " t=" << t << ".\nthis is a quickfix implementation better way is to implement a caching way. TODO." << TermColor::RESET() << endl;
-                )
-                outImg = cv::imread( fname );
+                // )
+                outImg = cv::imread( fname, -1 ); //-1 is for read as it is.
                 if( !outImg.data )
                 {
                     cout << TermColor::RED() << "[ImageDataManager::getImage] failed to load image " << fname << TermColor::RESET() << endl;
@@ -191,6 +191,8 @@ bool ImageDataManager::stashImage( const string ns, const ros::Time t )
             __ImageDataManager__stashImage(
             cout << TermColor::iCYAN() << "[ImageDataManager] imwrite(" << sfname  << ")\t elapsed_time_ms=" << elp.toc_milli() << TermColor::RESET() << endl ;
             )
+
+            // todo: tune jpg quality for saving on more disk space. default is 95/100 for jpg. 
             cv::imwrite( sfname, it_b->second );
 
             // erase from map
