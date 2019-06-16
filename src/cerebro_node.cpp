@@ -526,7 +526,8 @@ int main( int argc, char ** argv )
     //          ^^^^ Borrowed from : https://answers.ros.org/question/11353/how-to-delay-escalation-to-sig-term-after-sending-sig-int-to-roslaunch/
 
         // Write json log
-        string save_dir = "/Bulk_Data/_tmp/";
+        // string save_dir = "/Bulk_Data/_tmp/";
+        string save_dir = "/tmp/_tmp/";
 
         ROS_INFO( "cerebro_node logging to : %s.\nThis will take upto 2 minutes.", save_dir.c_str());
         ROS_ERROR( "cerebro_node logging to : %s.\nThis will take upto 2 minutes.", save_dir.c_str());
@@ -569,17 +570,38 @@ int main( int argc, char ** argv )
         #if 1
         // std::map< ros::Time, DataNode* > data_map = dataManager.getDataMapRef(); //old - can remove
         auto data_map = dataManager.getDataMapRef();
+        auto img_data_mgr = dataManager.getImageManagerRef();
         for( auto it = data_map->begin() ; it!= data_map->end() ; it++ )
         {
             int seq_id = std::distance( data_map->begin() , it );
 
             string fname = save_dir+"/"+to_string(seq_id );
+            #if 0
+            //old code where we used images inside Nodes.  - mark for removal
             if( it->second->isImageAvailable() )
                 RawFileIO::write_image( fname+".jpg", it->second->getImage()  );
 
             // additional image
             if( it->second->isImageAvailable(1) )
                 RawFileIO::write_image( fname+"_1.jpg", it->second->getImage(1)  );
+
+            #else
+            if( img_data_mgr->isImageRetrivable( "left_image", it->first  ) )
+            {
+                cv::Mat outimg;
+                img_data_mgr->getImage( "left_image", it->first, outimg );
+                RawFileIO::write_image( fname+".jpg", outimg  );
+            }
+
+            if( img_data_mgr->isImageRetrivable( "right_image", it->first  ) )
+            {
+                cv::Mat outimg;
+                img_data_mgr->getImage( "right_image", it->first, outimg );
+                RawFileIO::write_image( fname+"_1.jpg", outimg  );
+            }
+            #endif
+
+
 
             // Save VINS pose
             if( it->second->isPoseAvailable() ) {
