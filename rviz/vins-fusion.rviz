@@ -51,6 +51,8 @@ Panels:
       - /Current View1
     Name: Views
     Splitter Ratio: 0.5
+Toolbars:
+  toolButtonStyle: 2
 Visualization Manager:
   Class: ""
   Displays:
@@ -289,6 +291,7 @@ Visualization Manager:
             X: 0
             Y: 0
             Z: 0
+          Pose Color: 255; 85; 255
           Pose Style: None
           Radius: 0.0299999993
           Shaft Diameter: 0.100000001
@@ -311,6 +314,7 @@ Visualization Manager:
             X: 0
             Y: 0
             Z: 0
+          Pose Color: 255; 85; 255
           Pose Style: None
           Radius: 0.0299999993
           Shaft Diameter: 0.100000001
@@ -339,6 +343,7 @@ Visualization Manager:
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
+    Default Light: true
     Fixed Frame: world
     Frame Rate: 30
   Name: root
@@ -372,6 +377,7 @@ Visualization Manager:
         Z: -9.27598476
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.0500000007
+      Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.00999999978
       Pitch: 1.56979632
@@ -392,6 +398,7 @@ Visualization Manager:
           Z: -6.84013748
         Focal Shape Fixed Size: true
         Focal Shape Size: 0.0500000007
+        Invert Z Axis: false
         Name: Orbit
         Near Clip Distance: 0.00999999978
         Pitch: 1.16479671

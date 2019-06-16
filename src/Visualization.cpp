@@ -47,9 +47,9 @@ void Visualization::run( const int looprate    )
     assert( looprate > 0  && "[ Visualization::run] looprate need to be postive\n");
 
     // Adjust these for debugging.
-    bool bpub_framepositions = false;
-    bool bpub_loopcandidates = true;
-    bool bpub_processed_loopcandidates = true;
+    bool bpub_framepositions = false;          //< This publishes text-marker with node id
+    bool bpub_loopcandidates = true;           //< this publishes line marker
+    bool bpub_processed_loopcandidates = true; //this publoshes the image-pair as image.
 
     ros::Rate rate( looprate );
     while( b_run_thread )
@@ -117,58 +117,63 @@ void Visualization::publish_processed_loopcandidates()
         )
 
 
-        if( publish_loop_line_marker ) {
-        Vector4d w_t_1 = candidate_i.node_1->getPose().col(3);
-        Vector4d w_t_2 = candidate_i.node_2->getPose().col(3);
-        RosMarkerUtils::add_point_to_marker( w_t_1, marker, true );
-        RosMarkerUtils::add_point_to_marker( w_t_2, marker, false );
-        RosMarkerUtils::setcolor_to_marker( 0.0, 1.0, 0.0 , marker );
-        marker.ns = "processed_loopcandidates_line";
-        marker.id = i;
-        framedata_pub.publish( marker );
-
-
-        // Publish marker line
-        if( candidate_i.isSet_3d2d__2T1 == false )
+        if( publish_loop_line_marker )
         {
-            cout << "[Visualization::publish_processed_loopcandidates] _3d2d__2T1 is not set. This means the final pose is not set. This is because the candidate relative poses do not appear to be consistent with each other. Ignoring this ProcessedLoopCandidate" << endl;;
-            continue;
-        }
+            Vector4d w_t_1 = candidate_i.node_1->getPose().col(3);
+            Vector4d w_t_2 = candidate_i.node_2->getPose().col(3);
+            RosMarkerUtils::add_point_to_marker( w_t_1, marker, true );
+            RosMarkerUtils::add_point_to_marker( w_t_2, marker, false );
+            RosMarkerUtils::setcolor_to_marker( 0.0, 1.0, 0.0 , marker );
+            marker.ns = "processed_loopcandidates_line";
+            marker.id = i;
+            framedata_pub.publish( marker );
 
-        Matrix4d w_T_2__new = candidate_i.node_1->getPose() * (candidate_i._3d2d__2T1).inverse();
-        Vector4d w_t_2__new = w_T_2__new.col(3);
-        RosMarkerUtils::add_point_to_marker( w_t_1, marker, true );
-        RosMarkerUtils::add_point_to_marker( w_t_2__new, marker, false );
-        RosMarkerUtils::setcolor_to_marker( 1.0, 1.0, 1.0 , marker );
-        marker.ns = "processed_loopcandidates_new_position_of_2";
-        marker.id = i;
-        framedata_pub.publish( marker );
+
+            // Publish marker line
+            if( candidate_i.isSet_3d2d__2T1 == false )
+            {
+                cout << "[Visualization::publish_processed_loopcandidates] _3d2d__2T1 is not set. This means the final pose is not set. This is because the candidate relative poses do not appear to be consistent with each other. Ignoring this ProcessedLoopCandidate" << endl;;
+                continue;
+            }
+
+            Matrix4d w_T_2__new = candidate_i.node_1->getPose() * (candidate_i._3d2d__2T1).inverse();
+            Vector4d w_t_2__new = w_T_2__new.col(3);
+            RosMarkerUtils::add_point_to_marker( w_t_1, marker, true );
+            RosMarkerUtils::add_point_to_marker( w_t_2__new, marker, false );
+            RosMarkerUtils::setcolor_to_marker( 1.0, 1.0, 1.0 , marker );
+            marker.ns = "processed_loopcandidates_new_position_of_2";
+            marker.id = i;
+            framedata_pub.publish( marker );
         }
 
 
         // publish image
-        if( publish_image) {
-            if( false ) {
+        if( publish_image)
+        {
+            #if  0
+            if( candidate_i.node_1->isImageAvailable() && candidate_i.node_2->isImageAvailable() )
+            #else
+            auto img_data_mgr = dataManager->getImageManagerRef();
+            if(
+                img_data_mgr->isImageRetrivable("left_image", candidate_i.node_1->getT()) &&
+                img_data_mgr->isImageRetrivable("left_image", candidate_i.node_2->getT())
+              )
+            #endif
+            {
 
-            }
-            // if( false && candidate_i.matching_im_pair.rows > 0 && candidate_i.matching_im_pair.cols>0 ) {
-            //     // if debug image is available publish it
-            //     cv::Mat buffer;
-            //     cv::resize(candidate_i.matching_im_pair, buffer, cv::Size(), 0.5, 0.5 );
-            //
-            //
-            //     cv_bridge::CvImage cv_image;
-            //     cv_image.image = buffer;
-            //     cv_image.encoding = "bgr8";
-            //     sensor_msgs::Image ros_image_msg;
-            //     cv_image.toImageMsg(ros_image_msg);
-            //     imagepaire_pub.publish( ros_image_msg );
-            // }
-            else if( candidate_i.node_1->isImageAvailable() && candidate_i.node_2->isImageAvailable() ){
+                #if 0 // code where data_node had image data, mark this for removal
+                cv::Mat _node_1_im = candidate_i.node_1->getImage();
+                cv::Mat _node_2_im = candidate_i.node_2->getImage();
+                #else // image manager has the image data
+                cv::Mat _node_1_im, _node_2_im;
+                bool status1 = img_data_mgr->getImage( "left_image", candidate_i.node_1->getT(), _node_1_im );
+                bool status2 = img_data_mgr->getImage( "left_image", candidate_i.node_2->getT(), _node_2_im );
+                assert( status1 && status2 && "[Visualization::publish_processed_loopcandidates]\n");
+                #endif
+
                 // use image from node
                 cv::Mat side_by_side_impair;
-                MiscUtils::side_by_side( candidate_i.node_1->getImage(), candidate_i.node_2->getImage(), side_by_side_impair );
-
+                MiscUtils::side_by_side( _node_1_im, _node_2_im, side_by_side_impair );
 
                 string sgg = std::to_string( candidate_i.idx_from_datamanager_1  )
                                 + "                    "+
@@ -194,24 +199,28 @@ void Visualization::publish_processed_loopcandidates()
                 cv::Mat buffer;
                 cv::resize(side_by_side_impair, buffer, cv::Size(), 0.5, 0.5 );
 
-
                 cv_bridge::CvImage cv_image;
                 cv_image.image = buffer;
-                cv_image.encoding = "bgr8";
+                if( buffer.channels() == 1 )
+                    cv_image.encoding = "mono8";
+                else if( buffer.channels() == 3 )
+                    cv_image.encoding = "bgr8";
+                else {
+                    cout << TermColor::RED() << "[Visualization::publish_processed_loopcandidates]invalid number of channels EXIT\n";
+                    exit(1);
+                }
+
                 sensor_msgs::Image ros_image_msg;
                 cv_image.toImageMsg(ros_image_msg);
+                __Visualization___publish_processed_loopcandidates(
+                    cout << MiscUtils::imgmsg_info( ros_image_msg ) << endl;
+                )
                 imagepaire_pub.publish( ros_image_msg );
             }
         }
 
 
     }
-
-
-
-
-
-
     prev_count = new_count;
 }
 
@@ -240,7 +249,9 @@ void Visualization::publish_loopcandidates()
     // TODO If need be can also publish text for each (which could be score of the edge)
 
 
-    for( int i=0 ; i<n ; i++ ) {
+    // for( int i=0 ; i<n ; i++ )
+    for( int i=start ; i<n ; i++ )
+    {
 
         marker.id = i;
 

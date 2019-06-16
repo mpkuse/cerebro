@@ -150,6 +150,7 @@ If you wish to train your own model, you may use  [my learning code here](https:
 - *loopcandidate_consumer_th* : Computes the relative pose at the loopcandidates. Publishes the loopEdge.
 - *kidnap_th* : Identifies kidnap. If kidnap publishes the reset signals for vins_estimator.
 - *viz_th* : Publishes the image-pair, and more things for debugging and analysis.
+- *dm_cleanup_th* : Deallocate/Store to file images to reduce RAM consumption.
 
 
 **Nvidia TX2**: Often times for live run, you might want to run the
