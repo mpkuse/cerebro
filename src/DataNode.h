@@ -50,10 +50,16 @@ class DataNode
 {
 public:
     DataNode( ros::Time stamp ): stamp(stamp)
-    { is_key_frame = false; m_image=false; m_wTc=false;}
+    {
+        is_key_frame = false;
+        // m_image=false; 
+        m_wTc=false;
+    }
 
+    #if 0
     void setImageFromMsg( const sensor_msgs::ImageConstPtr msg ); ///< this sets the primary image
     void setImageFromMsg( const sensor_msgs::ImageConstPtr msg, short cam_id ); ///< this sets additional image. multiple additional images by Node is possible by using ids
+    #endif
 
     void setPoseFromMsg( const nav_msgs::OdometryConstPtr msg );
 
@@ -72,17 +78,20 @@ public:
 
 
     bool isKeyFrame()  const{ return (bool)is_key_frame; }
+    #if 0
     bool isImageAvailable() const { return m_image; }
     bool isImageAvailable(short cam_id) const { return ((t_all_images.count(cam_id)>0)?true:false); }
+    #endif
     bool isPoseAvailable() const { return m_wTc; }
     bool isPtCldAvailable() const { return m_ptcld; }
     bool isUnVnAvailable()  const{ return m_unvn; }
     bool isUVAvailable() const { return m_uv; }
     bool isFeatIdsAvailable() const { return m_tracked_feat_ids; }
 
-
+    #if 0
     const cv::Mat& getImage() const; //< this will give out the default image.
     const cv::Mat& getImage(short cam_id) const ; // this will give out the image of the cam_id. cam_id=0 will have issues. if you want the default camera image do not pass any argument, which will result in the above call.
+    #endif
     const Matrix4d& getPose() const ;
     const MatrixXd& getPoseCovariance() const ; //6x6 matrix
     const MatrixXd& getPointCloud() const ; // returns a 4xN matrix
@@ -92,8 +101,10 @@ public:
     int nPts() const;
 
     const ros::Time getT() const;
+    #if 0
     const ros::Time getT_image() const;
     const ros::Time getT_image(short cam_id) const;
+    #endif
     const ros::Time getT_pose() const;
     const ros::Time getT_ptcld() const;
     const ros::Time getT_unvn() const ;
@@ -107,8 +118,10 @@ public:
 
 
     void prettyPrint();
+    #if 0
     void deallocate_all_images();
     void print_image_cvinfo();
+    #endif
 
 
 private:
@@ -118,6 +131,7 @@ private:
     // bool is_key_frame = false;
     std::atomic<bool> is_key_frame;
 
+    #if 0
     // Raw Image
     cv::Mat image;
     ros::Time t_image;
@@ -127,6 +141,7 @@ private:
     // Additional Raw Images
     std::map<short,cv::Mat> all_images;
     std::map<short,ros::Time> t_all_images;
+    #endif
 
 
     // Pose (odometry pose from vins estimator)
