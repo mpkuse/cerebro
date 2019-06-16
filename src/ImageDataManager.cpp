@@ -101,10 +101,9 @@ bool ImageDataManager::getImage( const string ns, const ros::Time t, cv::Mat& ou
             if( status.at(key) == MEMSTAT::AVAILABLE_ON_DISK )
             {
                 const string fname = key_to_imagename(ns, t);
-                // __ImageDataManager__getImage(
+                __ImageDataManager__getImage(
                 cout << TermColor::iYELLOW() << "[ImageDataManager::getImage] retrived (fname=" << fname << ") at ns=" << ns << " t=" << t << TermColor::RESET() << endl;
-                // cout << "this is a quickfix implementation better way is to implement a caching way. TODO." << endl;
-                // )
+                )
                 outImg = cv::imread( fname, -1 ); //-1 is for read as it is.
                 if( !outImg.data )
                 {
@@ -114,7 +113,9 @@ bool ImageDataManager::getImage( const string ns, const ros::Time t, cv::Mat& ou
                 }
 
                 //=----------------cache hit this
+                __ImageDataManager__getImage(
                 cout << TermColor::iYELLOW() << "\t\tchange the status to MEMSTAT::AVAILABLE_ON_RAM_DUETO_HIT and set expiry to 10\n" << TermColor::RESET();
+                )
                 status[key] = MEMSTAT::AVAILABLE_ON_RAM_DUETO_HIT;
                 image_data[key] = outImg;
                 hit_count[key] = 10;
@@ -124,7 +125,9 @@ bool ImageDataManager::getImage( const string ns, const ros::Time t, cv::Mat& ou
 
             if( status.at(key) == MEMSTAT::AVAILABLE_ON_RAM_DUETO_HIT )
             {
+                __ImageDataManager__getImage(
                 cout << TermColor::iBLUE() << "[ImageDataManager::getImage]  retrived (AVAILABLE_ON_RAM_DUETO_HIT) at ns=" << ns << " t=" << t << TermColor::RESET()  << endl;
+                )
                 outImg = image_data.at(key);
                 hit_count[key] +=5;
                 return true;
@@ -137,7 +140,7 @@ bool ImageDataManager::getImage( const string ns, const ros::Time t, cv::Mat& ou
             }
 
 
-            cout <<  TermColor::iGREEN() <<  "[ImageDataManager::getImage] from disk retrival not implemented\n" << TermColor::RESET();
+            cout <<  TermColor::iGREEN() <<  "[ImageDataManager::getImage] got a corrupt key. Report this error to authors if this occurs\n" << TermColor::RESET();
             exit(1);
         }
     }
@@ -261,7 +264,7 @@ bool ImageDataManager::isImageRetrivable( const string ns, const ros::Time t ) c
 #define _ImageDataManager_printstatus_cout myfile
 bool ImageDataManager::print_status( string fname ) const
 {
-    // std::lock_guard<std::mutex> lk(m); //no need of locks in a const function (readonly). 
+    // std::lock_guard<std::mutex> lk(m); //no need of locks in a const function (readonly).
 
     ofstream myfile;
     myfile.open (fname);
@@ -308,6 +311,8 @@ bool ImageDataManager::print_status( string fname ) const
 #define __ImageDataManager__decrement_hit_counts_and_deallocate_expired(msg) ;
 int ImageDataManager::decrement_hit_counts_and_deallocate_expired()
 {
+    std::lock_guard<std::mutex> lk(m);
+
     // decrement all by 1
     int n_elements_in_hitlist = 0;
     for( auto it=hit_count.begin() ; it!=hit_count.end() ; it++ )
@@ -325,7 +330,6 @@ int ImageDataManager::decrement_hit_counts_and_deallocate_expired()
     {
         if( it->second <= 0 )
         {
-            std::lock_guard<std::mutex> lk(m);
             __ImageDataManager__decrement_hit_counts_and_deallocate_expired(
             cout << "[decrement_hit_counts_and_deallocate_expired] REMOVE: " <<  std::get<0>(it->first) << "," << std::get<1>(it->first) << endl;
             )
@@ -338,7 +342,8 @@ int ImageDataManager::decrement_hit_counts_and_deallocate_expired()
     }
 
     __ImageDataManager__decrement_hit_counts_and_deallocate_expired(
-    cout << "[decrement_hit_counts_and_deallocate_expired] n_elements_in_hitlist=" << n_elements_in_hitlist << "\tn_removed=" << tn_removed<< endl;
+    cout << "[decrement_hit_counts_and_deallocate_expired] n_elements_in_hitlist=" << n_elements_in_hitlist << "\tn_removed=" << n_removed<< endl;
     )
+    return n_removed;
 
 }
