@@ -171,6 +171,7 @@ add_executable(
         src/ProcessedLoopCandidate.cpp
         src/DlsPnpWithRansac.cpp
         src/HypothesisManager.cpp
+        src/ImageDataManager.cpp
         ${KuseUtilsSources}
         ${CamodocalCameraModelSources}
 )

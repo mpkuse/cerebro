@@ -71,6 +71,7 @@ using namespace Eigen;
 #include "camodocal/camera_models/CameraFactory.h"
 
 #include "DataNode.h"
+#include "ImageDataManager.h"
 
 #include "utils/nlohmann/json.hpp"
 using json = nlohmann::json;
@@ -105,6 +106,8 @@ public:
     // std::map< ros::Time, DataNode* >& getDataMapRef() { return data_map; }
     std::shared_ptr< t__DataNode > getDataMapRef() { return data_map; }
 
+    std::shared_ptr< ImageDataManager > getImageManagerRef() { return img_data_mgr; }
+
     const ros::Time getPose0Stamp() const { return pose_0; }
     bool isPose0Available() const { return pose_0_available; }
 
@@ -112,6 +115,10 @@ public:
     bool isIMUCamExtrinsicAvailable() const;
     const ros::Time getIMUCamExtrinsicLastUpdated() const;
 
+
+    // generally set fname something like /dev/pts/20, output to a separate terminal.
+    // you can know a terminal's device name with the command `tty`
+    void print_datamap_status( string fname ) const;
 
 public:
     ////////
@@ -157,6 +164,8 @@ private:
     // std::map< ros::Time, DataNode* >  data_map; //original
     std::shared_ptr< t__DataNode > data_map = std::make_shared<t__DataNode>();
 
+    std::shared_ptr< ImageDataManager> img_data_mgr = std::make_shared<ImageDataManager>();
+
     bool pose_0_available = false;
     ros::Time pose_0; // time of 1st pose
 
@@ -188,9 +197,6 @@ private:
     ros::Time last_image_time = ros::Time();
 
     // callback-buffers
-    // set this to zero to use SafeQueue. Make this to 1 to use std queue
-    #define ___USE_STD_QUEUES 1
-    #if ___USE_STD_QUEUES
     std::queue<sensor_msgs::ImageConstPtr> img_buf;
     std::queue<sensor_msgs::ImageConstPtr> img_1_buf;
     std::queue<nav_msgs::OdometryConstPtr> pose_buf;
@@ -198,16 +204,6 @@ private:
     std::queue<sensor_msgs::PointCloudConstPtr> ptcld_buf;
     std::queue<sensor_msgs::PointCloudConstPtr> trackedfeat_buf;
     std::queue<nav_msgs::OdometryConstPtr> extrinsic_cam_imu_buf;
-    #else
-    SafeQueue<sensor_msgs::ImageConstPtr> img_buf;
-    SafeQueue<sensor_msgs::ImageConstPtr> img_1_buf;
-    SafeQueue<nav_msgs::OdometryConstPtr> pose_buf;
-    SafeQueue<nav_msgs::OdometryConstPtr> kf_pose_buf;
-    SafeQueue<sensor_msgs::PointCloudConstPtr> ptcld_buf;
-    SafeQueue<sensor_msgs::PointCloudConstPtr> trackedfeat_buf;
-    SafeQueue<nav_msgs::OdometryConstPtr> extrinsic_cam_imu_buf;
-    #endif
-
 
     string print_queue_size(int verbose ) const;
 
