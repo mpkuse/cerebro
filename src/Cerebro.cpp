@@ -239,10 +239,10 @@ const ros::Time Cerebro::wholeImageComputedList_at(int k) const
 /// scene-object labels, text etc etc in addition to currently computed whole-image-descriptor
 void Cerebro::run()
 {
-    // descrip_N__dot__descrip_0_N();
+    descrip_N__dot__descrip_0_N();
     // faiss__naive_loopcandidate_generator();
     // faiss_clique_loopcandidate_generator();
-    faiss_multihypothesis_tracking();
+    // faiss_multihypothesis_tracking();
 
 }
 
