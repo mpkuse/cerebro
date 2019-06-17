@@ -46,7 +46,7 @@ using namespace std;
 
 //comment this out to remove dependence on faiss.
 // If using faiss, also remember to link to libfaiss.so. See my CMakeList file to know how to do it.
-#define HAVE_FAISS
+// #define HAVE_FAISS
 
 #ifdef HAVE_FAISS
 // faiss is only used for generating loopcandidates.
