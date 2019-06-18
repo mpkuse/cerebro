@@ -185,7 +185,8 @@ bool ImageDataManager::rmImage( const string ns, const ros::Time t )
     else
     {
         cout << TermColor::RED() << "[ImageDataManager::rmImage] FATAL-ERROR you requested to remove ns=" << ns << ", t=" << t << "; However it was not found on the map. FATAL ERRR\n" << TermColor::RESET();
-        exit(1);
+        // exit(1);
+        cout << "[ImageDataManager::rmImage]No action taken for now.....\n";
         return false;
     }
 

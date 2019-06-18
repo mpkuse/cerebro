@@ -39,11 +39,11 @@ void Cerebro::setPublishers( const string base_topic_name )
 //     like texts, objects visible etc. TODO
 //------------------------------------------------------------------//
 
-#define __Cerebro__descriptor_computer_thread( msg ) ;
-// #define __Cerebro__descriptor_computer_thread( msg ) msg
+// #define __Cerebro__descriptor_computer_thread( msg ) ;
+#define __Cerebro__descriptor_computer_thread( msg ) msg
 
-#define __Cerebro__descriptor_computer_thread__imp( msg ) ;
-// #define __Cerebro__descriptor_computer_thread__imp( msg ) msg;
+// #define __Cerebro__descriptor_computer_thread__imp( msg ) ;
+#define __Cerebro__descriptor_computer_thread__imp( msg ) msg;
 void Cerebro::descriptor_computer_thread()
 {
     assert( m_dataManager_available && "You need to set the DataManager in class Cerebro before execution of the run() thread can begin. You can set the dataManager by call to Cerebro::setDataManager()\n");
@@ -59,8 +59,8 @@ void Cerebro::descriptor_computer_thread()
     // Sample Code : https://github.com/mpkuse/cerebro/blob/master/src/unittest/unittest_rosservice_client.cpp
     connected_to_descriptor_server = false;
     descriptor_size_available = false;
-    int n_sec_wait_for_connection = 35;
-    cout << "[Cerebro::descriptor_computer_thread]Attempt connecting to ros-service for " << n_sec_wait_for_connection << " sec (will give up after that)\n";
+    int n_sec_wait_for_connection = 71;
+    cout << TermColor::iYELLOW() << "[Cerebro::descriptor_computer_thread]Attempt connecting to ros-service for " << n_sec_wait_for_connection << " sec (will give up after that)\n" << TermColor::RESET();
     ros::ServiceClient client = nh.serviceClient<cerebro::WholeImageDescriptorCompute>( "/whole_image_descriptor_compute" );
     client.waitForExistence( ros::Duration(n_sec_wait_for_connection, 0) ); //wait maximum 10 sec
     if( !client.exists() ) {
@@ -328,7 +328,7 @@ void Cerebro::faiss__naive_loopcandidate_generator()
     //------ END -----//
 
     // wait until connected_to_descriptor_server=true and descriptor_size_available=true
-    if( wait_until__connectedToDescServer_and_descSizeAvailable( 35 ) == false ) {
+    if( wait_until__connectedToDescServer_and_descSizeAvailable( 71 ) == false ) {
         cout << TermColor::RED() << "[Cerebro::faiss__naive_loopcandidate_generator ERROR] wait_until__connectedToDescServer_and_descSizeAvailable returned false implying a timeout.\n" << TermColor::RESET();
         return;
     }
@@ -464,7 +464,7 @@ void Cerebro::faiss_clique_loopcandidate_generator()
     const int K_NEAREST_NEIGHBOURS=5;
 
     // wait until connected_to_descriptor_server=true and descriptor_size_available=true
-    if( wait_until__connectedToDescServer_and_descSizeAvailable( 35 ) == false ) {
+    if( wait_until__connectedToDescServer_and_descSizeAvailable( 71 ) == false ) {
         cout << TermColor::RED() << "[Cerebro::faiss__naive_loopcandidate_generator ERROR] wait_until__connectedToDescServer_and_descSizeAvailable returned false implying a timeout.\n" << TermColor::RESET();
         return;
     }
@@ -621,7 +621,7 @@ void Cerebro::faiss_multihypothesis_tracking()
     //----   Wait  ----//
     //-----------------//
     // wait until connected_to_descriptor_server=true and descriptor_size_available=true
-    if( wait_until__connectedToDescServer_and_descSizeAvailable( 35 ) == false ) {
+    if( wait_until__connectedToDescServer_and_descSizeAvailable( 71 ) == false ) {
         cout << TermColor::RED() << "[Cerebro::faiss__naive_loopcandidate_generator ERROR] wait_until__connectedToDescServer_and_descSizeAvailable returned false implying a timeout.\n" << TermColor::RESET();
         return;
     }
@@ -762,8 +762,8 @@ void Cerebro::faiss_multihypothesis_tracking()
 ///
 
 // 1 will plot the result of dot product as image. 0 will not plot to image
-#define __Cerebro__descrip_N__dot__descrip_0_N__implotting 0
-// #define __Cerebro__descrip_N__dot__descrip_0_N__implotting 1
+// #define __Cerebro__descrip_N__dot__descrip_0_N__implotting 0
+#define __Cerebro__descrip_N__dot__descrip_0_N__implotting 1
 
 
 void Cerebro::descrip_N__dot__descrip_0_N()
@@ -776,7 +776,7 @@ void Cerebro::descrip_N__dot__descrip_0_N()
     //--- Main settings for this function
     //---
     int LOCALITY_THRESH = 12;
-    float DOT_PROD_THRESH = 0.90;
+    float DOT_PROD_THRESH = 0.85;
 
     ros::Rate rate(10);
 
@@ -796,7 +796,7 @@ void Cerebro::descrip_N__dot__descrip_0_N()
     }
     #endif
 
-    if( wait_until__connectedToDescServer_and_descSizeAvailable( 35 ) == false ) {
+    if( wait_until__connectedToDescServer_and_descSizeAvailable( 71 ) == false ) {
         cout << TermColor::RED() << "[ Cerebro::descrip_N__dot__descrip_0_N ERROR] wait_until__connectedToDescServer_and_descSizeAvailable returned false implying a timeout.\n" << TermColor::RESET();
         return;
     }

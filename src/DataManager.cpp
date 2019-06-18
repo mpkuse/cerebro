@@ -670,8 +670,8 @@ void DataManager::trial_thread( )
 
     while( b_trial_thread )
     {
-        img_data_mgr->print_status( "/dev/pts/21");
-        this->print_datamap_status( "/dev/pts/22" );
+        img_data_mgr->print_status( "/dev/pts/23");
+        this->print_datamap_status( "/dev/pts/24" );
         looprate.sleep();
     }
 

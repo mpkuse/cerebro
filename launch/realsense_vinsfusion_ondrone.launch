@@ -1,7 +1,7 @@
 <launch timeout="100.0">
 
     <!-- CONFIG FILE -->
-    <arg name="config_path" default="$(find cerebro)/config/vinsfusion/mynteye/mynteye_stereo_imu_config.yaml" />
+        <arg name="config_path" default="$(find cerebro)/config/vinsfusion/realsense_d435i/realsense_stereo_imu_config.yaml" />
 
 
 
@@ -9,7 +9,7 @@
     <!-- unlike previous vins-mono, even the feature tracker is put inside 1 node ie. vins_node.
     $(ubuntu) rosrun vins vins_node /app/catkin_ws/src/cerebro/config/vinsfusion/mynteye/mynteye_stereo_imu_config.yaml
     -->
-    <node name="vins_estimator" pkg="vins" type="vins_node" args=" $(arg config_path)" output="log">
+    <node name="vins_estimator" pkg="vins" type="vins_node" args=" $(arg config_path)" output="screen">
     </node>
 
     <group if="0">
@@ -22,7 +22,7 @@
     </group>
 
 
-    <group if="1">
+    <group if="0">
         <!-- Cerebro -->
         <node name="cerebro_node" pkg="cerebro" type="cerebro_node" output="screen">
            <param name="config_file" type="string" value="$(arg config_path)" />

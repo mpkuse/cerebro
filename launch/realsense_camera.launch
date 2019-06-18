@@ -8,11 +8,11 @@
 
   <arg name="fisheye_width"       default="640"/>
   <arg name="fisheye_height"      default="480"/>
-  <arg name="enable_fisheye"      default="true"/>
+  <arg name="enable_fisheye"      default="false"/>
 
   <arg name="depth_width"         default="640"/>
   <arg name="depth_height"        default="480"/>
-  <arg name="enable_depth"        default="true"/>
+  <arg name="enable_depth"        default="false"/>
 
   <arg name="infra_width"        default="640"/>
   <arg name="infra_height"       default="480"/>
@@ -21,14 +21,14 @@
 
   <arg name="color_width"         default="640"/>
   <arg name="color_height"        default="480"/>
-  <arg name="enable_color"        default="true"/>
+  <arg name="enable_color"        default="false"/>
 
   <arg name="fisheye_fps"         default="30"/>
   <arg name="depth_fps"           default="30"/>
   <arg name="infra_fps"           default="30"/>
   <arg name="color_fps"           default="30"/>
-  <arg name="gyro_fps"            default="400"/>
-  <arg name="accel_fps"           default="250"/>
+  <arg name="gyro_fps"            default="250"/>
+  <arg name="accel_fps"           default="200"/>
   <arg name="enable_gyro"         default="true"/>
   <arg name="enable_accel"        default="true"/>
 
@@ -43,17 +43,17 @@
   <arg name="clip_distance"             default="-2"/>
   <arg name="linear_accel_cov"          default="0.01"/>
   <arg name="initial_reset"             default="false"/>
-  <arg name="unite_imu_method"          default=""/>
+  <arg name="unite_imu_method"          default="linear_interpolation"/>
   <arg name="topic_odom_in"             default="odom_in"/>
   <arg name="calib_odom_file"           default=""/>
   <arg name="publish_odom_tf"           default="true"/>
-  <arg name="allow_no_texture_points"   default="false"/>
+  <arg name="allow_no_texture_points"   default="false  "/>
 
-  
+
   <group ns="$(arg camera)">
     <include file="$(find realsense2_camera)/launch/includes/nodelet.launch.xml">
       <arg name="tf_prefix"                value="$(arg tf_prefix)"/>
-      <arg name="external_manager"         value="$(arg external_manager)"/>
+      <!-- <arg name="external_manager"         value="$(arg external_manager)"/> -->
       <arg name="manager"                  value="$(arg manager)"/>
       <arg name="serial_no"                value="$(arg serial_no)"/>
       <arg name="json_file_path"           value="$(arg json_file_path)"/>
