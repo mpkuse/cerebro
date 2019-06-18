@@ -12,7 +12,7 @@
 
   <arg name="depth_width"         default="640"/>
   <arg name="depth_height"        default="480"/>
-  <arg name="enable_depth"        default="false"/>
+  <arg name="enable_depth"        default="true"/>
 
   <arg name="infra_width"        default="640"/>
   <arg name="infra_height"       default="480"/>
@@ -21,14 +21,14 @@
 
   <arg name="color_width"         default="640"/>
   <arg name="color_height"        default="480"/>
-  <arg name="enable_color"        default="false"/>
+  <arg name="enable_color"        default="true"/>
 
   <arg name="fisheye_fps"         default="30"/>
   <arg name="depth_fps"           default="30"/>
   <arg name="infra_fps"           default="30"/>
   <arg name="color_fps"           default="30"/>
-  <arg name="gyro_fps"            default="250"/>
-  <arg name="accel_fps"           default="200"/>
+  <arg name="gyro_fps"            default="200"/>
+  <arg name="accel_fps"           default="250"/>
   <arg name="enable_gyro"         default="true"/>
   <arg name="enable_accel"        default="true"/>
 
@@ -36,19 +36,22 @@
   <arg name="pointcloud_texture_stream" default="RS2_STREAM_COLOR"/>
   <arg name="pointcloud_texture_index"  default="0"/>
 
-  <arg name="enable_sync"               default="false"/>
-  <arg name="align_depth"               default="false"/>
+  <arg name="enable_sync"               default="true"/>
+  <arg name="align_depth"               default="true"/>
 
   <arg name="filters"                   default=""/>
   <arg name="clip_distance"             default="-2"/>
   <arg name="linear_accel_cov"          default="0.01"/>
   <arg name="initial_reset"             default="false"/>
   <arg name="unite_imu_method"          default="linear_interpolation"/>
+  <arg name="hold_back_imu_for_frames"          default="true"/>
   <arg name="topic_odom_in"             default="odom_in"/>
   <arg name="calib_odom_file"           default=""/>
   <arg name="publish_odom_tf"           default="true"/>
   <arg name="allow_no_texture_points"   default="false  "/>
-
+  <rosparam>
+    /camera/stereo_module/emitter_enabled: false
+  </rosparam>
 
   <group ns="$(arg camera)">
     <include file="$(find realsense2_camera)/launch/includes/nodelet.launch.xml">

@@ -39,8 +39,8 @@ void Cerebro::setPublishers( const string base_topic_name )
 //     like texts, objects visible etc. TODO
 //------------------------------------------------------------------//
 
-// #define __Cerebro__descriptor_computer_thread( msg ) ;
-#define __Cerebro__descriptor_computer_thread( msg ) msg
+#define __Cerebro__descriptor_computer_thread( msg ) ;
+// #define __Cerebro__descriptor_computer_thread( msg ) msg
 
 // #define __Cerebro__descriptor_computer_thread__imp( msg ) ;
 #define __Cerebro__descriptor_computer_thread__imp( msg ) msg;

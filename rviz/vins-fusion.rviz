@@ -38,7 +38,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: disjoint_set_status_image
+    SyncSource: raw_input_image
   - Class: rviz/Displays
     Help Height: 78
     Name: Displays
@@ -58,7 +58,7 @@ Visualization Manager:
   Displays:
     - Class: rviz/Image
       Enabled: true
-      Image Topic: /mynteye/left/image_raw
+      Image Topic: /camera/infra1/image_rect_raw
       Max Value: 1
       Median window: 5
       Min Value: 0
@@ -223,12 +223,7 @@ Visualization Manager:
           Marker Topic: /keyframe_pose_graph_slam_node/viz/visualization_marker
           Name: Marker
           Namespaces:
-            loopedges_on_opt_traj: true
-            opt_traj_axis: true
-            world##_cam_visual: true
-            world#-1: true
-            world#0: true
-            world#1: true
+            {}
           Queue Size: 100
           Value: true
         - Class: rviz/Image
@@ -382,7 +377,7 @@ Visualization Manager:
       Pitch: 1.51479673
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 4.69452333
+      Yaw: 4.69952345
     Saved:
       - Class: rviz/Orbit
         Distance: 49.6446877
