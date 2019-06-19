@@ -679,8 +679,8 @@ void DataManager::trial_thread( )
 }
 
 
-#define ___clean_up_cout(msg) msg;
-// #define ___clean_up_cout(msg) ;
+// #define ___clean_up_cout(msg) msg;
+#define ___clean_up_cout(msg) ;
 void DataManager::clean_up_useless_images_thread()
 {
     //---

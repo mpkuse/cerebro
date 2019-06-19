@@ -72,7 +72,7 @@
       type = Terminal
       uuid = 6184900a-1468-4ffa-96a0-b1c00563ead7
     [[[terminal6]]]
-      command = '''echo "ssh dji@dji-tx2 'export ROS_MASTER_URI=http://MANIFOLD-2-C:11311/'; source $HOME/catkin_ws/devel/setup.bash &&  rosrun solve_keyframe_pose_graph keyframe_pose_graph_slam"; bash'''
+      command = '''echo "ssh dji@dji-tx2 'export ROS_MASTER_URI=http://MANIFOLD-2-C:11311/; source $HOME/catkin_ws/devel/setup.bash &&  rosrun solve_keyframe_pose_graph keyframe_pose_graph_slam' "; bash'''
       order = 1
       parent = child4
       profile = default

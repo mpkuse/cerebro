@@ -42,8 +42,8 @@ void Cerebro::setPublishers( const string base_topic_name )
 #define __Cerebro__descriptor_computer_thread( msg ) ;
 // #define __Cerebro__descriptor_computer_thread( msg ) msg
 
-// #define __Cerebro__descriptor_computer_thread__imp( msg ) ;
-#define __Cerebro__descriptor_computer_thread__imp( msg ) msg;
+#define __Cerebro__descriptor_computer_thread__imp( msg ) ;
+// #define __Cerebro__descriptor_computer_thread__imp( msg ) msg;
 void Cerebro::descriptor_computer_thread()
 {
     assert( m_dataManager_available && "You need to set the DataManager in class Cerebro before execution of the run() thread can begin. You can set the dataManager by call to Cerebro::setDataManager()\n");
@@ -1051,8 +1051,8 @@ json Cerebro::foundLoops_as_JSON()
 #define __Cerebro__loopcandi_consumer__(msg)  ;
 // ^This will also imshow image-pairs with gms-matches marked.
 
-// #define __Cerebro__loopcandi_consumer__IMP( msg ) msg;
-#define __Cerebro__loopcandi_consumer__IMP( msg ) ;
+#define __Cerebro__loopcandi_consumer__IMP( msg ) msg;
+// #define __Cerebro__loopcandi_consumer__IMP( msg ) ;
 // ^Important Text only printing
 
 

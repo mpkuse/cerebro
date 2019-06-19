@@ -58,7 +58,7 @@ Visualization Manager:
   Displays:
     - Class: rviz/Image
       Enabled: true
-      Image Topic: /camera/infra1/image_rect_raw
+      Image Topic: /mynteye/left/image_raw
       Max Value: 1
       Median window: 5
       Min Value: 0
@@ -223,7 +223,10 @@ Visualization Manager:
           Marker Topic: /keyframe_pose_graph_slam_node/viz/visualization_marker
           Name: Marker
           Namespaces:
-            {}
+            loopedges_on_opt_traj: true
+            opt_traj_axis: true
+            world##_cam_visual: true
+            world#0: true
           Queue Size: 100
           Value: true
         - Class: rviz/Image
@@ -359,16 +362,16 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 64.3404694
+      Distance: 80.4903641
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.0599999987
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 5.68552971
-        Y: -2.48078251
-        Z: -9.27598476
+        X: 17.3374634
+        Y: -1.39817107
+        Z: -9.20689201
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.0500000007
       Invert Z Axis: false
