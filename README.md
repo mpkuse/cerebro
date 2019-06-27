@@ -23,6 +23,8 @@ of about 2.0. A separate node handles pose graph solver (it is in [github-repo](
 [![IMAGE ALT TEXT](http://img.youtube.com/vi/sTd_rZdW4DQ/0.jpg)](http://www.youtube.com/watch?v=sTd_rZdW4DQ "Video Title")
 
 
+## In Plane Rotation Test
+[![IMAGE ALT TEXT](http://img.youtube.com/vi/8bsRCNF2rnA/0.jpg)](http://www.youtube.com/watch?v=8bsRCNF2rnA "Video Title")
 
 
 ## MyntEye Demo (Using VINS-Mono as Odometry Estimator)
