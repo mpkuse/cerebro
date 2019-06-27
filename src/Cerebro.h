@@ -46,7 +46,7 @@ using namespace std;
 
 //comment this out to remove dependence on faiss.
 // If using faiss, also remember to link to libfaiss.so. See my CMakeList file to know how to do it.
-// #define HAVE_FAISS
+#define HAVE_FAISS
 
 #ifdef HAVE_FAISS
 // faiss is only used for generating loopcandidates.
@@ -115,14 +115,24 @@ public:
     void run_thread_disable() { b_run_thread = false; }
     void run(); //< The loopcandidate (geometrically unverified) producer.
 
-
+    //###  Method-A :  Naive method of dot product DIY
     void descrip_N__dot__descrip_0_N(); //< Naive method of dot product DIY
-    #ifdef HAVE_FAISS
-    void faiss__naive_loopcandidate_generator(); //< similar to descrip_N__dot__descrip_0_N() but uses facebook's faiss
 
+    #ifdef HAVE_FAISS
+    //###  Method-B :  same functionality to descrip_N__dot__descrip_0_N() but uses facebook's faiss library
+    void faiss__naive_loopcandidate_generator();
+
+
+    //###  Method-C:
+    //###      In this we get say 5 nearest neighbour for every l_i.
+    //###      Collect nearest neigbours for say 4 consecutive l_i's.
+    //###      Nearby predictions are merged.
     void faiss_clique_loopcandidate_generator();
 
 
+    //### Method-D:
+    //          Uses a separate hypothesis manager. My multihyp framework.
+    //          elaborate scheme, still under development.  
     void faiss_multihypothesis_tracking();
     #endif //HAVE_FAISS
 
