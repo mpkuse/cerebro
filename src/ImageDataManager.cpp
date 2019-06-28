@@ -285,10 +285,12 @@ bool ImageDataManager::isImageRetrivable( const string ns, const ros::Time t ) c
             return true;
         }
         else {
+            cout << TermColor::iRED() << "[ImageDataManager::isImageRetrivable] returning false because the requested (ns=" << ns << ", t=" << t << ") was on my list, but type was "<< memstat_to_str( status.at( key ) ) << ", which is something other than AVAILABLE_ON_RAM or AVAILABLE_ON_DISK or AVAILABLE_ON_RAM_DUETO_HIT" << TermColor::RESET() << endl;
             return false;
         }
     }
     else {
+        cout << TermColor::iRED() << "[ImageDataManager::isImageRetrivable] returning false because the requested (ns=" << ns << ", t=" << t << ") was not in my list" << TermColor::RESET() << endl;
         return false;
     }
 }
@@ -336,6 +338,51 @@ bool ImageDataManager::print_status( string fname ) const
     _ImageDataManager_printstatus_cout << endl;
 
     myfile.close();
+    return true;
+}
+
+bool ImageDataManager::print_status(  ) const
+{
+    // std::lock_guard<std::mutex> lk(m); //no need of locks in a const function (readonly).
+
+    int AVAILABLE_ON_RAM=0, AVAILABLE_ON_DISK=0, UNAVAILABLE=0, ETC=0;
+    for( auto it=status.begin() ; it!=status.end() ; it++ )
+    {
+        if( it->second == MEMSTAT::AVAILABLE_ON_RAM ) {
+            cout << TermColor::iGREEN() << " " << TermColor::RESET();
+            cout << std::get<0>(it->first) << "," << std::get<1>(it->first) << ": " << "AVAILABLE_ON_RAM" << endl;
+            AVAILABLE_ON_RAM++;
+        }
+        else
+        if( it->second == MEMSTAT::AVAILABLE_ON_DISK ) {
+            cout << TermColor::iYELLOW() << " " << TermColor::RESET();
+            cout << std::get<0>(it->first) << "," << std::get<1>(it->first) << ": " << "AVAILABLE_ON_DISK" << endl;
+            AVAILABLE_ON_DISK++;
+        }
+        else
+        if( it->second == MEMSTAT::UNAVAILABLE ) {
+            cout << TermColor::iMAGENTA() << " " << TermColor::RESET();
+            cout << std::get<0>(it->first) << "," << std::get<1>(it->first) << ": " << "UNAVAILABLE" << endl;
+            UNAVAILABLE++;
+        }
+        else {
+        if( it->second == MEMSTAT::AVAILABLE_ON_RAM_DUETO_HIT )
+           cout << TermColor::iBLUE() << std::setw(2) << hit_count.at(it->first) << TermColor::RESET();
+           cout << std::get<0>(it->first) << "," << std::get<1>(it->first) << ": " << "AVAILABLE_ON_RAM_DUETO_HIT" << endl;
+           ETC++;
+       }
+
+
+    }
+    cout << endl;
+    cout <<  TermColor::iGREEN() << "AVAILABLE_ON_RAM=" << AVAILABLE_ON_RAM << " " << TermColor::RESET() ;
+    cout << TermColor::iYELLOW() << "AVAILABLE_ON_DISK=" << AVAILABLE_ON_DISK << " " << TermColor::RESET();
+    cout << TermColor::iMAGENTA() << "UNAVAILABLE=" << UNAVAILABLE << " " << TermColor::RESET();
+    cout << TermColor::iBLUE() << "ETC=" << ETC << " " << TermColor::RESET();
+    cout << "TOTAL=" << AVAILABLE_ON_RAM+AVAILABLE_ON_DISK+UNAVAILABLE+ETC << " ";
+    cout << endl;
+
+
     return true;
 }
 
@@ -393,14 +440,16 @@ json ImageDataManager::stashAll()
     int AVAILABLE_ON_DISK = 0;
     int UNAVAILABLE = 0;
     int AVAILABLE_ON_RAM_DUETO_HIT=0;
+    int n_stashed = 0;
     for( auto it=status.begin() ; it!=status.end() ; it++ )
     {
         string __ns_x = std::get<0>(it->first);
         ros::Time __t_x =  std::get<1>(it->first);
 
         if( it->second == MEMSTAT::AVAILABLE_ON_RAM ) {
-            cout << "[ImageDataManager::stashAll] stash( " << __ns_x << ", " << __t_x << " )\n";
+            // cout << "[ImageDataManager::stashAll] stash( " << __ns_x << ", " << __t_x << " )\n";
             stashImage( __ns_x, __t_x );
+            n_stashed++;
         }
 
         json this_json;
@@ -436,6 +485,7 @@ json ImageDataManager::stashAll()
     cout << "AVAILABLE_ON_DISK=" << AVAILABLE_ON_DISK << "\t";
     cout << "UNAVAILABLE=" << UNAVAILABLE << "\t";
     cout << "AVAILABLE_ON_RAM_DUETO_HIT=" << AVAILABLE_ON_RAM_DUETO_HIT << "\t";
+    cout << "n_stashed=" << n_stashed << "\t";
     cout << endl;
     return obj;
 
@@ -475,17 +525,22 @@ bool ImageDataManager::loadStateFromDisk( const json json_obj )
         ros::Time __t_x = ros::Time().fromNSec( json_obj[i]["stampNSec"] );
         string __status = json_obj[i]["status"];
 
+
+
         auto key = std::make_pair(__ns_x, __t_x );
-        if( __status.compare("AVAILABLE_ON_DISK") ) {
+        if( __status.compare("AVAILABLE_ON_DISK") == 0 ) {
             status[key] = MEMSTAT::AVAILABLE_ON_DISK;
             AVAILABLE_ON_DISK++;
         }
-        else if( __status.compare("UNAVAILABLE") ){
+        else if( __status.compare("UNAVAILABLE") == 0 ){
             status[key] = MEMSTAT::UNAVAILABLE;
             UNAVAILABLE++;
+        } else if( __status.compare("AVAILABLE_ON_RAM_DUETO_HIT") == 0  ){
+            status[key] = MEMSTAT::AVAILABLE_ON_DISK;
+            AVAILABLE_ON_DISK++;
         }
         else {
-            cout << "[ImageDataManager::loadStateFromDisk] status in json can only be AVAILABLE_ON_DISK or UNAVAILABLE. If your json it is something other than these two\n";
+            cout << "[ImageDataManager::loadStateFromDisk] status in json can only be AVAILABLE_ON_DISK or UNAVAILABLE or AVAILABLE_ON_RAM_DUETO_HIT. If your json it is something other than these three. In case of AVAILABLE_ON_RAM_DUETO_HIT we set it as AVAILABLE_ON_DISK\n";
             exit(1);
         }
     }

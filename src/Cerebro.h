@@ -100,6 +100,7 @@ private:
     // Storage for Intelligence
     mutable std::mutex m_wholeImageComputedList;
     vector<ros::Time> wholeImageComputedList; ///< A list of stamps where descriptors are computed and available.
+    void wholeImageComputedList_pushback( const ros::Time __tx ); //this is kept private on purpose so that others from outside cannot pushback here. 
 public:
     const int wholeImageComputedList_size() const; //size of the list. threadsafe
     const ros::Time wholeImageComputedList_at(int k) const; //< returns kth element of the list. threadsafe

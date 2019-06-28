@@ -57,6 +57,7 @@ public:
     bool isImageRetrivable( const string ns, const ros::Time t ) const;
 
     bool print_status( string fname ) const;
+    bool print_status(  ) const;
 
     // - go over all status and stash all the images that remain on RAM.
     // Also retuns the map status as json object
@@ -70,6 +71,23 @@ private:
     const string key_to_imagename( const string ns, const ros::Time t ) const
     {
         return STASH_DIR+"/"+ns+"__"+to_string(t.toNSec())+".jpg";
+    }
+
+    const string memstat_to_str( MEMSTAT m ) const
+    {
+        if( m == MEMSTAT::AVAILABLE_ON_RAM )
+            return "AVAILABLE_ON_RAM";
+
+        if( m == MEMSTAT::AVAILABLE_ON_DISK )
+            return "AVAILABLE_ON_DISK";
+
+        if( m == MEMSTAT::UNAVAILABLE )
+            return "UNAVAILABLE";
+
+        if( m == MEMSTAT::AVAILABLE_ON_RAM_DUETO_HIT )
+            return "AVAILABLE_ON_RAM_DUETO_HIT";
+
+        return "N.A.";
     }
 
     // key: (namespace, t)

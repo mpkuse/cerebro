@@ -135,7 +135,7 @@ void DataNode::setPose( const ros::Time __t, const Matrix4d __wTc )
     wTc_covariance = MatrixXd::Zero(6,6);
     wTc = Matrix4d( __wTc );
 
-    t_wTc = __t; 
+    t_wTc = __t;
     m_wTc = true;
 }
 

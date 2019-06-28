@@ -343,7 +343,7 @@ int main( int argc, char ** argv )
 
     // set this to 1 to enable loading state, set this to 0 to not load state
     // If you dont loadStateFromDisk, make sure you initialize the ImageDataManager.
-    #define __LOAD_STATE__ 0
+    #define __LOAD_STATE__ 1
     #if __LOAD_STATE__
     //--- Load State From Disk
     dataManager.loadStateFromDisk( "/Bulk_Data/cerebro_chkpts" );

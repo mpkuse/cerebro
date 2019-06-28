@@ -39,11 +39,11 @@ void Cerebro::setPublishers( const string base_topic_name )
 //     like texts, objects visible etc. TODO
 //------------------------------------------------------------------//
 
-// #define __Cerebro__descriptor_computer_thread( msg ) ;
-#define __Cerebro__descriptor_computer_thread( msg ) msg
+#define __Cerebro__descriptor_computer_thread( msg ) ;
+// #define __Cerebro__descriptor_computer_thread( msg ) msg
 
-// #define __Cerebro__descriptor_computer_thread__imp( msg ) ;
-#define __Cerebro__descriptor_computer_thread__imp( msg ) msg;
+#define __Cerebro__descriptor_computer_thread__imp( msg ) ;
+// #define __Cerebro__descriptor_computer_thread__imp( msg ) msg;
 void Cerebro::descriptor_computer_thread()
 {
     assert( m_dataManager_available && "You need to set the DataManager in class Cerebro before execution of the run() thread can begin. You can set the dataManager by call to Cerebro::setDataManager()\n");
@@ -124,6 +124,42 @@ void Cerebro::descriptor_computer_thread()
     ros::Rate rate(20);
     auto data_map = dataManager->getDataMapRef();
     auto img_data_mgr = dataManager->getImageManagerRef();
+
+    #if 1
+    //*****************
+    // If loadStateFromDisk, ie. if data_map already has a lot of items means that the
+    // state was preloaded. in this case just setup this thread appropriately.
+    //**************************
+    if( data_map->begin() == data_map->end() )
+    {
+        // This means the data_map is empty, which inturn means fresh run
+        cout << TermColor::iBLUE() << "[Cerebro::descriptor_computer_thread] Looks like data_map is empty which means this is a fresh run" << TermColor::RESET() << endl;;
+    }
+    else {
+        // This means, state was preloaded from file
+        cout << TermColor::iGREEN() << "[Cerebro::descriptor_computer_thread] Looks like data_map is NOT empty which means state was loaded from disk" << TermColor::RESET() << endl;;
+
+        // loop over data_map and make a note of all the timestamps where descriptor is available.
+        int n_whlimgdescavai = 0;
+        // img_data_mgr->print_status();
+        for( auto itd=data_map->begin() ; itd!=data_map->end() ; itd++ )
+        {
+            if( itd->second->isWholeImageDescriptorAvailable() ) {
+                n_whlimgdescavai++;
+                wholeImageComputedList_pushback( itd->first );
+
+                // Also make sure these images are rechable.
+                bool kxxx = img_data_mgr->isImageRetrivable( "left_image", itd->first );
+                if( kxxx == false ) // this is bad
+                {
+                    cout << "[Cerebro::descriptor_computer_thread] THIS IS BAD. REPORT IT TO AUTHORS WITH CODE jewbcjsmn\nEXIT.....\n";
+                    exit(1);
+                }
+            }
+        }
+        cout << "[Cerebro::descriptor_computer_thread]i find "<< n_whlimgdescavai << " datanodes where image descrptor is available and images are retrivable through the ImageDataManager\n";
+    }
+    #endif
 
 
     ros::Time last_proc_timestamp =ros::Time();
@@ -236,10 +272,8 @@ void Cerebro::descriptor_computer_thread()
                         // std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
                         it->second->setWholeImageDescriptor( vec );
-                        {
-                            std::lock_guard<std::mutex> lk(m_wholeImageComputedList);
-                            this->wholeImageComputedList.push_back( it->first ); // note down where it was computed.
-                        }
+                        wholeImageComputedList_pushback( it->first );
+
                         // __Cerebro__descriptor_computer_thread(cout << "Computed descriptor at t=" << it->first - dataManager->getPose0Stamp() << "\t" << it->first << endl;)
                         // __Cerebro__descriptor_computer_thread(std::cout << "Computed descriptor in (millisec) = " << _time.toc_milli()  << endl;)
                         // __Cerebro__descriptor_computer_thread__imp(cout << TermColor::CYAN() << "Computed descriptor at t=" << it->first - dataManager->getPose0Stamp() << "\t" << it->first << TermColor::RESET() << endl);
@@ -284,6 +318,13 @@ const ros::Time Cerebro::wholeImageComputedList_at(int k) const
     return wholeImageComputedList.at( k );
 }
 
+void Cerebro::wholeImageComputedList_pushback( const ros::Time __tx )
+{
+    std::lock_guard<std::mutex> lk(m_wholeImageComputedList);
+    this->wholeImageComputedList.push_back( __tx ); // note down where it was computed.
+
+}
+
 //------------------------------------------------------------------//
 // END per Keyframe Descriptor Computation
 //------------------------------------------------------------------//
@@ -297,8 +338,8 @@ const ros::Time Cerebro::wholeImageComputedList_at(int k) const
 
 
 
-// #define __Cerebro__run__( msg ) msg ;
-#define __Cerebro__run__( msg ) ;
+#define __Cerebro__run__( msg ) msg ;
+// #define __Cerebro__run__( msg ) ;
 
 // #define __Cerebro__run__debug( msg ) msg ;
 #define __Cerebro__run__debug( msg ) ;
@@ -940,19 +981,7 @@ void Cerebro::descrip_N__dot__descrip_0_N()
                  );
 
 
-            #if 0
-            // extra safety. Not strictly needed, but helpful for debug.
-            __Cerebro__run__debug(
 
-            for( int ___kop=1 ; ___kop<=3 ; ___kop++ ) {
-            if( data_map.count( wholeImageComputedList[l-___kop] ) == 0  ) {
-                cout << TermColor::iRED() << "ERROR in descrip_N__dot__descrip_0_N  "<< ___kop << "  : ";
-                cout << "cannot time t=" << wholeImageComputedList[l-___kop] << " in the data_map\n" << TermColor::RESET();
-            }
-            }
-
-            )
-            #endif
 
             v   = data_map->at( wholeImageComputedList_at(l-1) )->getWholeImageDescriptor();
             vm  = data_map->at( wholeImageComputedList_at(l-2) )->getWholeImageDescriptor();
@@ -1321,13 +1350,20 @@ bool Cerebro::retrive_stereo_pair( DataNode* node, cv::Mat& left_image, cv::Mat&
     #else
     auto img_data_mgr = dataManager->getImageManagerRef();
 
-    if( img_data_mgr->isImageRetrivable( "left_image", node->getT() )==false
-                ||
-        img_data_mgr->isImageRetrivable( "right_image", node->getT() ) == false )
+    if( img_data_mgr->isImageRetrivable( "left_image", node->getT() )==false )
     {
+        cout << TermColor::RED() << "[Cerebro::retrive_stereo_pair] img_data_mgr->isImageRetrivable( \"left_image\"," << node->getT() << ") returned false" << TermColor::RESET() << endl;
         cout << TermColor::RED() << "[Cerebro::retrive_stereo_pair] Either of the node images (stereo-pair was not available). This is probably not fatal, this loopcandidate will be skipped." << TermColor::RESET() << endl;
         return false;
     }
+
+    if (   img_data_mgr->isImageRetrivable( "right_image", node->getT() ) == false )
+    {
+        cout << TermColor::RED() << "[Cerebro::retrive_stereo_pair] img_data_mgr->isImageRetrivable( \"right_image\"," << node->getT() << ") returned false" << TermColor::RESET() << endl;
+        cout << TermColor::RED() << "[Cerebro::retrive_stereo_pair] Either of the node images (stereo-pair was not available). This is probably not fatal, this loopcandidate will be skipped." << TermColor::RESET() << endl;
+        return false;
+    }
+
 
     cv::Mat bgr_left_image, bgr_right_image;
     img_data_mgr->getImage( "left_image", node->getT(), bgr_left_image );
