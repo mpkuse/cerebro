@@ -39,11 +39,11 @@ void Cerebro::setPublishers( const string base_topic_name )
 //     like texts, objects visible etc. TODO
 //------------------------------------------------------------------//
 
-#define __Cerebro__descriptor_computer_thread( msg ) ;
-// #define __Cerebro__descriptor_computer_thread( msg ) msg
+// #define __Cerebro__descriptor_computer_thread( msg ) ;
+#define __Cerebro__descriptor_computer_thread( msg ) msg
 
-#define __Cerebro__descriptor_computer_thread__imp( msg ) ;
-// #define __Cerebro__descriptor_computer_thread__imp( msg ) msg;
+// #define __Cerebro__descriptor_computer_thread__imp( msg ) ;
+#define __Cerebro__descriptor_computer_thread__imp( msg ) msg;
 void Cerebro::descriptor_computer_thread()
 {
     assert( m_dataManager_available && "You need to set the DataManager in class Cerebro before execution of the run() thread can begin. You can set the dataManager by call to Cerebro::setDataManager()\n");
@@ -142,112 +142,122 @@ void Cerebro::descriptor_computer_thread()
         auto E = data_map->end();
         __Cerebro__descriptor_computer_thread(cout << "[Cerebro::descriptor_computer_thread]] S=" << S->first << "  E=" << (data_map->rbegin())->first << endl;)
         for( auto it = S; it != E ; it++ ) {
+
+            // cout << "[Cerebro::descriptor_computer_thread]try : " << it->first << "\t";
+            // cout << "isWholeImageDescriptorAvailable=" << it->second->isWholeImageDescriptorAvailable() << "\t";
+            // cout << "isKeyFrame=" << it->second->isKeyFrame() << "\t";
+            // cout << endl;
+
             //descriptor does not exisit at this stamp, so compute it.
             // Here I compute the whole image descriptor only at keyframes, you may try something like, if the pose is available compute it.
             if( it->second->isWholeImageDescriptorAvailable() == false && it->second->isKeyFrame() && it->first >  last_proc_timestamp )
             {
-              __Cerebro__descriptor_computer_thread(cout << TermColor::MAGENTA() << "[Cerebro::descriptor_computer_thread]--- process t=" << it->first << "\trel_t=" <<  it->first - dataManager->getPose0Stamp() << TermColor::RESET() << " n_computed=" << n_computed << endl;)
-              n_computed++;
-              incoming_diff_ms = (it->first - last_proc_timestamp).toSec() * 1000. ;
-             __Cerebro__descriptor_computer_thread(  cout << "incoming_diff_ms = " << incoming_diff_ms << "\testimated_descriptor_compute_time_ms=" << estimated_descriptor_compute_time_ms << endl; )
-             float skip_frac = 1.0 - incoming_diff_ms/estimated_descriptor_compute_time_ms;
-              last_proc_timestamp = it->first;
+                  __Cerebro__descriptor_computer_thread(cout << TermColor::MAGENTA() << "[Cerebro::descriptor_computer_thread]--- process t=" << it->first << "\trel_t=" <<  it->first - dataManager->getPose0Stamp() << TermColor::RESET() << " n_computed=" << n_computed << endl;)
+                  n_computed++;
+                  incoming_diff_ms = (it->first - last_proc_timestamp).toSec() * 1000. ;
+                  float skip_frac = 1.0 -  incoming_diff_ms/float(estimated_descriptor_compute_time_ms) ;
+                  __Cerebro__descriptor_computer_thread(  cout << "incoming_diff_ms = " << incoming_diff_ms << "\testimated_descriptor_compute_time_ms=" << estimated_descriptor_compute_time_ms  << " so, skip_frac="<< skip_frac <<  endl; )
+                  last_proc_timestamp = it->first;
 
-              if( n_computed%2 == 0 ) // simple skip
-              if( n_computed>4 && (float) rand()/ (RAND_MAX) < skip_frac ) // dynamic skip
-              {
-                  __Cerebro__descriptor_computer_thread( cout << "\t\t...SKIP...\n"; )
-                  continue;
-              }
-
-
-                if( it->second->getNumberOfSuccessfullyTrackedFeatures() < 20 )
-                {
-                    __Cerebro__descriptor_computer_thread( cout << "[Cerebro::descriptor_computer_thread] skip computing whole-image-descriptor for this image because it appears to be a kidnapped image frame.\n" ; )
-                    continue;
-                }
-
-                _time.tic();
-
-                // use it->second->getImage() to compute descriptor. call the service
-                cv::Mat image_curr;
-                #if 0 // set this to 1 to get image from data_map (deprecated way), 0 to get image from image_manager.
-                // old code in which images were stored in nodes
-                image_curr = it->second->getImage();
-                #else
-                // using image data manager
-                { //dont remove these braces, it is used for scoping and automatic deallocation
-                    cv::Mat tmp_img;
-                    img_data_mgr->getImage( "left_image", it->first, tmp_img );
-
-                    if( nChannels == 3 && tmp_img.channels() == 1 )
-                        cv::cvtColor( tmp_img, image_curr, CV_GRAY2BGR );
-                    else if( nChannels==1 && tmp_img.channels() == 3)
-                        cv::cvtColor( tmp_img, image_curr, CV_BGR2GRAY );
-                    else
-                        image_curr = tmp_img;
-                }
-
-                __Cerebro__descriptor_computer_thread(
-                cout << "image from mgr info: " << MiscUtils::cvmat_info(image_curr) << endl;
-                cout << "nChannels=" << nChannels << endl;
-                )
-                #endif
-
-                sensor_msgs::ImagePtr image_msg;
-                if( nChannels == 3 ) {
-                    image_msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", image_curr).toImageMsg();
-                }
-                else if( nChannels == 1 ) {
-                    // cout << "cv_bridge mono8 encoding\n";
-                    image_msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", image_curr).toImageMsg();
-                }
-                else {
-                    assert( false && "Invalid number of channels specified in Cerebro::descriptor_computer_thread() ");
-                    cout << TermColor::RED() << "[ERROR] Cx Invalid number of channels specified in Cerebro::descriptor_computer_thread() " << endl << TermColor::RESET();
-                    exit(3);
-                }
-                image_msg->header.stamp = ros::Time( it->first );
+                  //   if( n_computed%2 == 0 ) // simple skip
+                  if( n_computed>4 && ( rand()/ float(RAND_MAX) ) < skip_frac ) // dynamic skip
+                  {
+                      __Cerebro__descriptor_computer_thread( cout << "\t\t...SKIP...\n"; )
+                      continue;
+                  }
 
 
-
-                cerebro::WholeImageDescriptorCompute srv; //service message
-                srv.request.ima = *image_msg;
-                srv.request.a = 986;
-                if( client.call( srv ) ) {
-                    // __Cerebro__descriptor_computer_thread(std::cout <<  "Received response from server\t";)
-                    // __Cerebro__descriptor_computer_thread(std::cout << "desc.size=" << srv.response.desc.size() << std::endl;)
-                    assert( srv.response.desc.size() > 0 && "The received descriptor appear to be of zero length. This is a fatal error.\n" );
-
-                    VectorXd vec( srv.response.desc.size() ); // allocated a vector
-                    for( int j=0 ; j<srv.response.desc.size() ; j++ ) {
-                        vec(j) = srv.response.desc[j];
-                    }
-                    // std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-                    it->second->setWholeImageDescriptor( vec );
-
-
+                    if( it->second->getNumberOfSuccessfullyTrackedFeatures() < 20 )
                     {
-                        std::lock_guard<std::mutex> lk(m_wholeImageComputedList);
-                        this->wholeImageComputedList.push_back( it->first ); // note down where it was computed.
+                        __Cerebro__descriptor_computer_thread( cout << "[Cerebro::descriptor_computer_thread] skip computing whole-image-descriptor for this image because it appears to be a kidnapped image frame.\n" ; )
+                        continue;
                     }
-                    // __Cerebro__descriptor_computer_thread(cout << "Computed descriptor at t=" << it->first - dataManager->getPose0Stamp() << "\t" << it->first << endl;)
-                    // __Cerebro__descriptor_computer_thread(std::cout << "Computed descriptor in (millisec) = " << _time.toc_milli()  << endl;)
-                    // __Cerebro__descriptor_computer_thread__imp(cout << TermColor::CYAN() << "Computed descriptor at t=" << it->first - dataManager->getPose0Stamp() << "\t" << it->first << TermColor::RESET() << endl);
 
-                     estimated_descriptor_compute_time_ms = _time.toc_milli();
-                    __Cerebro__descriptor_computer_thread__imp(
-                    cout << "Computed descriptor at t=" << it->first << " of dim=" << srv.response.desc.size()  << " in millisec=" << estimated_descriptor_compute_time_ms << endl;
+                    _time.tic();
+
+                    // use it->second->getImage() to compute descriptor. call the service
+                    cv::Mat image_curr;
+                    #if 0 // set this to 1 to get image from data_map (deprecated way), 0 to get image from image_manager.
+                    // old code in which images were stored in nodes
+                    image_curr = it->second->getImage();
+                    #else
+                    // using image data manager
+                    { //dont remove these braces, it is used for scoping and automatic deallocation
+                        cv::Mat tmp_img;
+                        bool getimstatus = img_data_mgr->getImage( "left_image", it->first, tmp_img );
+                        if( getimstatus == false ) {
+                            __Cerebro__descriptor_computer_thread( cout << "since I cannot getImage, goto hurr_here\n"; );
+                            goto huur_here;
+                        }
+
+                        if( nChannels == 3 && tmp_img.channels() == 1 )
+                            cv::cvtColor( tmp_img, image_curr, CV_GRAY2BGR );
+                        else if( nChannels==1 && tmp_img.channels() == 3)
+                            cv::cvtColor( tmp_img, image_curr, CV_BGR2GRAY );
+                        else
+                            image_curr = tmp_img;
+                    }
+
+                    __Cerebro__descriptor_computer_thread(
+                    cout << "image from mgr info: " << MiscUtils::cvmat_info(image_curr) << endl;
+                    cout << "nChannels=" << nChannels << endl;
                     )
+                    #endif
+
+                    sensor_msgs::ImagePtr image_msg;
+                    if( nChannels == 3 ) {
+                        image_msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", image_curr).toImageMsg();
+                    }
+                    else if( nChannels == 1 ) {
+                        // cout << "cv_bridge mono8 encoding\n";
+                        image_msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", image_curr).toImageMsg();
+                    }
+                    else {
+                        assert( false && "Invalid number of channels specified in Cerebro::descriptor_computer_thread() ");
+                        cout << TermColor::RED() << "[ERROR] Cx Invalid number of channels specified in Cerebro::descriptor_computer_thread() " << endl << TermColor::RESET();
+                        exit(3);
+                    }
+                    image_msg->header.stamp = ros::Time( it->first );
 
 
-                }
-                else {
-                    ROS_ERROR( "Failed to call ros service" );
-                }
+
+                    cerebro::WholeImageDescriptorCompute srv; //service message
+                    srv.request.ima = *image_msg;
+                    srv.request.a = 986;
+                    if( client.call( srv ) ) {
+                        // __Cerebro__descriptor_computer_thread(std::cout <<  "Received response from server\t";)
+                        // __Cerebro__descriptor_computer_thread(std::cout << "desc.size=" << srv.response.desc.size() << std::endl;)
+                        assert( srv.response.desc.size() > 0 && "The received descriptor appear to be of zero length. This is a fatal error.\n" );
+
+                        VectorXd vec( srv.response.desc.size() ); // allocated a vector
+                        for( int j=0 ; j<srv.response.desc.size() ; j++ ) {
+                            vec(j) = srv.response.desc[j];
+                        }
+                        // std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+                        it->second->setWholeImageDescriptor( vec );
+                        {
+                            std::lock_guard<std::mutex> lk(m_wholeImageComputedList);
+                            this->wholeImageComputedList.push_back( it->first ); // note down where it was computed.
+                        }
+                        // __Cerebro__descriptor_computer_thread(cout << "Computed descriptor at t=" << it->first - dataManager->getPose0Stamp() << "\t" << it->first << endl;)
+                        // __Cerebro__descriptor_computer_thread(std::cout << "Computed descriptor in (millisec) = " << _time.toc_milli()  << endl;)
+                        // __Cerebro__descriptor_computer_thread__imp(cout << TermColor::CYAN() << "Computed descriptor at t=" << it->first - dataManager->getPose0Stamp() << "\t" << it->first << TermColor::RESET() << endl);
+
+                         estimated_descriptor_compute_time_ms = _time.toc_milli();
+                        __Cerebro__descriptor_computer_thread__imp(
+                        cout << "Computed descriptor at t=" << it->first << " of dim=" << srv.response.desc.size()  << " in millisec=" << estimated_descriptor_compute_time_ms << endl;
+                        )
+
+
+                    }
+                    else {
+                        ROS_ERROR( "Failed to call ros service" );
+                    }
 
             }
+            huur_here:
+            int ddddd=0;  //this is here for the goto statement.
         }
 
         rate.sleep();
@@ -430,7 +440,7 @@ void Cerebro::faiss__naive_loopcandidate_generator()
 
             {
             std::lock_guard<std::mutex> lk_foundloops(m_foundLoops);
-            foundLoops.push_back( std::make_tuple( wholeImageComputedList[l-1], wholeImageComputedList[tmp_i[2]], tmp_[2] ) );
+            foundLoops.push_back( std::make_tuple( wholeImageComputedList_at(l-1), wholeImageComputedList_at(tmp_i[2]), tmp_[2] ) );
             }
         }
 
@@ -624,14 +634,13 @@ void Cerebro::faiss_clique_loopcandidate_generator()
                 if( retained.size() == 1 )
                 {
                     __faiss_clique_loopcandidate_generator__search(
-                    cout << "only 1 item in retained, pushback " << wholeImageComputedList[l-1] << "<--->" <<
-                                                        wholeImageComputedList[retained.begin()->first ] << endl;
+                    cout << "only 1 item in retained, pushback " << wholeImageComputedList_at(l-1) << "<--->" <<
+                                                        wholeImageComputedList_at(retained.begin()->first) << endl;
                                                     )
-                    std::lock_guard<std::mutex> lk(m_wholeImageComputedList);
                     std::lock_guard<std::mutex> lk_foundloops(m_foundLoops);
-                    // __faiss_clique_loopcandidate_generator__search( cout << "pushback: " << wholeImageComputedList[l-1] << "<--->" << wholeImageComputedList[retained.begin()->first] << endl; )
-                    foundLoops.push_back( std::make_tuple( wholeImageComputedList[l-1],
-                                                        wholeImageComputedList[retained.begin()->first ],
+                    // __faiss_clique_loopcandidate_generator__search( cout << "pushback: " << wholeImageComputedList_at(l-1) << "<--->" << wholeImageComputedList_at(retained.begin()->first) << endl; )
+                    foundLoops.push_back( std::make_tuple( wholeImageComputedList_at(l-1),
+                                                        wholeImageComputedList_at(retained.begin()->first ),
                                                         0.9 ) );
                 }
 
@@ -642,9 +651,10 @@ void Cerebro::faiss_clique_loopcandidate_generator()
                     for( auto ity=retained.begin() ; ity!=retained.end() ; ity++ )
                     {
                         if( rand()%100 < percent ) {
-                        __faiss_clique_loopcandidate_generator__search( cout << "pushback: " << wholeImageComputedList[l-1] << "<--->" << wholeImageComputedList[ity->first] << endl; )
-                        foundLoops.push_back( std::make_tuple( wholeImageComputedList[l-1],
-                                                            wholeImageComputedList[ity->first ],
+                            std::lock_guard<std::mutex> lk_foundloops(m_foundLoops);
+                            __faiss_clique_loopcandidate_generator__search( cout << "pushback: " << wholeImageComputedList_at(l-1) << "<--->" << wholeImageComputedList_at(ity->first) << endl; )
+                            foundLoops.push_back( std::make_tuple( wholeImageComputedList_at(l-1),
+                                                            wholeImageComputedList_at(ity->first ),
                                                             0.9 ) );
                         }
                     }
@@ -859,7 +869,7 @@ void Cerebro::descrip_N__dot__descrip_0_N()
     //--- Main settings for this function
     //---
     int LOCALITY_THRESH = 12;
-    float DOT_PROD_THRESH = 0.80;
+    float DOT_PROD_THRESH = 0.85;
 
     ros::Rate rate(10);
 
@@ -905,10 +915,7 @@ void Cerebro::descrip_N__dot__descrip_0_N()
     {
 
         auto data_map = dataManager->getDataMapRef(); // this needs to be get every iteration else i dont get the ubdated values which are constantly being updated by other threads.
-        {
-            std::lock_guard<std::mutex> lk(m_wholeImageComputedList);
-            l = wholeImageComputedList.size();
-        }
+        l = wholeImageComputedList_size();
 
         if( l - last_l < 3 ) {
             __Cerebro__run__debug( cout << "[Cerebro::descrip_N__dot__descrip_0_N]nothing new\n"; );
@@ -925,10 +932,10 @@ void Cerebro::descrip_N__dot__descrip_0_N()
         VectorXd v, vm, vmm;
         ros::Time i_v, i_vm, i_vmm;
         {
-            std::lock_guard<std::mutex> lk(m_wholeImageComputedList);
-            assert(  data_map.count( wholeImageComputedList[l-1] ) > 0  &&
-                     data_map.count( wholeImageComputedList[l-2] ) > 0  &&
-                     data_map.count( wholeImageComputedList[l-3] ) > 0 &&
+            // std::lock_guard<std::mutex> lk(m_wholeImageComputedList);
+            assert(  data_map.count( wholeImageComputedList_at(l-1) ) > 0  &&
+                     data_map.count( wholeImageComputedList_at(l-2) ) > 0  &&
+                     data_map.count( wholeImageComputedList_at(l-3) ) > 0 &&
                      "either of l, l-1, l-2 is not available in the datamap"
                  );
 
@@ -947,12 +954,12 @@ void Cerebro::descrip_N__dot__descrip_0_N()
             )
             #endif
 
-            v   = data_map->at( wholeImageComputedList[l-1] )->getWholeImageDescriptor();
-            vm  = data_map->at( wholeImageComputedList[l-2] )->getWholeImageDescriptor();
-            vmm = data_map->at( wholeImageComputedList[l-3] )->getWholeImageDescriptor();
-            i_v = wholeImageComputedList[l-1];
-            i_vm = wholeImageComputedList[l-2];
-            i_vmm = wholeImageComputedList[l-3];
+            v   = data_map->at( wholeImageComputedList_at(l-1) )->getWholeImageDescriptor();
+            vm  = data_map->at( wholeImageComputedList_at(l-2) )->getWholeImageDescriptor();
+            vmm = data_map->at( wholeImageComputedList_at(l-3) )->getWholeImageDescriptor();
+            i_v = wholeImageComputedList_at(l-1);
+            i_vm = wholeImageComputedList_at(l-2);
+            i_vmm = wholeImageComputedList_at(l-3);
         }
 
 
@@ -964,13 +971,13 @@ void Cerebro::descrip_N__dot__descrip_0_N()
 
         ////-------------- Fill descriptors [last_l, l) into M.
         {
-            std::lock_guard<std::mutex> lk(m_wholeImageComputedList);
+            // std::lock_guard<std::mutex> lk(m_wholeImageComputedList); //no need for this as we switched to _at functions which are threadsafe
             for( int _s=last_l ; _s<l ; _s++ ) {
-                M.col(_s) = data_map->at( wholeImageComputedList[_s] )->getWholeImageDescriptor();
+                M.col(_s) = data_map->at( wholeImageComputedList_at(_s) )->getWholeImageDescriptor();
 
                 __Cerebro__run__debug(
-                cout << "M.col(" << _s << ") = data_map[ " << wholeImageComputedList[_s] << " ]. \t";
-                cout << " isWholeImageDescriptorAvailable = " << data_map->at( wholeImageComputedList[_s] )->isWholeImageDescriptorAvailable() << endl;
+                cout << "M.col(" << _s << ") = data_map[ " << wholeImageComputedList_at(_s) << " ]. \t";
+                cout << " isWholeImageDescriptorAvailable = " << data_map->at( wholeImageComputedList_at(_s) )->isWholeImageDescriptorAvailable() << endl;
                 )
             }
         }
@@ -1018,15 +1025,15 @@ void Cerebro::descrip_N__dot__descrip_0_N()
             // Criteria for a recognized place
             if( abs(u_argmax - um_argmax) < LOCALITY_THRESH && abs(u_argmax-umm_argmax) < LOCALITY_THRESH && u_max > DOT_PROD_THRESH  )
             {
-                std::lock_guard<std::mutex> lk(m_wholeImageComputedList);
+                // std::lock_guard<std::mutex> lk(m_wholeImageComputedList); //no need of lock here as we switched to _at functions for whlist
 
 
                 __Cerebro__run__(
                 cout << TermColor::RED() << "Loop FOUND!! a_idx=" << l-1 << "<-----> (" <<   u_argmax << "," << um_argmax << "," << umm_argmax << ")"<< TermColor::RESET() << endl;
                 cout << TermColor::RED() << "loop FOUND!! "
-                                         <<  "t_l=" << wholeImageComputedList[l-1]
+                                         <<  "t_l=" << wholeImageComputedList_at(l-1)
                                          << "  <DOT=" << u_max << ">  "
-                                         << "t_argmax=" << wholeImageComputedList[u_argmax]
+                                         << "t_argmax=" << wholeImageComputedList_at(u_argmax)
                                          << TermColor::RESET() << endl;
                                 )
 
@@ -1040,7 +1047,7 @@ void Cerebro::descrip_N__dot__descrip_0_N()
 
                 {
                 std::lock_guard<std::mutex> lk_foundloops(m_foundLoops);
-                foundLoops.push_back( std::make_tuple( wholeImageComputedList[l-1], wholeImageComputedList[u_argmax], u_max ) );
+                foundLoops.push_back( std::make_tuple( wholeImageComputedList_at(l-1), wholeImageComputedList_at(u_argmax), u_max ) );
                 }
             }
 

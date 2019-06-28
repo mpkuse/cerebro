@@ -132,7 +132,7 @@ public:
 
     //### Method-D:
     //          Uses a separate hypothesis manager. My multihyp framework.
-    //          elaborate scheme, still under development.  
+    //          elaborate scheme, still under development.
     void faiss_multihypothesis_tracking();
     #endif //HAVE_FAISS
 

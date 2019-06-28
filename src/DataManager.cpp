@@ -925,7 +925,7 @@ void DataManager::data_association_thread( int max_loop_rate_in_hz )
             else {
                 if( t > data_map->rbegin()->first ) {
                     __DataManager__data_association_thread__(
-                        cout << "\ptcld's t was not yet found in datamap. data_map->rbegin()->first=" << data_map->rbegin()->first << " ";
+                        cout << "ptcld's t was not yet found in datamap. data_map->rbegin()->first=" << data_map->rbegin()->first << " ";
                         cout << "this means a node doesnt exists yet for this ptcld. Usually this does not happen, but it occurs when Image data manager took too long to insert (thread blocking) and in the meantime more poses got available.\n\tI will not pop the queue in this.\n";
                     );
                     break;
@@ -1018,5 +1018,267 @@ void DataManager::data_association_thread( int max_loop_rate_in_hz )
     }
 
     cout << TermColor::RED() << "[DataManager::data_association_thread] Finished thread" << TermColor::RESET() << endl;
+
+}
+
+
+
+
+// will have DataNodes and ImageDataManager to disk for reloading later.
+// Camera related info is not to be stored. Just assume next time the camera relatives are the same as the map
+bool DataManager::saveStateToDisk( const string save_folder_name )
+{
+    cout << TermColor::GREEN();
+    cout << "\n^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
+    cout << "^^^^^^^^^^    DataManager::saveStateToDisk  ^^^^^^^^^^\n";
+    cout << "^^^^^^^^^^    DIR=" << save_folder_name ;
+    cout << "\n^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
+    cout << TermColor::RESET();
+
+    // TODO: rm -rf save_folder_name ; mkdir save_folder_name
+    string system_cmd0 = string( "rm -rf ") + save_folder_name + " && mkdir "+ save_folder_name;
+    const int rm_dir_err0 = RawFileIO::exec_cmd( system_cmd0 );
+    if ( rm_dir_err0 == -1 )
+    {
+        cout << TermColor::RED() << "[DataManager::saveStateToDiskr] Cannot mkdir folder: " << save_folder_name << "!\n" << TermColor::RESET() << endl;
+        cout << "So not saveing state to disk...return false\n";
+        return false;
+    }
+
+    //
+    // ---- Save std::map
+    json x_datamap;
+    auto __data_map = this->getDataMapRef();
+    IOFormat CSVFormat(FullPrecision, DontAlignCols, ", ", "\n");
+
+    cout << "data_map to json\n";
+    int n_isPoseAvailable = 0;
+    int n_isWholeImageDescriptorAvailable = 0;
+    int n_keyframes = 0;
+    for( auto it = __data_map->begin() ; it!= __data_map->end() ; it++ )
+    {
+        int seq_id = std::distance( __data_map->begin() , it );
+        // cout << "seq_id=" << seq_id << endl;
+
+        json curr_obj;
+        // curr_obj["stamp"] = it->first.toSec();
+        curr_obj["stampNSec"] = it->first.toNSec();
+        curr_obj["stamp_relative"] =  ( it->first -  this->getPose0Stamp() ).toSec() ;
+        curr_obj["seq"] = seq_id;
+
+
+        DataNode * __u = it->second;
+        if( __u->isPoseAvailable() )
+        {
+            const Matrix4d wTc = __u->getPose();
+            json pose_ifo;
+            pose_ifo["rows"] = wTc.rows();
+            pose_ifo["cols"] = wTc.cols();
+            // pose_ifo["stamp"] = __u->getT_pose().toSec();
+            pose_ifo["stampNSec"] = __u->getT_pose().toNSec();
+            std::stringstream ss;
+            ss <<  wTc.format(CSVFormat);
+            pose_ifo["data"] = ss.str();
+            pose_ifo["data_pretty"] = PoseManipUtils::prettyprintMatrix4d(wTc);
+            curr_obj["w_T_c"] = pose_ifo;
+            n_isPoseAvailable++;
+        }
+
+
+        if( __u->isWholeImageDescriptorAvailable() )
+        {
+            const VectorXd wh_img_desc = __u->getWholeImageDescriptor();
+            json desc_ifo;
+            desc_ifo["rows"] = wh_img_desc.rows();
+            desc_ifo["cols"] = wh_img_desc.cols();
+            std::stringstream ss;
+            ss <<  wh_img_desc.format(CSVFormat);
+            desc_ifo["data"] = ss.str();
+            curr_obj["wholeImageDescriptor"] = desc_ifo;
+            n_isWholeImageDescriptorAvailable++;
+        }
+
+        if(  __u->isKeyFrame() )
+            n_keyframes++;
+
+        curr_obj["isKeyFrame"] = __u->isKeyFrame();
+        curr_obj["getNumberOfSuccessfullyTrackedFeatures"] = __u->getNumberOfSuccessfullyTrackedFeatures();
+        curr_obj["isWholeImageDescriptorAvailable"] = __u->isWholeImageDescriptorAvailable();
+        curr_obj["isPoseAvailable"] = __u->isPoseAvailable();
+
+        x_datamap["DataNodes"].push_back( curr_obj );
+
+    }
+    cout << "\t n_isPoseAvailable=" << n_isPoseAvailable << endl;
+    cout << "\t n_isWholeImageDescriptorAvailable=" << n_isWholeImageDescriptorAvailable << endl;
+    cout << "\t n_keyframes=" << n_keyframes << endl;
+    cout << "DONE, data_map to json\n";
+
+    //
+    // --- Misc Variables in class DataManager
+
+    //
+    // --- save img_data_mgr
+    // - go over all status and stash all the images that remain on RAM.
+    // - save ImageDataManager::status to json
+    cout << "img_data_mgr->stashAll()\n";
+    json img_mgr_json = img_data_mgr->stashAll();
+    cout << "DONE, img_data_mgr->stashAll()\n";
+    x_datamap["ImageDataManager"] = img_mgr_json;
+
+    // mv stash dir to `save_folder_name`
+    string system_cmd = string("mv ") +  img_data_mgr->getStashDir() + " " + save_folder_name;
+    const int rm_dir_err = RawFileIO::exec_cmd( system_cmd );
+    if ( rm_dir_err == -1 )
+    {
+        cout << TermColor::RED() << "[DataManager::saveStateToDiskr] Error moving stash directory!\n" << TermColor::RESET() << endl;
+    }
+    img_data_mgr->set_rm_stash_dir_in_destructor_as_false();
+
+
+    //
+    // --- Save JSON
+    cout << "x_datamap[\"DataNodes\"].size()=" << x_datamap["DataNodes"].size() << endl;
+    cout << "x_datamap[\"ImageDataManager\"].size()=" << x_datamap["ImageDataManager"].size() << endl;
+    RawFileIO::write_string( save_folder_name+"/state.json", x_datamap.dump(4) );
+    cout << "DONE........    DataManager::saveStateToDisk  ^^^^^^^^^^\n";
+    return true;
+}
+
+
+bool DataManager::loadStateFromDisk( const string save_folder_name )
+{
+    cout << TermColor::GREEN();
+    cout << "\n^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
+    cout << "^^^^^^^^^^    DataManager::loadStateFromDisk  ^^^^^^^^^^\n";
+    cout << "^^^^^^^^^^    DIR=" << save_folder_name ;
+    cout << "\n^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
+    cout << TermColor::RESET();
+
+    //---
+    // Load JSON
+    string json_fname = save_folder_name+"/state.json";
+    cout << TermColor::GREEN() << "[DataManager::loadStateFromDisk]Open file: " << json_fname << TermColor::RESET() <<  endl;
+    std::ifstream json_fileptr(json_fname);
+    if( !json_fileptr )
+    {
+        ROS_ERROR( "[DataManager::loadStateFromDisk]Cannot load from previous state" );
+        cout << TermColor::RED() << "[DataManager::loadStateFromDisk]Fail to open state.json file, perhaps it doesnt exist. Cannot load from previous state.\nEXIT(1)"<< endl;
+        exit(1);
+    }
+    json json_obj;
+    json_fileptr >> json_obj;
+    cout << "[DataManager::loadStateFromDisk]Successfully opened file and loaded data "<< json_fname << endl;
+    json_fileptr.close();
+
+    //---
+    // Setup DataNodes
+    int n_datanodes = json_obj["DataNodes"].size();
+    int n_isPoseAvailable = 0;
+    int n_isWholeImageDescriptorAvailable = 0;
+    int n_keyframes = 0;
+    cout << "[DataManager::loadStateFromDisk]There appear to be " << n_datanodes << " datanodes\n";
+    for( int i=0 ; i<n_datanodes ; i++ )
+    {
+
+        // double t_sec = json_obj["DataNodes"][i]["stamp"];
+        int64_t t_sec = json_obj["DataNodes"][i]["stampNSec"];
+        ros::Time stamp = ros::Time().fromNSec( t_sec );
+        bool isKeyframe = json_obj["DataNodes"][i]["isKeyFrame"];
+        bool isWholeImageDescriptorAvailable = json_obj["DataNodes"][i]["isWholeImageDescriptorAvailable"];
+        bool isPoseAvailable = json_obj["DataNodes"][i]["isPoseAvailable"];
+        int numberOfSuccessfullyTrackedFeatures = json_obj["DataNodes"][i]["getNumberOfSuccessfullyTrackedFeatures"];
+
+        if( i%100 == 0 || i==n_datanodes-1 )
+            cout << "[DataManager::loadStateFromDisk]i=" << i << " of "<< n_datanodes-1 << " t=" << stamp << endl;
+
+
+        DataNode * n = new DataNode( stamp );
+
+        // isKeyframe?
+        if( isKeyframe ) {
+            n_keyframes++;
+            n->setAsKeyFrame();
+        }
+
+        // number of tracked features
+        if( numberOfSuccessfullyTrackedFeatures >= 0 )
+            n->setNumberOfSuccessfullyTrackedFeatures( numberOfSuccessfullyTrackedFeatures );
+
+
+        // pose
+        if( isPoseAvailable )
+        {
+            // setPose()
+            Matrix4d __wtc;
+            // cout << "+++\n" << json_obj["DataNodes"][i]["w_T_c"] << "\n+++" << endl;
+            bool status = RawFileIO::read_eigen_matrix4d_fromjson(  json_obj["DataNodes"][i]["w_T_c"], __wtc  );
+            if( status == false ) {
+                cout << "[DataManager::loadStateFromDisk] RawFileIO::read_eigen_matrix4d_fromjson returned false, this means I cannot convert from json to Matrix4d, perhaps something wrong with json file\n";
+                exit(1);
+            }
+            // cout << "__wtc=\n" << __wtc << endl;
+            // cout << PoseManipUtils::prettyprintMatrix4d( __wtc );
+            // exit(1);
+
+            // double t_pose_sec = json_obj["DataNodes"][i]["w_T_c"]["stamp"];
+            int64_t t_pose_sec =  json_obj["DataNodes"][i]["w_T_c"]["stampNSec"];
+
+            ros::Time stamp_pose = ros::Time().fromNSec( t_pose_sec );
+            n->setPose(  stamp_pose,__wtc );
+
+            n_isPoseAvailable++;
+        }
+
+
+        // descriptor
+        if( isWholeImageDescriptorAvailable )
+        {
+            // setWholeImageDescriptor()
+            VectorXd __wholeImageDescriptor;
+            // cout << "+++\n" << json_obj["DataNodes"][i]["wholeImageDescriptor"] << "\n+++" << endl;
+            bool status = RawFileIO::read_eigen_vector_fromjson(  json_obj["DataNodes"][i]["wholeImageDescriptor"], __wholeImageDescriptor );
+            if( status == false ) {
+                cout << "[DataManager::loadStateFromDisk] RawFileIO::read_eigen_vector_fromjson returned false, this means I cannot convert from json to Matrix4d, perhaps something wrong with json file\n";
+                exit(1);
+            }
+
+            // cout << "__wholeImageDescriptor=\n" << __wholeImageDescriptor.transpose() << endl;
+            // exit(1);
+
+            n->setWholeImageDescriptor( __wholeImageDescriptor );
+            n_isWholeImageDescriptorAvailable++;
+        }
+
+
+        data_map->insert( std::make_pair(stamp, n) );
+    }
+    cout << "\t n_isPoseAvailable=" << n_isPoseAvailable << endl;
+    cout << "\t n_isWholeImageDescriptorAvailable=" << n_isWholeImageDescriptorAvailable << endl;
+    cout << "\t n_keyframes=" << n_keyframes << endl;
+
+
+    //---
+    // Misc Variables in class DataManager
+
+
+    //---
+    // Setup ImageDataManager
+    // mv folder to /tmp/...
+    string system_cmd = string("cp -r ")+save_folder_name+"/cerebro_stash "+" /tmp";
+    // string system_cmd = string("mv  ")+save_folder_name+"/cerebro_stash "+" /tmp";
+    cout << TermColor::YELLOW() << "[DataManager::loadStateFromDisk] " << system_cmd << TermColor::RESET() << endl;
+    const int mv_dir_err = RawFileIO::exec_cmd( system_cmd );
+    if ( mv_dir_err == -1 )
+    {
+        cout << TermColor::RED() << "[DataManager::loadStateFromDisk] Error moving directory!\n" << TermColor::RESET() << endl;
+        exit(1);
+    }
+
+    img_data_mgr->initStashDir(false);
+    img_data_mgr->loadStateFromDisk( json_obj["ImageDataManager"] );
+
+
+
 
 }

@@ -52,7 +52,7 @@ public:
     DataNode( ros::Time stamp ): stamp(stamp)
     {
         is_key_frame = false;
-        // m_image=false; 
+        // m_image=false;
         m_wTc=false;
     }
 
@@ -62,6 +62,8 @@ public:
     #endif
 
     void setPoseFromMsg( const nav_msgs::OdometryConstPtr msg );
+    void setPose( const Matrix4d __wTc );
+    void setPose( const ros::Time __t, const Matrix4d __wTc );
 
     void setPointCloudFromMsg( const sensor_msgs::PointCloudConstPtr msg ); // uses msg->points[ \forall i].x, .y, .z
     void setUnVnFromMsg( const sensor_msgs::PointCloudConstPtr msg );

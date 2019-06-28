@@ -341,6 +341,17 @@ int main( int argc, char ** argv )
 
 
 
+    // set this to 1 to enable loading state, set this to 0 to not load state
+    // If you dont loadStateFromDisk, make sure you initialize the ImageDataManager.
+    #define __LOAD_STATE__ 0
+    #if __LOAD_STATE__
+    //--- Load State From Disk
+    dataManager.loadStateFromDisk( "/Bulk_Data/cerebro_chkpts" );
+    // cout << "PREMATURE EXIT\n";
+    // exit(1);
+    #else
+    dataManager.getImageManagerRef()->initStashDir(true); // this will use the default /tmp/cerebro_stash as the stashing directory
+    #endif
 
 
     //--- Start Threads ---//
@@ -475,9 +486,23 @@ int main( int argc, char ** argv )
     viz_th.join(); cout << "viz_th.join()\n";
     #endif
 
+
+
+    //make this to 1 to save state to file upon exit
+    #define __SAVE_STATE__ 0
+    #if __SAVE_STATE__
+    // Save State (for relocalization)
+    dataManager.saveStateToDisk( "/Bulk_Data/cerebro_chkpts" );
+    #endif
+
+
+
+
+    ///////////////////////////////////////////////////
+    // A demo of how to look inside dataManager.     //
+    ///////////////////////////////////////////////////
     #if 0
     {
-        // A demo of how to look inside dataManager.
         std::map< ros::Time, DataNode* > data_map = dataManager.getDataMapRef();
         // auto descriptor_map = cer.getDescriptorMapRef();
         for( auto it = data_map.begin() ; it!= data_map.end() ; it++ )
@@ -506,6 +531,7 @@ int main( int argc, char ** argv )
         cout << "\nimu_T_cam : \n" << PoseManipUtils::prettyprintMatrix4d( dataManager.getIMUCamExtrinsic() ) << endl;
     }
     #endif
+
 
 
 

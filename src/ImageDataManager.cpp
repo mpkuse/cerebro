@@ -1,34 +1,56 @@
 #include "ImageDataManager.h"
 
 
-ImageDataManager::ImageDataManager(): STASH_DIR( "/tmp/cerebro_stash" )
+ImageDataManager::ImageDataManager()
 {
-    //
-    // $ rm -rf ${save_dir}
-    // $ mkdir ${save_dir}
-    // #include <cstdlib>
-    string system_cmd;
+    cout << TermColor::iYELLOW() << "Constructor for ImageDataManager\n" << TermColor::RESET();
 
-    system_cmd = string("rm -rf "+STASH_DIR).c_str();
-    cout << TermColor::YELLOW() << "[ImageDataManager::ImageDataManager] " << system_cmd << TermColor::RESET() << endl;
-    const int rm_dir_err = RawFileIO::exec_cmd( system_cmd );
+}
 
-    if ( rm_dir_err == -1 )
+bool ImageDataManager::initStashDir( bool clear_dir, const string __dir )
+{
+    STASH_DIR = __dir; //string( "/tmp/cerebro_stash" );
+
+    if( clear_dir ) // rm -rf && mksir
     {
-        cout << TermColor::RED() << "[ImageDataManager::ImageDataManager] Error removing directory!\n" << TermColor::RESET() << endl;
-        exit(1);
+        //
+        // $ rm -rf ${save_dir}
+        // $ mkdir ${save_dir}
+        // #include <cstdlib>
+        string system_cmd;
+
+        system_cmd = string("rm -rf "+STASH_DIR).c_str();
+        cout << TermColor::YELLOW() << "[ImageDataManager::initStashDir] " << system_cmd << TermColor::RESET() << endl;
+        const int rm_dir_err = RawFileIO::exec_cmd( system_cmd );
+
+        if ( rm_dir_err == -1 )
+        {
+            cout << TermColor::RED() << "[ImageDataManager::initStashDir] Error removing directory!\n" << TermColor::RESET() << endl;
+            exit(1);
+        }
+
+        system_cmd = string("mkdir -p "+STASH_DIR).c_str();
+        cout << TermColor::YELLOW() << "[ImageDataManager::initStashDir] " << system_cmd << TermColor::RESET() << endl;
+        // const int dir_err = system( system_cmd.c_str() );
+        const int dir_err = RawFileIO::exec_cmd( system_cmd );
+        if ( dir_err == -1 )
+        {
+            cout << TermColor::RED() << "[ImageDataManager::initStashDir] Error creating directory!\n" << TermColor::RESET() << endl;
+            exit(1);
+        }
+        // done emptying the directory.
+    } else {
+        // make sure the path is a directory
+        if( RawFileIO::is_path_a_directory(STASH_DIR) ) {
+            // ok good!
+        } else {
+            cout << TermColor::RED() << "[ImageDataManager::initStashDir]You asked me to assume the directory ``"<< STASH_DIR << "`` as stash directory, but it doesnt seem to exist...EXIT" << TermColor::RESET() << endl;
+            ROS_ERROR( "[ImageDataManager::initStashDir]You asked me to assume the directory ``%s`` as stash directory, but it doesnt seem to exist...EXIT", STASH_DIR.c_str() );
+            exit(1);
+        }
     }
 
-    system_cmd = string("mkdir -p "+STASH_DIR).c_str();
-    cout << TermColor::YELLOW() << "[ImageDataManager::ImageDataManager] " << system_cmd << TermColor::RESET() << endl;
-    // const int dir_err = system( system_cmd.c_str() );
-    const int dir_err = RawFileIO::exec_cmd( system_cmd );
-    if ( dir_err == -1 )
-    {
-        cout << TermColor::RED() << "[ImageDataManager::ImageDataManager] Error creating directory!\n" << TermColor::RESET() << endl;
-        exit(1);
-    }
-    // done emptying the directory.
+    m_STASH_DIR = true;
 }
 
 ImageDataManager::~ImageDataManager()
@@ -39,17 +61,23 @@ ImageDataManager::~ImageDataManager()
     status.clear();
     image_data.clear();
 
-    // rm -rf stash folder
-    string system_cmd;
-
-    system_cmd = string("rm -rf "+STASH_DIR).c_str();
-    cout << TermColor::YELLOW() << "[ImageDataManager::ImageDataManager] " << system_cmd << TermColor::RESET() << endl;
-    const int rm_dir_err = RawFileIO::exec_cmd( system_cmd );
-
-    if ( rm_dir_err == -1 )
+    if( rm_stash_dir_in_destructor )
     {
-        cout << TermColor::RED() << "[ImageDataManager::ImageDataManager] Error removing directory!\n" << TermColor::RESET() << endl;
-        exit(1);
+        // rm -rf stash folder
+        string system_cmd;
+
+        system_cmd = string("rm -rf "+STASH_DIR).c_str();
+        cout << TermColor::YELLOW() << "[ImageDataManager::~ImageDataManager] " << system_cmd << TermColor::RESET() << endl;
+        const int rm_dir_err = RawFileIO::exec_cmd( system_cmd );
+
+        if ( rm_dir_err == -1 )
+        {
+            cout << TermColor::RED() << "[ImageDataManager::~ImageDataManager] Error removing directory!\n" << TermColor::RESET() << endl;
+            exit(1);
+        }
+    }
+    else {
+        cout << TermColor::YELLOW() << "[ImageDataManager::~ImageDataManager] not doing rm -rf " << STASH_DIR << ", because the bool variable was found to be false\n";
     }
 
 }
@@ -84,6 +112,7 @@ bool ImageDataManager::setNewImageFromMsg( const string ns, const sensor_msgs::I
 #define __ImageDataManager__getImage( msg ) ;
 bool ImageDataManager::getImage( const string ns, const ros::Time t, cv::Mat& outImg )
 {
+    ensure_init();
     decrement_hit_counts_and_deallocate_expired();
 
     std::lock_guard<std::mutex> lk(m);
@@ -159,6 +188,7 @@ bool ImageDataManager::getImage( const string ns, const ros::Time t, cv::Mat& ou
 #define __ImageDataManager__rmImage(msg) ;
 bool ImageDataManager::rmImage( const string ns, const ros::Time t )
 {
+    ensure_init();
     std::lock_guard<std::mutex> lk(m);
     auto key = std::make_pair(ns, t);
     if( status.count(key) > 0  )
@@ -196,6 +226,7 @@ bool ImageDataManager::rmImage( const string ns, const ros::Time t )
 #define __ImageDataManager__stashImage(msg) ;
 bool ImageDataManager::stashImage( const string ns, const ros::Time t )
 {
+    ensure_init();
     std::lock_guard<std::mutex> lk(m);
     __ImageDataManager__stashImage(
     cout << TermColor::iCYAN() << "[ImageDataManager::stashImage] ns=" << ns << ", t=" << t << TermColor::RESET() << endl;
@@ -239,6 +270,7 @@ bool ImageDataManager::stashImage( const string ns, const ros::Time t )
 
 bool ImageDataManager::isImageRetrivable( const string ns, const ros::Time t ) const
 {
+    ensure_init();
     std::lock_guard<std::mutex> lk(m);
     auto key = std::make_pair( ns, t );
     if( status.count( key ) > 0 ) {
@@ -347,4 +379,123 @@ int ImageDataManager::decrement_hit_counts_and_deallocate_expired()
     )
     return n_removed;
 
+}
+
+
+json ImageDataManager::stashAll()
+{
+    ensure_init();
+    // std::lock_guard<std::mutex> lk(m); //dont lock here as stashImage already locks. If you lock here it will cause a deadlock.
+    json obj;
+
+    // go over all and stash all
+    int AVAILABLE_ON_RAM = 0;
+    int AVAILABLE_ON_DISK = 0;
+    int UNAVAILABLE = 0;
+    int AVAILABLE_ON_RAM_DUETO_HIT=0;
+    for( auto it=status.begin() ; it!=status.end() ; it++ )
+    {
+        string __ns_x = std::get<0>(it->first);
+        ros::Time __t_x =  std::get<1>(it->first);
+
+        if( it->second == MEMSTAT::AVAILABLE_ON_RAM ) {
+            cout << "[ImageDataManager::stashAll] stash( " << __ns_x << ", " << __t_x << " )\n";
+            stashImage( __ns_x, __t_x );
+        }
+
+        json this_json;
+        this_json["namespace"] = __ns_x;
+        // this_json["stamp"] = __t_x.toSec(); // this is buggy, have overflow, better stick to using Nsec int64_t
+        this_json["stampNSec"] = __t_x.toNSec();
+
+        if( it->second == MEMSTAT::AVAILABLE_ON_RAM ) {
+            this_json["status"] = "AVAILABLE_ON_RAM";
+            AVAILABLE_ON_RAM++;
+        }
+        else
+        if( it->second == MEMSTAT::AVAILABLE_ON_DISK ) {
+            this_json["status"] = "AVAILABLE_ON_DISK";
+            AVAILABLE_ON_DISK++;
+        }
+        else
+        if( it->second == MEMSTAT::UNAVAILABLE ) {
+            this_json["status"] = "UNAVAILABLE";
+            UNAVAILABLE++;
+        }
+        else {
+        if( it->second == MEMSTAT::AVAILABLE_ON_RAM_DUETO_HIT )
+            this_json["status"] = "AVAILABLE_ON_RAM_DUETO_HIT";
+            AVAILABLE_ON_RAM_DUETO_HIT++;
+        }
+        obj.push_back( this_json );
+
+    }
+
+    cout << "[ImageDataManager::stashAll]";
+    cout << "AVAILABLE_ON_RAM=" << AVAILABLE_ON_RAM << "\t";
+    cout << "AVAILABLE_ON_DISK=" << AVAILABLE_ON_DISK << "\t";
+    cout << "UNAVAILABLE=" << UNAVAILABLE << "\t";
+    cout << "AVAILABLE_ON_RAM_DUETO_HIT=" << AVAILABLE_ON_RAM_DUETO_HIT << "\t";
+    cout << endl;
+    return obj;
+
+
+
+}
+
+
+
+//
+// "ImageDataManager": [
+//     {
+//          "namespace": "left_image",
+//          "stamp": 1542707155.6136055,
+//          "status": "AVAILABLE_ON_DISK"
+//      },
+//      {
+//          .
+//      },
+//      .
+//      .
+//      .
+//    ]
+bool ImageDataManager::loadStateFromDisk( const json json_obj )
+{
+    cout << "^^^^^^^^ IN [ImageDataManager::loadStateFromDisk] ^^^^^^^^^^\n";
+    ensure_init();
+    // loop thru json object and create the map
+    int n_images = json_obj.size();
+    cout << "[ImageDataManager::loadStateFromDisk] n_images=" << n_images << endl;
+
+    int AVAILABLE_ON_DISK = 0;
+    int UNAVAILABLE = 0;
+    for( int i=0 ; i<n_images ; i++ )
+    {
+        string __ns_x = json_obj[i]["namespace"];
+        ros::Time __t_x = ros::Time().fromNSec( json_obj[i]["stampNSec"] );
+        string __status = json_obj[i]["status"];
+
+        auto key = std::make_pair(__ns_x, __t_x );
+        if( __status.compare("AVAILABLE_ON_DISK") ) {
+            status[key] = MEMSTAT::AVAILABLE_ON_DISK;
+            AVAILABLE_ON_DISK++;
+        }
+        else if( __status.compare("UNAVAILABLE") ){
+            status[key] = MEMSTAT::UNAVAILABLE;
+            UNAVAILABLE++;
+        }
+        else {
+            cout << "[ImageDataManager::loadStateFromDisk] status in json can only be AVAILABLE_ON_DISK or UNAVAILABLE. If your json it is something other than these two\n";
+            exit(1);
+        }
+    }
+
+    cout << "[ImageDataManager::loadStateFromDisk]";
+    cout << "AVAILABLE_ON_DISK=" << AVAILABLE_ON_DISK << "\t";
+    cout << "UNAVAILABLE=" << UNAVAILABLE << "\t";
+    cout << endl;
+
+
+    cout << "^^^^^^^^ DONE [ImageDataManager::loadStateFromDisk] ^^^^^^^^^^\n";
+    return true;
 }

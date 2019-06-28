@@ -32,6 +32,10 @@
 #include "utils/ElapsedTime.h"
 #include "utils/RawFileIO.h"
 
+
+#include "utils/nlohmann/json.hpp"
+using json = nlohmann::json;
+
 using namespace std;
 
 enum MEMSTAT { AVAILABLE_ON_RAM, AVAILABLE_ON_DISK, UNAVAILABLE, AVAILABLE_ON_RAM_DUETO_HIT };
@@ -40,6 +44,8 @@ class ImageDataManager
 {
 public:
     ImageDataManager();
+    bool initStashDir( bool clear_dir, const string __dir=string("/tmp/cerebro_stash/")  ); //< clear_dir: setting this to true will cause `rm -rf DIR && mkdir DIR` ;;;__dir: The directory usually set it to '/tmp/cerebro_stash' .
+
     ~ImageDataManager();
     bool setImage( const string ns, const ros::Time t, const cv::Mat img );
     bool setNewImageFromMsg( const string ns, const sensor_msgs::ImageConstPtr msg );
@@ -52,9 +58,15 @@ public:
 
     bool print_status( string fname ) const;
 
+    // - go over all status and stash all the images that remain on RAM.
+    // Also retuns the map status as json object
+    json stashAll();
+    bool loadStateFromDisk( const json json_obj );
+
+
 private:
     mutable std::mutex m;
-    const string STASH_DIR;
+    string STASH_DIR = string(""); bool m_STASH_DIR = false;
     const string key_to_imagename( const string ns, const ros::Time t ) const
     {
         return STASH_DIR+"/"+ns+"__"+to_string(t.toNSec())+".jpg";
@@ -72,4 +84,18 @@ private:
     std::map<  std::pair<string , ros::Time>, int > hit_count;
     int decrement_hit_counts_and_deallocate_expired(); //returns how many expired
 
+
+    bool rm_stash_dir_in_destructor = true;
+
+public:
+    const string getStashDir() const { return STASH_DIR; }
+    void set_rm_stash_dir_in_destructor_as_false() {rm_stash_dir_in_destructor=false; }
+    void set_rm_stash_dir_in_destructor_as_true()  {rm_stash_dir_in_destructor=true; }
+
+    void ensure_init() const {
+        if( !m_STASH_DIR) {
+            ROS_ERROR( "m_STASH_DIR is false. This means you have not initialized the ImageDataManager. You need to call the function initStashDir() befre you can start using it\n");
+            exit(1);
+        }
+    }
 };

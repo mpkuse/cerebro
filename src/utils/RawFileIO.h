@@ -24,6 +24,17 @@ using namespace Eigen;
 
 using namespace std;
 
+#define WITH_NLOHMANN_JSON
+#ifdef WITH_NLOHMANN_JSON
+#include "nlohmann/json.hpp"
+using json = nlohmann::json;
+
+#include "MiscUtils.h"
+#endif
+
+
+#include <sys/stat.h> // for is_directory
+
 #define __RawFileIO__write_image_debug_dm( msg ) msg;
 
 class RawFileIO
@@ -65,8 +76,27 @@ public:
     /// TODO: Have a flag to read interpret the 1d array as a colmajor.
     static bool read_eigen_matrix( const std::vector<double>& ary, Matrix4d& result );
 
+    #ifdef WITH_NLOHMANN_JSON
+    // The input json need to be something like:
+    // A new row is denoted with \n, and a comma separates elements.
+    //{
+    //            "cols": 4,
+    //            "rows": 4,
+    //            "data": "0.2857131543876468, -0.2530077727001951, 0.9243132912401226, -0.02953755668229465\n-0.9566719337894203, -0.01884313243445668, 0.2905576491157474, 0.2114882406102183,\n-0.05609638588601445, -0.9672807262182707, -0.2474291659792429, 0.04534835279466286\n0, 0, 0, 1"
+    // }
+    static bool read_eigen_matrix_fromjson( const json str, MatrixXd&  output );
+    static bool read_eigen_matrix4d_fromjson( const json str, Matrix4d&  output );
+    static bool read_eigen_vector_fromjson( const json str, VectorXd&  output );
+    #endif
+
+
     static bool if_file_exist( char * fname );
     static bool if_file_exist( string fname );
+
+    static bool is_path_a_directory(const char* path);
+    static bool is_path_a_directory(const string path);
+
+
     static int exec_cmd( const string& cmd ); //< Executes a unix command.
 
 };

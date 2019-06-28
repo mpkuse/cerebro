@@ -149,6 +149,9 @@ public:
     // returns string as a json. contains everything including wTc, wX, uv, K, D etc.
     json asJson() ;
 
+    bool saveStateToDisk( const string save_folder_name );
+    bool loadStateFromDisk( const string save_folder_name );
+
 
 private:
     /////////
