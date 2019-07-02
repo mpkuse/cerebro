@@ -19,7 +19,7 @@
     <!-- <arg name="bag_file" default="2019-01-14-18-25-18.bag" doc="lab AR test"/> -->
     <!-- <arg name="bag_file" default="2019-06-26-16-09-04.bag" doc="seq0, 1 loop. loop-0: walk in lab; lap-1: same place with 90 degree in place rotation"/> -->
     <!-- <arg name="bag_file" default="2019-06-26-16-19-43.bag" doc="seq1,1 loop. loop-0: walk in lab; lap-1: same place with 90 degree in place rotation"/> -->
-    <arg name="bag_file" default="2019-06-26-16-36-20.bag" doc="seq2,1 loop. loop-0: walk in lab +45 degrees; lap-1: same place with -45degres in place rotation"/>
+    <!-- <arg name="bag_file" default="2019-06-26-16-36-20.bag" doc="seq2,1 loop. loop-0: walk in lab +45 degrees; lap-1: same place with -45degres in place rotation"/> -->
 
     <!-- ### In HKUST Academic block and CYT UG -->
     <!-- <arg name="bag_file" default="2018-11-29-15-13-44.bag" doc="CYT UG floor"/> -->
@@ -32,7 +32,7 @@
     <!-- ### Kidnap sequences in lab -->
     <!-- <arg name="bag_path" default="/Bulk_Data/ros_bags/mynteye/" /> -->
     <!-- <arg name="bag_file" default="/kidnap/2019-01-14-17-20-06.bag" doc="lab kidnap. easy"/> -->
-    <!-- <arg name="bag_file" default="/kidnap/2019-02-14-12-00-21.bag" doc="3 kidnaps in lab. This gives the chained case for pose computation between worlds"/> -->
+    <arg name="bag_file" default="/kidnap/2019-02-14-12-00-21.bag" doc="3 kidnaps in lab. This gives the chained case for pose computation between worlds"/>
     <!-- <arg name="bag_file" default="/kidnap/2019-02-14-17-19-29.bag" doc="4 kidnaps in lab"/> -->
     <!-- <arg name="bag_file" default="/kidnap/2019-02-14-17-19-29.bag" doc="4 kidnaps in lab"/> -->
     <!-- <arg name="bag_file" default="/kidnap/2019-02-21-17-10-30.bag" doc="0:-; 1:-; 2:merge(0), merge(1). 2nd merges with both 0 and 1."/> -->
@@ -86,7 +86,7 @@
 
     <group if="1">
         <!-- Cerebro -->
-        <node name="cerebro_node" pkg="cerebro" type="cerebro_node" output="screen">
+        <node name="cerebro_node" pkg="cerebro" type="cerebro_node" output="log">
            <param name="config_file" type="string" value="$(arg config_path)" />
         </node>
 
@@ -114,8 +114,8 @@
 
         <!-- Pose graph (kidnap aware) -->
         <!-- $(ubuntu) rosrun solve_keyframe_pose_graph keyframe_pose_graph_slam -->
-        <!-- <node name="keyframe_pose_graph_slam_node" pkg="solve_keyframe_pose_graph" type="keyframe_pose_graph_slam" output="log" >
-        </node> -->
+        <node name="keyframe_pose_graph_slam_node" pkg="solve_keyframe_pose_graph" type="keyframe_pose_graph_slam" output="screen" >
+        </node>
     </group>
 
 </launch>
