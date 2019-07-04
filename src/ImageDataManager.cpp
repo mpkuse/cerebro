@@ -356,19 +356,19 @@ bool ImageDataManager::print_status(  ) const
         else
         if( it->second == MEMSTAT::AVAILABLE_ON_DISK ) {
             cout << TermColor::iYELLOW() << " " << TermColor::RESET();
-            cout << std::get<0>(it->first) << "," << std::get<1>(it->first) << ": " << "AVAILABLE_ON_DISK" << endl;
+            // cout << std::get<0>(it->first) << "," << std::get<1>(it->first) << ": " << "AVAILABLE_ON_DISK" << endl;
             AVAILABLE_ON_DISK++;
         }
         else
         if( it->second == MEMSTAT::UNAVAILABLE ) {
             cout << TermColor::iMAGENTA() << " " << TermColor::RESET();
-            cout << std::get<0>(it->first) << "," << std::get<1>(it->first) << ": " << "UNAVAILABLE" << endl;
+            // cout << std::get<0>(it->first) << "," << std::get<1>(it->first) << ": " << "UNAVAILABLE" << endl;
             UNAVAILABLE++;
         }
         else {
         if( it->second == MEMSTAT::AVAILABLE_ON_RAM_DUETO_HIT )
            cout << TermColor::iBLUE() << std::setw(2) << hit_count.at(it->first) << TermColor::RESET();
-           cout << std::get<0>(it->first) << "," << std::get<1>(it->first) << ": " << "AVAILABLE_ON_RAM_DUETO_HIT" << endl;
+        //    cout << std::get<0>(it->first) << "," << std::get<1>(it->first) << ": " << "AVAILABLE_ON_RAM_DUETO_HIT" << endl;
            ETC++;
        }
 

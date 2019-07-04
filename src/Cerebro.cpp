@@ -1361,6 +1361,8 @@ bool Cerebro::retrive_stereo_pair( DataNode* node, cv::Mat& left_image, cv::Mat&
     {
         cout << TermColor::RED() << "[Cerebro::retrive_stereo_pair] img_data_mgr->isImageRetrivable( \"right_image\"," << node->getT() << ") returned false" << TermColor::RESET() << endl;
         cout << TermColor::RED() << "[Cerebro::retrive_stereo_pair] Either of the node images (stereo-pair was not available). This is probably not fatal, this loopcandidate will be skipped." << TermColor::RESET() << endl;
+        // img_data_mgr->print_status();
+        // cout << TermColor::RED() << "[Cerebro::retrive_stereo_pair] img_data_mgr->isImageRetrivable( \"right_image\"," << node->getT() << ") returned false" << TermColor::RESET() << endl;
         return false;
     }
 

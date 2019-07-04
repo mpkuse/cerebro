@@ -40,6 +40,51 @@ int main( int argc, char ** argv )
     // ROS_WARN( "debug_output_dir : %s", debug_output_dir.c_str() );
 
 
+    //--- loadStateFromDisk, saveStateToDisk ---//
+    string loadStateFromDisk = "";
+    if( nh.getParam( "loadStateFromDisk", loadStateFromDisk ) == true )
+    {
+        if( loadStateFromDisk.compare("") == 0 ) {
+            ROS_WARN( "[cerebro_node] loadStateFromDisk cmdline parameter was found, but with a empty string, so I will not loadStateFromDisk()");
+        } else {
+            // now make sure it is a directory
+            if( RawFileIO::is_path_a_directory(loadStateFromDisk) ) {
+                ROS_INFO( "[cerebro_node] loadStateFromDisk=%s, Directory exists...OK!", loadStateFromDisk.c_str() );
+                cout << TermColor::GREEN() <<  "[cerebro_node] loadStateFromDisk=" << loadStateFromDisk << ", Directory exists...OK!" << TermColor::RESET() << endl;
+            }
+            else {
+                ROS_ERROR( "[cerebro_node] You specified a directory for loadStateFromDisk=`%s`, This path need to exist\n...EXIT\n", loadStateFromDisk.c_str());
+                exit(1);
+            }
+        }
+    } else {
+        ROS_WARN( "[cerebro_node] loadStateFromDisk cmdline parameter was not found, so I will not loadStateFromDisk()");
+    }
+
+    string saveStateToDisk = "";
+    if( nh.getParam( "saveStateToDisk", saveStateToDisk ) == true )
+    {
+        if( saveStateToDisk.compare("") == 0 ) {
+            ROS_WARN( "[cerebro_node] saveStateToDisk cmdline parameter was found, but with a empty string, so I will not saveStateToDisk()");
+        } else {
+            // now make sure it is a directory
+            if( RawFileIO::is_path_a_directory(saveStateToDisk) ) {
+                ROS_INFO( "[cerebro_node] saveStateToDisk=%s, Directory exists...OK!", saveStateToDisk.c_str() );
+                cout << TermColor::GREEN() <<  "[cerebro_node] saveStateToDisk=" << saveStateToDisk << ", Directory exists...OK!" << TermColor::RESET() << endl;
+            }
+            else {
+                ROS_ERROR( "[cerebro_node] You specified a directory for saveStateToDisk=`%s`, This path need to exist and be writable\n...EXIT\n", saveStateToDisk.c_str());
+                exit(1);
+            }
+        }
+    } else {
+        ROS_WARN( "[cerebro_node] saveStateToDisk cmdline parameter was not found, so I will not saveStateToDisk()");
+    }
+
+    //--- END loadStateFromDisk, saveStateToDisk ---//
+
+
+
     //--- Config File ---//
     string config_file;
     if( !nh.getParam( "config_file", config_file ) )
@@ -354,6 +399,18 @@ int main( int argc, char ** argv )
     #endif
 
 
+
+    // If you dont loadStateFromDisk, make sure you initialize the ImageDataManager.
+    if( loadStateFromDisk.compare("") != 0 )
+    {
+        dataManager.loadStateFromDisk( loadStateFromDisk );
+    }
+    else
+    {   //empty, fresh start
+        dataManager.getImageManagerRef()->initStashDir(true); // this will use the default /tmp/cerebro_stash as the stashing directory
+    }
+
+
     //--- Start Threads ---//
 
     // [A]
@@ -489,12 +546,16 @@ int main( int argc, char ** argv )
 
 
     //make this to 1 to save state to file upon exit
-    #define __SAVE_STATE__ 1
+    #define __SAVE_STATE__ 0
     #if __SAVE_STATE__
     // Save State (for relocalization)
     dataManager.saveStateToDisk( "/Bulk_Data/chkpts_cerebro" );
     #endif
 
+    if( saveStateToDisk.compare("") != 0 )
+    {
+        dataManager.saveStateToDisk( saveStateToDisk );
+    }
 
 
 

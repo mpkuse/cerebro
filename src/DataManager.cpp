@@ -803,6 +803,13 @@ void DataManager::data_association_thread( int max_loop_rate_in_hz )
                 img_1_buf.pop();
             }
             else {
+                ros::Time newest_T = data_map->rbegin()->first;
+                __DataManager__data_association_thread__( cout << "newest_T=" << newest_T << endl; ) ;
+                if( newest_T.toNSec() > t.toNSec() )
+                {
+                    cout << "newest_T is head of the t, so just drop this image";
+                    img_1_buf.pop();
+                } else {
                 // assert( false && "[DataManager::data_association_thread] attempting to set additional image into datanode. However that datanode is not found in the map. This cannot be happening\n");
                 __DataManager__data_association_thread__(
                     cout << TermColor::RED() << "[DataManager::data_association_thread]";
@@ -813,6 +820,7 @@ void DataManager::data_association_thread( int max_loop_rate_in_hz )
                 cout << TermColor::CYAN() << "so dont pop from queue.\n" << TermColor::RESET();
                 )
                 break;
+                }
             }
         }
 
