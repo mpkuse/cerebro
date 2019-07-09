@@ -1047,8 +1047,8 @@ json Cerebro::foundLoops_as_JSON()
 //------------------ Geometry Thread ---------------------------//
 //--------------------------------------------------------------//
 
-// #define __Cerebro__loopcandi_consumer__(msg) msg;
-#define __Cerebro__loopcandi_consumer__(msg)  ;
+#define __Cerebro__loopcandi_consumer__(msg) msg;
+// #define __Cerebro__loopcandi_consumer__(msg)  ;
 // ^This will also imshow image-pairs with gms-matches marked.
 
 #define __Cerebro__loopcandi_consumer__IMP( msg ) msg;
@@ -1242,6 +1242,16 @@ bool Cerebro::retrive_stereo_pair( DataNode* node, cv::Mat& left_image, cv::Mat&
     cv::Mat bgr_left_image, bgr_right_image;
     img_data_mgr->getImage( "left_image", node->getT(), bgr_left_image );
     img_data_mgr->getImage( "right_image", node->getT(), bgr_right_image );
+
+            #if 1
+            cout << "bgr_left_image: " << MiscUtils::cvmat_info( bgr_left_image ) << "\n";
+            cout << "bgr_right_image: " << MiscUtils::cvmat_info( bgr_right_image ) << "\n";
+            #endif
+    if( !(bgr_left_image.data) || !(bgr_right_image.data) )
+    {
+         cout << "[Cerebro::retrive_stereo_pair] Invalid images bfhjreturn false.\n";
+         return false;
+    }
     #endif
 
     if( bgr2gray ) {
@@ -1261,11 +1271,9 @@ bool Cerebro::retrive_stereo_pair( DataNode* node, cv::Mat& left_image, cv::Mat&
         right_image = bgr_right_image;
     }
 
-    #if 0
-    cout << "bgr_left_image: " << MiscUtils::cvmat_info( bgr_left_image ) << "\t";
-    cout << "bgr_right_image: " << MiscUtils::cvmat_info( bgr_right_image ) << "\t";
-    cout << "left_image: " << MiscUtils::cvmat_info( left_image ) << "\t";
-    cout << "right_image: " << MiscUtils::cvmat_info( right_image ) << "\t";
+    #if 1
+    cout << "left_image: " << MiscUtils::cvmat_info( left_image ) << "\n";
+    cout << "right_image: " << MiscUtils::cvmat_info( right_image ) << "\n";
     cout << endl;
     #endif
     return true;
@@ -1293,7 +1301,7 @@ bool Cerebro::process_loop_candidate_imagepair_consistent_pose_compute( int ii, 
 
 
     __Cerebro__loopcandi_consumer__IMP(
-    cout << TermColor::BLUE() << "{"<<ii <<  "} process: "<< idx_1 << "<--->" << idx_2 << TermColor::RESET() << endl;
+    cout << TermColor::BLUE() << "{"<<ii <<  "} process: "<< idx_1 << "<--->" << idx_2 << TermColor::RESET() << "\tt_curr=" << t_curr << " <--> t_prev=" << t_prev << endl;
     )
 
     // if( node_1->getNumberOfSuccessfullyTrackedFeatures() < 20 || node_2->getNumberOfSuccessfullyTrackedFeatures() < 20 ) {
@@ -1314,6 +1322,7 @@ bool Cerebro::process_loop_candidate_imagepair_consistent_pose_compute( int ii, 
     //------------------------------------------------
     //------ 3d points from frame_a
     //------------------------------------------------
+    __Cerebro__loopcandi_consumer__( cout << "[Cerebro::process_loop_candidate_imagepair_consistent_pose_compute] 3d points from frame_a\n"; )
     cv::Mat a_imleft_srectified, a_imright_srectified;
     cv::Mat a_3dImage;
     MatrixXd a_3dpts;
@@ -1326,6 +1335,7 @@ bool Cerebro::process_loop_candidate_imagepair_consistent_pose_compute( int ii, 
     //-----------------------------------------------------
     //--------------- 3d points from frame_b
     //-----------------------------------------------------
+    __Cerebro__loopcandi_consumer__( cout << "[Cerebro::process_loop_candidate_imagepair_consistent_pose_compute] 3d points from frame_b\n"; )
     cv::Mat b_imleft_srectified, b_imright_srectified;
     cv::Mat b_3dImage;
     MatrixXd b_3dpts;
@@ -1338,6 +1348,7 @@ bool Cerebro::process_loop_candidate_imagepair_consistent_pose_compute( int ii, 
     //---------------------------------------------------------------------
     //------------ point matches between a_left, b_left
     //---------------------------------------------------------------------
+    __Cerebro__loopcandi_consumer__( cout << "[Cerebro::process_loop_candidate_imagepair_consistent_pose_compute]point matches between a_left, b_left\n"; )
     MatrixXd uv, uv_d; // u is from frame_a; ud is from frame_b
     ElapsedTime timer;
     timer.tic();

@@ -1,0 +1,114 @@
+[global_config]
+[keybindings]
+[layouts]
+  [[default]]
+    [[[child0]]]
+      fullscreen = False
+      last_active_term = 1cc3df64-f997-4766-9317-0ce75d5dc2cd
+      last_active_window = True
+      maximised = True
+      order = 0
+      parent = ""
+      position = 65:24
+      size = 1855, 1056
+      title = dji@MANIFOLD-2-C: ~
+      type = Window
+    [[[child1]]]
+      order = 0
+      parent = child0
+      position = 525
+      ratio = 0.5
+      type = VPaned
+    [[[child2]]]
+      order = 0
+      parent = child1
+      position = 513
+      ratio = 0.278167115903
+      type = HPaned
+    [[[child4]]]
+      order = 1
+      parent = child2
+      position = 648
+      ratio = 0.487275449102
+      type = HPaned
+    [[[child7]]]
+      order = 1
+      parent = child1
+      position = 513
+      ratio = 0.278167115903
+      type = HPaned
+    [[[child9]]]
+      order = 1
+      parent = child7
+      position = 644
+      ratio = 0.484281437126
+      type = HPaned
+    [[[terminal10]]]
+      command = echo "roslaunch cerebro realsense_vinsfusion.launch"; sleep 15s; roslaunch --wait cerebro realsense_vinsfusion.launch; bash
+      order = 0
+      parent = child9
+      profile = default
+      type = Terminal
+      uuid = 8fc7a21c-3feb-468d-aae5-c363bc5c9f80
+    [[[terminal11]]]
+      command = echo "roslaunch cerebro realsense_camera.launch"; sleep 5s; roslaunch --wait cerebro realsense_camera.launch;  bash
+      order = 1
+      parent = child9
+      profile = default
+      type = Terminal
+      uuid = a63545ab-f3c1-4426-a8ef-173f57ca8f28
+    [[[terminal3]]]
+      command = echo "roscore"; roscore; bash
+      order = 0
+      parent = child2
+      profile = default
+      type = Terminal
+      uuid = 27ae967a-b56c-4d92-a56e-67a2abe6b22d
+    [[[terminal5]]]
+      #command = '''echo "ssh root@dji-tx2 'nvpmodel -m 0 && jetson_clocks'"; echo ""; echo "ssh -t dji@dji-tx2 'export ROS_MASTER_URI=http://MANIFOLD-2-C:11311/; source $HOME/catkin_ws/devel/setup.bash && roslaunch tx2_whole_image_desc_server py3_tf_server_realsense.launch'" ; echo "ssh -t dji@dji-tx2 'export ROS_MASTER_URI=http://MANIFOLD-2-C:11311/; source $HOME/catkin_ws/devel/setup.bash && roslaunch tx2_whole_image_desc_server py3_tf_server_mynteye.launch'"; bash'''
+      command = ''' coproc rviz -d catkin_ws/src/cerebro/rviz/vins-fusion.rviz ;  ssh root@dji-tx2 'nvpmodel -m 0 && jetson_clocks'; ssh -t dji@dji-tx2 "export ROS_MASTER_URI=http://MANIFOLD-2-C:11311/; export DJIROS_APPID='1014582' ; export DJIROS_ENCKEY='821c8c3abeb6e340637b01f908ddeefb6c76d18d5f289e5cdb3cd5756a17bef5'; source $HOME/catkin_ws/devel/setup.bash && roslaunch djiros djiros.launch" ; bash '''
+      order = 0
+      parent = child4
+      profile = default
+      type = Terminal
+      uuid = 6184900a-1468-4ffa-96a0-b1c00563ead7
+    [[[terminal6]]]
+      #command = '''echo "ssh dji@dji-tx2 'export ROS_MASTER_URI=http://MANIFOLD-2-C:11311/; source $HOME/catkin_ws/devel/setup.bash &&  rosrun solve_keyframe_pose_graph keyframe_pose_graph_slam' "; bash'''
+      command = " sleep 3s; echo 'rosrun trajectory_node trajectory_node' ; export ROS_MASTER_URI=http://MANIFOLD-2-C:11311/; rosrun trajectory_node trajectory_node ; bash "
+      order = 1
+      parent = child4
+      profile = default
+      type = Terminal
+      uuid = 09e32ec9-5e11-4bb0-980d-4c1abeb77791
+    [[[terminal8]]]
+      command = echo "roslaunch --wait machine_defined ctrl_md.launch"; roslaunch --wait machine_defined ctrl_md.launch ; bash
+      order = 0
+      parent = child7
+      profile = default
+      type = Terminal
+      uuid = 1cc3df64-f997-4766-9317-0ce75d5dc2cd
+  [[vins-cerebro]]
+    [[[child0]]]
+      fullscreen = False
+      last_active_term = b015529f-251d-4563-81f8-86f2d24badbe
+      last_active_window = True
+      maximised = False
+      order = 0
+      parent = ""
+      position = 289:106
+      size = 642, 378
+      title = dji@MANIFOLD-2-C: ~
+      type = Window
+    [[[terminal1]]]
+      order = 0
+      parent = child0
+      profile = vins-cerebro
+      type = Terminal
+      uuid = b015529f-251d-4563-81f8-86f2d24badbe
+[plugins]
+[profiles]
+  [[default]]
+    background_image = None
+    scrollback_lines = 5000
+  [[vins-cerebro]]
+    background_image = None

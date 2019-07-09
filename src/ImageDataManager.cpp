@@ -80,8 +80,8 @@ bool ImageDataManager::setNewImageFromMsg( const string ns, const sensor_msgs::I
 }
 
 
-// #define __ImageDataManager__getImage( msg ) msg;
-#define __ImageDataManager__getImage( msg ) ;
+#define __ImageDataManager__getImage( msg ) msg;
+// #define __ImageDataManager__getImage( msg ) ;
 bool ImageDataManager::getImage( const string ns, const ros::Time t, cv::Mat& outImg )
 {
     decrement_hit_counts_and_deallocate_expired();

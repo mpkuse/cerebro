@@ -1,28 +1,37 @@
 %YAML:1.0
 
-#common parameters
-imu_topic: "/imu0"
-image_topic: "/cam0/image_raw"
-output_path: "/home/tony-ws1/output/"
+#######
+## This is config file for running vins-mono. We use this for imu_T_camera calibration.
+## Set the estimate_extrinsic to 2. If vins mono works on, just copy (written in `output_path`)
+#######
 
-#camera calibration
+# imu_topic: "/camera/imu"
+imu_topic: "/djiros/imu"
+image_topic: "/camera/infra1/image_rect_raw"
+#image_topic: "/camera/infra2/image_rect_raw"
+
+# output_path: "/home/tony-ws1/output/"
+output_path: "/home/dji/output/"
+
+#camera calibration - left , right same for realsense
 model_type: PINHOLE
 camera_name: camera
-image_width: 752
+image_width: 640
 image_height: 480
 distortion_parameters:
-   k1: -2.917e-01
-   k2: 8.228e-02
-   p1: 5.333e-05
-   p2: -1.578e-04
+   k1: 0.0
+   k2: 0.0
+   p1: 0.0
+   p2: 0.0
 projection_parameters:
-   fx: 4.616e+02
-   fy: 4.603e+02
-   cx: 3.630e+02
-   cy: 2.481e+02
+   fx: 385.7544860839844
+   fy: 385.7544860839844
+   cx: 323.1204833984375
+   cy: 236.7432098388672
+
 
 # Extrinsic parameter between IMU and Camera.
-estimate_extrinsic: 1   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
+estimate_extrinsic: 2   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
                         # 1  Have an initial guess about extrinsic parameters. We will optimize around your initial guess.
                         # 2  Don't know anything about extrinsic parameters. You don't need to give R,T. We will try to calibrate it. Do some rotation movement at beginning.
 #If you choose 0 or 1, you should write down the following matrix.
@@ -31,20 +40,23 @@ extrinsicRotation: !!opencv-matrix
    rows: 3
    cols: 3
    dt: d
-   data: [0.0148655429818, -0.999880929698, 0.00414029679422,
-           0.999557249008, 0.0149672133247, 0.025715529948,
-           -0.0257744366974, 0.00375618835797, 0.999660727178]
-#Translation from camera frame to imu frame, imu^T_cam
+   data: [ -1.0406548080980293e-02, -6.8339359975994052e-04,
+       9.9994561688635142e-01, -9.9994461366801901e-01,
+       -1.5656625000493030e-03, -1.0407607662295648e-02,
+       1.5726898469127781e-03, -9.9999854083599726e-01,
+       -6.6706260700977182e-04 ]
 extrinsicTranslation: !!opencv-matrix
    rows: 3
    cols: 1
    dt: d
-   data: [-0.0216401454975,-0.064676986768, 0.00981073058949]
+   data: [ 5.2600599061337287e-02, 2.5510536758700533e-02,
+       9.5887981235633201e-03 ]
+
 
 #feature traker paprameters
-max_cnt: 150            # max feature number in feature tracking
-min_dist: 30            # min distance between two features
-freq: 10                # frequence (Hz) of publish tracking result. At least 10Hz for good estimation. If set 0, the frequence will be same as raw image
+max_cnt: 200            # max feature number in feature tracking
+min_dist: 25            # min distance between two features
+freq: 15                # frequence (Hz) of publish tracking result. At least 10Hz for good estimation. If set 0, the frequence will be same as raw image
 F_threshold: 1.0        # ransac threshold (pixel)
 show_track: 1           # publish tracking image as topic
 equalize: 1             # if image is too dark or light, trun on equalize to find enough features
@@ -56,11 +68,11 @@ max_num_iterations: 8   # max solver itrations, to guarantee real time
 keyframe_parallax: 10.0 # keyframe selection threshold (pixel)
 
 #imu parameters       The more accurate parameters you provide, the better performance
-acc_n: 0.08          # accelerometer measurement noise standard deviation. #0.2   0.04
-gyr_n: 0.004         # gyroscope measurement noise standard deviation.     #0.05  0.004
-acc_w: 0.00004         # accelerometer bias random work noise standard deviation.  #0.02
-gyr_w: 2.0e-6       # gyroscope bias random work noise standard deviation.     #4.0e-5
-g_norm: 9.81007     # gravity magnitude
+acc_n: 0.05          # accelerometer measurement noise standard deviation. #0.2   0.04
+gyr_n: 0.01         # gyroscope measurement noise standard deviation.     #0.05  0.004
+acc_w: 0.002         # accelerometer bias random work noise standard deviation.  #0.02
+gyr_w: 2.0e-5       # gyroscope bias random work noise standard deviation.     #4.0e-5
+g_norm: 9.805     # gravity magnitude
 
 #loop closure parameters
 loop_closure: 0                    # start loop closure
@@ -69,8 +81,8 @@ fast_relocalization: 0             # useful in real-time and large project
 pose_graph_save_path: "/home/tony-ws1/output/pose_graph/" # save and load path
 
 #unsynchronization parameters
-estimate_td: 0                      # online estimate time offset between camera and imu
-td: 0.0                             # initial value of time offset. unit: s. readed image clock + td = real image clock (IMU clock)
+estimate_td: 1                      # online estimate time offset between camera and imu
+td: 0.038                             # initial value of time offset. unit: s. readed image clock + td = real image clock (IMU clock)
 
 #rolling shutter parameters
 rolling_shutter: 0                  # 0: global shutter camera, 1: rolling shutter camera

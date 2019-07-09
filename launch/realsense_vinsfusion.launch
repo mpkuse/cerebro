@@ -1,18 +1,18 @@
 <launch timeout="100.0">
 
     <!-- CONFIG FILE -->
-    <arg name="config_path" default="$(find cerebro)/config/vinsfusion/realsense_d435i/realsense_stereo_imu_config.yaml" />
+    <arg name="config_path" default="$(find cerebro)/config/vinsfusion/djirosimu_realsense_d435i/realsense_stereo_imu_config.yaml" />
 
 
     <!-- BAG -->
-    <arg name="bag_path" default="/Bulk_Data/ros_bags/realsense/" />
+    <!-- <arg name="bag_path" default="/Bulk_Data/ros_bags/realsense/" /> -->
 
-    <arg name="bag_file" default="2019-05-14-13-26-05.bag" doc="realsense in lab seq" />
+    <!-- <arg name="bag_file" default="2019-05-14-13-26-05.bag" doc="realsense in lab seq" /> -->
     <!-- <arg name="bag_file" default="2019-05-16-14-57-55.bag" doc="loopy and 2 kidnaps" /> -->
 
 
 
-    <node pkg="rosbag" type="play" name="rosbag" args="$(arg bag_path)/$(arg bag_file) -s 1 -d 2" output="log"/>
+    <!-- <node pkg="rosbag" type="play" name="rosbag" args="$(arg bag_path)/$(arg bag_file) -s 1 -d 2" output="log"/> -->
 
     <!-- END Bag -->
 
@@ -21,7 +21,7 @@
     <!-- unlike previous vins-mono, even the feature tracker is put inside 1 node ie. vins_node.
     $(ubuntu) rosrun vins vins_node /app/catkin_ws/src/cerebro/config/vinsfusion/mynteye/mynteye_stereo_imu_config.yaml
     -->
-    <node name="vins_estimator" pkg="vins" type="vins_node" args=" $(arg config_path)" output="log">
+    <node name="vins_estimator" pkg="vins" type="vins_node" args=" $(arg config_path)" output="screen">
     </node>
 
     <group if="0">
@@ -34,7 +34,7 @@
     </group>
 
 
-    <group if="1">
+    <group if="0">
         <!-- Cerebro -->
         <node name="cerebro_node" pkg="cerebro" type="cerebro_node" output="screen">
            <param name="config_file" type="string" value="$(arg config_path)" />

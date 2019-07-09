@@ -1,0 +1,90 @@
+%YAML:1.0
+
+#common parameters
+#support: 1 imu 1 cam; 1 imu 2 cam: 2 cam;
+imu: 1
+num_of_cam: 2
+
+# imu_topic: "/camera/imu"
+imu_topic: "/djiros/imu"
+image0_topic: "/camera/infra1/image_rect_raw"
+image1_topic: "/camera/infra2/image_rect_raw"
+output_path: "/home/dji/vinsfusion-output/"
+
+cam0_calib: "left.yaml"
+cam1_calib: "right.yaml"
+image_width: 640
+image_height: 480
+
+
+
+# contains the right_T_left aka 1_T_0, ie. stereo baseline. I need right_T_left that a transform that transforms 3d points of left to 3d points of right. in other words, if you sure of right the position of left camera.
+# This is an optional argument even if using `num_of_cam:=2`. If I cannot
+# find this key I will use `body_T_cam0` and `body_T_cam1` to compute cam1_T_cam0.
+# But if this key exists, we will use these values as stereo baseline.
+# **In this file, I assume translation re specified ****in mm**** (and not in meters).**
+extrinsic_1_T_0: "extrinsics.yaml"
+
+
+# Extrinsic parameter between IMU and Camera.
+estimate_extrinsic: 1   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
+                        # 1  Have an initial guess about extrinsic parameters. We will optimize around your initial guess.
+
+
+body_T_cam0: !!opencv-matrix
+   rows: 4
+   cols: 4
+   dt: d
+   data: [ -1.0406548080980293e-02, -6.8339359975994052e-04,
+       9.9994561688635142e-01, 5.2600599061337287e-02,
+       -9.9994461366801901e-01, -1.5656625000493030e-03,
+       -1.0407607662295648e-02, 2.5510536758700533e-02,
+       1.5726898469127781e-03, -9.9999854083599726e-01,
+       -6.6706260700977182e-04, 9.5887981235633201e-03, 0., 0., 0., 1. ]
+
+
+
+body_T_cam1: !!opencv-matrix
+   rows: 4
+   cols: 4
+   dt: d
+   data: [ -1.3185778504660295e-02, 1.2513252883544768e-04,
+       9.9991305601390978e-01, 4.2975722207919849e-02,
+       -9.9984703667423980e-01, 1.1490149582040754e-02,
+       -1.3186345829069746e-02, -5.4397185804457168e-02,
+       -1.1490800623434938e-02, -9.9993397822277874e-01,
+       -2.6393179226591457e-05, 1.8167602224138771e-02, 0., 0., 0., 1. ]
+
+
+
+#Multiple thread support
+multiple_thread: 1
+
+#feature traker paprameters
+max_cnt: 150            # max feature number in feature tracking
+min_dist: 30            # min distance between two features
+freq: 10                # frequence (Hz) of publish tracking result. At least 10Hz for good estimation. If set 0, the frequence will be same as raw image
+F_threshold: 1.0        # ransac threshold (pixel)
+show_track: 0           # publish tracking image as topic
+flow_back: 1            # perform forward and backward optical flow to improve feature tracking accuracy
+
+#optimization parameters
+max_solver_time: 0.04  # max solver itration time (ms), to guarantee real time
+max_num_iterations: 8   # max solver itrations, to guarantee real time
+keyframe_parallax: 10.0 # keyframe selection threshold (pixel)
+
+#imu parameters       The more accurate parameters you provide, the better performance
+acc_n: 0.1          # accelerometer measurement noise standard deviation. #0.2   0.04
+gyr_n: 0.02         # gyroscope measurement noise standard deviation.     #0.05  0.004
+acc_w: 0.002         # accelerometer bias random work noise standard deviation.  #0.002
+gyr_w: 0.00005       # gyroscope bias random work noise standard deviation.     #4.0e-5
+g_norm: 9.805         # gravity magnitude
+
+#unsynchronization parameters
+estimate_td: 1                      # online estimate time offset between camera and imu
+td: 0                             # initial value of time offset. unit: s. readed image clock + td = real image clock (IMU clock)
+
+#loop closure parameters
+load_previous_pose_graph: 0        # load and reuse previous pose graph; load from 'pose_graph_save_path'
+pose_graph_save_path: "/home/dji/output/pose_graph/" # save and load path
+save_image: 0                   # save image in pose graph for visualization prupose; you can close this function by setting 0

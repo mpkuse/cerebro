@@ -12,7 +12,7 @@
 
   <arg name="depth_width"         default="640"/>
   <arg name="depth_height"        default="480"/>
-  <arg name="enable_depth"        default="true"/>
+  <arg name="enable_depth"        default="false"/>
 
   <arg name="infra_width"        default="640"/>
   <arg name="infra_height"       default="480"/>
@@ -21,7 +21,7 @@
 
   <arg name="color_width"         default="640"/>
   <arg name="color_height"        default="480"/>
-  <arg name="enable_color"        default="true"/>
+  <arg name="enable_color"        default="false"/>
 
   <arg name="fisheye_fps"         default="30"/>
   <arg name="depth_fps"           default="30"/>
@@ -37,14 +37,14 @@
   <arg name="pointcloud_texture_index"  default="0"/>
 
   <arg name="enable_sync"               default="true"/>
-  <arg name="align_depth"               default="true"/>
+  <arg name="align_depth"               default="false"/>
 
   <arg name="filters"                   default=""/>
   <arg name="clip_distance"             default="-2"/>
   <arg name="linear_accel_cov"          default="0.01"/>
   <arg name="initial_reset"             default="false"/>
   <arg name="unite_imu_method"          default="linear_interpolation"/>
-  <arg name="hold_back_imu_for_frames"          default="true"/>
+  <arg name="hold_back_imu_for_frames"          default="false"/>
   <arg name="topic_odom_in"             default="odom_in"/>
   <arg name="calib_odom_file"           default=""/>
   <arg name="publish_odom_tf"           default="true"/>
