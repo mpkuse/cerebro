@@ -189,7 +189,7 @@ target_link_libraries(cerebro_node
   ${THEIA_LIBRARIES}
 
   #${GPERFTOOLS_LIBRARIES}
-  #/usr/local/lib/libfaiss.so
+  /usr/local/lib/libfaiss.so
 )
 
 if(COMPILE_UNIT_TEST)

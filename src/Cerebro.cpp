@@ -52,7 +52,7 @@ void Cerebro::descriptor_computer_thread()
     //---------
     // Send a zeros image to the server just to know the descriptor size
     int nrows=-1, ncols=-1, desc_size=-1;
-    int nChannels = 3; //< ***This needs to be set correctly depending on the model_type****
+    int nChannels = 1; //< ***This needs to be set correctly depending on the model_type. If you need error messages from server about channels size, you need to change this. ****
     //----------
 
     // Service Call
@@ -199,7 +199,7 @@ void Cerebro::descriptor_computer_thread()
                     image_msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", image_curr).toImageMsg();
                 }
                 else if( nChannels == 1 ) {
-                    cout << "cv_bridge mono8 encoding\n";
+                    // cout << "cv_bridge mono8 encoding\n";
                     image_msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", image_curr).toImageMsg();
                 }
                 else {
@@ -310,9 +310,8 @@ void Cerebro::run()
 ///-----------------------------------------------------------------
 /// Nearest neighbors search using facebook research's faiss library's IndexFlatIP
 ///         Roughly follows : https://github.com/mpkuse/vins_mono_debug_pkg/blob/master/src_place_recog/faiss_try1.py
-
-// TODO>: Write a function similar in functionality to `descrip_N__dot__descrip_0_N`
-//        but using faiss
+/// This function is similar in functionality to `descrip_N__dot__descrip_0_N`
+///        but using faiss
 void Cerebro::faiss__naive_loopcandidate_generator()
 {
     assert( m_dataManager_available && "You need to set the DataManager in class Cerebro before execution of the run() thread can begin. You can set the dataManager by call to Cerebro::setDataManager()\n");
@@ -462,6 +461,9 @@ void Cerebro::faiss_clique_loopcandidate_generator()
     //-----------------//
     const int start_adding_descriptors_to_index_after = 150;
     const int K_NEAREST_NEIGHBOURS=5;
+    const double DOT_PROD_THRESH = 0.85; //0.85
+    const int LOCALITY = 7;//7
+    const int reset_accumulation_every_n_frames = 4; //4
 
     // wait until connected_to_descriptor_server=true and descriptor_size_available=true
     if( wait_until__connectedToDescServer_and_descSizeAvailable( 71 ) == false ) {
@@ -486,6 +488,7 @@ void Cerebro::faiss_clique_loopcandidate_generator()
 
     float * distances = new float[K_NEAREST_NEIGHBOURS];
     faiss::Index::idx_t * labels = new faiss::Index::idx_t[K_NEAREST_NEIGHBOURS];
+    map<faiss::Index::idx_t, int> retained; //< Accumulation map. reset every say 3 indices. tune this as per amount of computation available
 
     while( b_run_thread ) {
         l = wholeImageComputedList_size();
@@ -534,11 +537,14 @@ void Cerebro::faiss_clique_loopcandidate_generator()
 
 
         //----------- search
-        cout << TermColor::MAGENTA();
-        for( int l_i = last_l ; l_i < l ; l_i++ ) {
-            // cout << "\t\tindex.search(" << l_i << ")\t";
-            // cout << "index.search(" << wholeImageComputedList_at(l_i) << ")\t";
-            // cout << "index.ntotal=" << index.ntotal << "\n";
+        __faiss_clique_loopcandidate_generator__search(cout << TermColor::MAGENTA();)
+        for( int l_i = last_l ; l_i < l ; l_i++ )
+        {
+            __faiss_clique_loopcandidate_generator__search(
+            cout << "\t\tindex.search(" << l_i << ")\t";
+            cout << "index.search(" << wholeImageComputedList_at(l_i) << ")\t";
+            cout << "index.ntotal=" << index.ntotal << "\n";
+            )
             if( index.ntotal < K_NEAREST_NEIGHBOURS )
                 break;
 
@@ -550,48 +556,112 @@ void Cerebro::faiss_clique_loopcandidate_generator()
             // ElapsedTime time_to_search = ElapsedTime();
             index.search( 1, X_raw, K_NEAREST_NEIGHBOURS, distances, labels );
             // cout << "search done in (ms): " << time_to_search.toc_milli() << endl;
+
+            __faiss_clique_loopcandidate_generator__search(
+            // Printing
             for( int g=0 ; g<K_NEAREST_NEIGHBOURS; g++ ) {
-                if( distances[g] > 0.85 )
+                if( distances[g] > DOT_PROD_THRESH )
                     cout << TermColor::GREEN();
                 else cout << TermColor::MAGENTA();
                 printf( "%4d<--(%4.2f)-->%d\t", l_i, distances[g], labels[g] );
+                cout << TermColor::RESET();
+            }
+            cout << endl;
+            )
 
-                #if 1
-                int l_i___ = int(l_i / 10);
-                int label___ = int( labels[g] / 10 );
-                if( data_strc.count(l_i___) == 0 ) {
-                    map<int, float> mmm;
-                    mmm[label___] = (distances[g]>0.8)?distances[g]:0.0;
-                    data_strc[l_i___] = mmm;
+
+            // Go thru each nearest neighbours and add to list separated ones.                                              vv same as 168, ignore
+            // for example, if the neighbours: `802<--(0.92)-->606	 802<--(0.89)-->168	 802<--(0.89)-->172	 802<--(0.89)-->169	 802<--(0.88)-->607`
+            //                                                 ^^                   ^^                  ^^same as 168, so ignore                ^^ same as 606, ignore
+
+            // cout << "loop thru " << K_NEAREST_NEIGHBOURS << "\n";
+            for( int g=0 ; g < K_NEAREST_NEIGHBOURS ; g++ )
+            {
+                if( distances[g] < DOT_PROD_THRESH ) //since distances are arranged in decending order, if you start seeing below my threshold its time to not process further.
+                    break;
+
+                // cout << "g="<<g << ", label="<< labels[g] << ", dis="<< distances[g] ;
+                // cout << "\tloop thru retained. retained.size()=" << retained.size() << endl;
+                faiss::Index::idx_t duplicate = -1;
+                for( auto ity=retained.begin() ; ity!=retained.end() ; ity++ )
+                {
+                    // cout << "\tity->first=" << ity->first << endl;
+                    if( (ity->first - labels[g]) < LOCALITY )
+                    {
+                        // cout << "\tcond satisfied\n";
+                        duplicate = ity->first;
+                        break;
+                    }
+                }
+                if( duplicate != -1 ) {
+                    // cout << "\tthis was not uniq so increment the key=" << duplicate << " by 1\n";
+                    retained[ duplicate ]++;
                 } else {
-                    if( data_strc.at(l_i___).count( label___)==0 ) {
-                        data_strc.at(l_i___)[ label___ ] = (distances[g]>0.8)?distances[g]:0.0;
-                    } else {
-                        data_strc.at(l_i___).at( label___ ) += (distances[g]>0.8)?distances[g]:0.0;
+                    // cout << "\tadd new key at " << labels[g] << endl;
+                    retained[ labels[g] ] = 1;
+                }
+            }
+
+
+            if( retained.size() > 0 && l_i%reset_accumulation_every_n_frames == 0)
+            {
+                __faiss_clique_loopcandidate_generator__search(
+                cout << TermColor::iYELLOW() << "l_i=" << l_i << " retained (ie. added to `foundLoops`) cout all: ";
+                for( auto ity=retained.begin() ; ity!=retained.end() ; ity++ )
+                {
+                    cout << ity->first << ":" << ity->second << ", ";
+                }
+                cout << TermColor::RESET() << endl;
+                )
+
+                //%%%%
+                //%%%% NOTE: If you put all the feasible candidates into the foundLoops it causes
+                //%%%%       The pose computation to queue-up, since the number of candidates are too many.
+                //%%%%       Usually addition of more than 2 candidates at a time spells trouble.
+                //%%%%       I use simple heuristics when there are more than 3 items in the retained.
+
+
+                if( retained.size() == 1 )
+                {
+                    __faiss_clique_loopcandidate_generator__search(
+                    cout << "only 1 item in retained, pushback " << wholeImageComputedList[l-1] << "<--->" <<
+                                                        wholeImageComputedList[retained.begin()->first ] << endl;
+                                                    )
+                    std::lock_guard<std::mutex> lk(m_wholeImageComputedList);
+                    std::lock_guard<std::mutex> lk_foundloops(m_foundLoops);
+                    // __faiss_clique_loopcandidate_generator__search( cout << "pushback: " << wholeImageComputedList[l-1] << "<--->" << wholeImageComputedList[retained.begin()->first] << endl; )
+                    foundLoops.push_back( std::make_tuple( wholeImageComputedList[l-1],
+                                                        wholeImageComputedList[retained.begin()->first ],
+                                                        0.9 ) );
+                }
+
+                if( retained.size() > 1 )
+                {
+                    int percent = 100. / retained.size(); //will retain this many
+                    __faiss_clique_loopcandidate_generator__search( cout << "Retain %=" << percent << endl; )
+                    for( auto ity=retained.begin() ; ity!=retained.end() ; ity++ )
+                    {
+                        if( rand()%100 < percent ) {
+                        __faiss_clique_loopcandidate_generator__search( cout << "pushback: " << wholeImageComputedList[l-1] << "<--->" << wholeImageComputedList[ity->first] << endl; )
+                        foundLoops.push_back( std::make_tuple( wholeImageComputedList[l-1],
+                                                            wholeImageComputedList[ity->first ],
+                                                            0.9 ) );
+                        }
                     }
                 }
 
-                #endif
+
+                retained.clear();
             }
-            cout << endl ;
+
+
         }
-        cout << TermColor::RESET();
+
 
         last_l = l;
         rate.sleep();
     }
 
-
-    // Printout the datastructure
-    for( auto it=data_strc.begin() ; it!=data_strc.end() ; it++ ) {
-        auto mmm = it->second;
-        cout << it->first << " : ";
-        for( auto it2=mmm.begin() ; it2!=mmm.end() ; it2++ ) {
-            if( it2->second > 0 )
-                printf( "%04d,%02.2f ; ", it2->first, it2->second );
-        }
-        cout << endl;
-    }
 
     delete [] distances;
     delete [] labels;
@@ -639,6 +709,13 @@ void Cerebro::faiss_multihypothesis_tracking()
     ros::Rate rate(10);
     auto data_map = dataManager->getDataMapRef();
     HypothesisManager * hyp_manager = new HypothesisManager(); // there is a delete at the end of this function
+
+    // Start monitoring thread
+    hyp_manager->monitoring_thread_enable();
+    // hyp_manager->monitoring_thread_disable();
+    std::thread hyp_monitoring_th( &HypothesisManager::monitoring_thread, hyp_manager );
+
+
 
     int l=0, last_l=0, l_last_added_to_index=0;
 
@@ -690,7 +767,7 @@ void Cerebro::faiss_multihypothesis_tracking()
             l_last_added_to_index = l-start_adding_descriptors_to_index_after;
         } else {
             ___faiss_multihypothesis_tracking___add(
-                cout << "not seen enough. so,, add nothing. Will start adding after "<< start_adding_descriptors_to_index_after<< " descriptors\n";
+                cout << "not seen enough. so,, add nothing to the index. Will start adding after "<< start_adding_descriptors_to_index_after<< " descriptors\n";
             )
 
         }
@@ -717,12 +794,14 @@ void Cerebro::faiss_multihypothesis_tracking()
             // cout << "search done in (ms): " << time_to_search.toc_milli() << endl;
 
             // Loop over all the nearest neighbours
+            cout << "\t\t";
             for( int g=0 ; g<K_NEAREST_NEIGHBOURS; g++ ) {
                 if( distances[g] > 0.85 )
                     cout << TermColor::GREEN();
                 else cout << TermColor::MAGENTA();
-                printf( "%4d<--(%4.2f)-->%d\t", l_i, distances[g], labels[g] );
-                cout << endl << TermColor::RESET();
+                printf( "g=%d: %4d<--(%4.2f)-->%d\t", g, l_i, distances[g], labels[g] );
+                cout << TermColor::RESET();
+
 
 
                 if( distances[g] > 0.85  ) {
@@ -730,16 +809,20 @@ void Cerebro::faiss_multihypothesis_tracking()
                     hyp_manager->add_node( l_i, labels[g], distances[g] );
                 }
             }
-
-            // HypothesisManager->Digest()
             cout << endl ;
+
+            // Loop through each hypothesis and decrement the time-to-live
+            hyp_manager->digest();
         }
-        cout << TermColor::RESET();
+
 
         last_l = l;
         rate.sleep();
     }
 
+
+    hyp_manager->monitoring_thread_disable();
+    hyp_monitoring_th.join();
 
 
     delete [] distances;
@@ -776,7 +859,7 @@ void Cerebro::descrip_N__dot__descrip_0_N()
     //--- Main settings for this function
     //---
     int LOCALITY_THRESH = 12;
-    float DOT_PROD_THRESH = 0.85;
+    float DOT_PROD_THRESH = 0.80;
 
     ros::Rate rate(10);
 
