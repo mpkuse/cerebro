@@ -686,7 +686,7 @@ void DataManager::clean_up_useless_images_thread()
     //---
     // Settings
     //---
-    int keep_last_n_sec_in_ram = 3; //to be safe keep 10. 3-5 usually is fine.
+    int keep_last_n_sec_in_ram = 5; //to be safe keep 10. 3-5 usually is fine.
 
     cout << TermColor::GREEN() << "[DataManager::clean_up_useless_images_thread] Start thread "<< TermColor::RESET() << endl;
     ros::Rate looprate(0.3);

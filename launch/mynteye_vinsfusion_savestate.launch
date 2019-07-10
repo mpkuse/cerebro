@@ -35,8 +35,8 @@
     <!-- <arg name="bag_file" default="/kidnap/2019-02-14-12-00-21.bag" doc="3 kidnaps in lab. This gives the chained case for pose computation between worlds"/> -->
     <!-- <arg name="bag_file" default="/kidnap/2019-02-14-17-19-29.bag" doc="4 kidnaps in lab"/> -->
     <!-- <arg name="bag_file" default="/kidnap/2019-02-14-17-19-29.bag" doc="4 kidnaps in lab"/> -->
-    <!-- <arg name="bag_file" default="/kidnap/2019-02-21-17-10-30.bag" doc="0:-; 1:-; 2:merge(0), merge(1). 2nd merges with both 0 and 1."/> -->
-    <arg name="bag_file" default="/kidnap/2019-02-21-17-38-58.bag" doc="0:-; 1:-; 2:merge(0), merge(1). 2nd merges with both 0 and 1."/>
+    <arg name="bag_file" default="/kidnap/2019-02-21-17-10-30.bag" doc="0:-; 1:-; 2:merge(0), merge(1). 2nd merges with both 0 and 1."/>
+    <!-- <arg name="bag_file" default="/kidnap/2019-02-21-17-38-58.bag" doc="0:-; 1:-; 2:merge(0), merge(1). 2nd merges with both 0 and 1."/> -->
     <!-- <arg name="bag_file" default="/kidnap/2019-03-07-14-58-00.bag" doc="2 independent runs"/> -->
     <!-- <arg name="bag_file" default="/kidnap/2019-03-14-16-12-22.bag" doc="7 kidnaps. 0:; 1:; all next merges with 1. Final merge with 0 and 3."/> -->
     <!-- <arg name="bag_file" default="/kidnap/2019-03-14-16-36-58.bag" doc="10 kidnaps. 0; 1; merge everything with 1. finall all merge to zero. very complicated dependence structure of the walk,"/> -->
@@ -93,18 +93,18 @@
                         For example if you kept loadStateFromDisk as empty string, I will not load aka fresh start.
                         Similarly if you kept saveStateToDisk as empty, I will not write data to disk upon exit
                     -->
-        <node name="cerebro_node" pkg="cerebro" type="cerebro_node" output="log">
+        <node name="cerebro_node" pkg="cerebro" type="cerebro_node" output="screen">
            <param name="config_file" type="string" value="$(arg config_path)" />
 
-           <param name="loadStateFromDisk" type="string" value="/Bulk_Data/chkpts_cerebro/" />
-           <!-- <param name="loadStateFromDisk" type="string" value="" /> -->
-           <!-- <param name="saveStateToDisk" type="string" value="/Bulk_Data/chkpts_cerebro/" /> -->
-           <param name="saveStateToDisk" type="string" value="" />
+           <!-- <param name="loadStateFromDisk" type="string" value="/Bulk_Data/chkpts_cerebro/" /> -->
+           <param name="loadStateFromDisk" type="string" value="" />
+           <param name="saveStateToDisk" type="string" value="/Bulk_Data/chkpts_cerebro/" />
+           <!-- <param name="saveStateToDisk" type="string" value="" /> -->
         </node>
 
         <!-- KERAS SERVER -->
         <!-- $(ubuntu) rosrun cerebro whole_image_desc_compute_server.py _config_file:=/app/catk_ws/src/cerebro/config/vinsfusion/euroc/euroc_stereo_imu_config.yaml -->
-        <node name="my_desc_server" pkg="cerebro" type="whole_image_desc_compute_server.py" output="screen">
+        <node name="my_desc_server" pkg="cerebro" type="whole_image_desc_compute_server.py" output="log">
             <!-- <param name="kerasmodel_file" type="string" value="$(find cerebro)/scripts/keras.models/modelarch_and_weights.h5" /> -->
             <!-- <param name="kerasmodel_file" type="string" value="/models.keras/June2019/centeredinput-m1to1-240x320x3__mobilenet-conv_pw_6_relu__K16__allpairloss/modelarch_and_weights.500.h5" /> -->
             <!-- <param name="kerasmodel_file" type="string" value="$(find cerebro)/scripts/keras.models/June2019/centeredinput-m1to1-240x320x3__mobilenet-conv_pw_6_relu__K16__allpairloss/modelarch_and_weights.700.h5" /> -->
@@ -128,10 +128,10 @@
         <!-- Pose graph (kidnap aware) -->
         <!-- $(ubuntu) rosrun solve_keyframe_pose_graph keyframe_pose_graph_slam -->
         <node name="keyframe_pose_graph_slam_node" pkg="solve_keyframe_pose_graph" type="keyframe_pose_graph_slam" output="log" >
-            <param name="loadStateFromDisk" type="string" value="/Bulk_Data/chkpts_posegraph_solver/" />
-            <!-- <param name="loadStateFromDisk" type="string" value="" /> -->
-            <!-- <param name="saveStateToDisk" type="string" value="/Bulk_Data/chkpts_posegraph_solver/" /> -->
-            <param name="saveStateToDisk" type="string" value="" />
+            <!-- <param name="loadStateFromDisk" type="string" value="/Bulk_Data/chkpts_posegraph_solver/" /> -->
+            <param name="loadStateFromDisk" type="string" value="" />
+            <param name="saveStateToDisk" type="string" value="/Bulk_Data/chkpts_posegraph_solver/" />
+            <!-- <param name="saveStateToDisk" type="string" value="" /> -->
         </node>
     </group>
 

@@ -911,6 +911,7 @@ void Cerebro::descrip_N__dot__descrip_0_N()
     //---
     int LOCALITY_THRESH = 12;
     float DOT_PROD_THRESH = 0.85;
+    const int start_adding_descriptors_to_index_after = 50;
 
     ros::Rate rate(10);
 
@@ -944,7 +945,7 @@ void Cerebro::descrip_N__dot__descrip_0_N()
     int last_processed=0;
     MatrixXd M = MatrixXd::Zero( this->descriptor_size, 29000 ); // TODO: Need dynamic allocation here.
     cout << "[Cerebro::descrip_N__dot__descrip_0_N] M.rows = " << M.rows() << "  M.cols=" << M.cols()  << endl;
-
+    cout << "[Cerebro::descrip_N__dot__descrip_0_N] TODO: Need dynamic allocation here.\n";
 
     #if __Cerebro__descrip_N__dot__descrip_0_N__implotting > 0
     // Plotting image
@@ -1015,7 +1016,7 @@ void Cerebro::descrip_N__dot__descrip_0_N()
         //////////////////////////////////////
         ////----------- DOT PRODUCT----------
         /////////////////////////////////////
-        int k = l - 50; // given a stamp, l, get another stamp k. better make this to 200.
+        int k = l - start_adding_descriptors_to_index_after; // given a stamp, l, get another stamp k. better make this to 200.
 
         //usable size of M is 8192xl, let k (k<l) be the length until which dot is needed by time.
         if( k > 5 ) {
@@ -2490,7 +2491,7 @@ bool Cerebro::wait_until__connectedToDescServer_and_descSizeAvailable( int timeo
         rate.sleep();
         wait_itr++;
         if( wait_itr > timeout_in_sec*10 ) {
-            __Cerebro__run__( cout << TermColor::RED() << "[Cerebro::wait_until__connectedToDescServer_and_descSizeAvailable] `this->connected_to_descriptor_server && this->descriptor_size_available` has not become true dispite waiting for about 15sec. So quiting the run thread.\n" << TermColor::RESET(); )
+            __Cerebro__run__( cout << TermColor::RED() << "[Cerebro::wait_until__connectedToDescServer_and_descSizeAvailable] `this->connected_to_descriptor_server && this->descriptor_size_available` has not become true dispite waiting for about "<< timeout_in_sec << " sec. So quiting the run thread.\n" << TermColor::RESET(); )
             return false;
         }
     }
