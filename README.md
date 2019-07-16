@@ -11,7 +11,10 @@ for reliable pose computation.
 This is a multi-threaded object oriented implementation and I observe a CPU load factor
 of about 2.0. A separate node handles pose graph solver (it is in [github-repo](https://github.com/mpkuse/solve_keyframe_pose_graph) ).
 
-If you use this work in your research, please cite: 
+This repo also support for saving the trajectories to file and later
+loading it from file for relocalization. See [launch/realsense_vinsfusion_ondrone_teach.launch](launch/realsense_vinsfusion_ondrone_teach.launch) on how to do it.
+
+If you use this work in your research, please cite:
 Manohar Kuse and Shaojie Shen, *“Learning Whole-Image Descriptors for Real-time Loop Detection and Kidnap Recovery under Large Viewpoint Difference“*, https://arxiv.org/abs/1904.06962
 
 ## Highlight Video
@@ -19,15 +22,20 @@ Manohar Kuse and Shaojie Shen, *“Learning Whole-Image Descriptors for Real-tim
 
 
 ## MyntEye Demo (Using VINS-Fusion as Odometry Estimator)
+We showcase the kidnap recovery and relocalization.
 [![IMAGE ALT TEXT](http://img.youtube.com/vi/3YQF4_v7AEg/0.jpg)](http://www.youtube.com/watch?v=3YQF4_v7AEg "Video Title")
 
 
 [![IMAGE ALT TEXT](http://img.youtube.com/vi/sTd_rZdW4DQ/0.jpg)](http://www.youtube.com/watch?v=sTd_rZdW4DQ "Video Title")
 
 
-## In Plane Rotation Test
+## In Plane Rotation Test (Uses Realsense Camera)
 [![IMAGE ALT TEXT](http://img.youtube.com/vi/8bsRCNF2rnA/0.jpg)](http://www.youtube.com/watch?v=8bsRCNF2rnA "Video Title")
 
+## Relocalization from Previously Constructed Trajectories.
+We show the accurary of the system by plotting a previously constructed surfel map (in gray color)
+and the newly constructed surfel map (rainbox colored). We can observe that the boxes for example in the environment overlap. Similarly other objects in the seen also overlap. 
+[![IMAGE ALT TEXT](http://img.youtube.com/vi/OViEEB3rINo/0.jpg)](http://www.youtube.com/watch?v=OViEEB3rINo "Video Title")
 
 ## MyntEye Demo (Using VINS-Mono as Odometry Estimator)
 [![IMAGE ALT TEXT](http://img.youtube.com/vi/KDRo9LpL6Hs/0.jpg)](http://www.youtube.com/watch?v=KDRo9LpL6Hs "Video Title")
