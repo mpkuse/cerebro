@@ -36,16 +36,16 @@
 
     <group if="1">
         <!-- Cerebro -->
-        <node name="cerebro_node" pkg="cerebro" type="cerebro_node" output="log">
+        <node name="cerebro_node" pkg="cerebro" type="cerebro_node" output="screen">
            <param name="config_file" type="string" value="$(arg config_path)" />
 
            <param name="loadStateFromDisk" type="string" value="" />
-           <param name="saveStateToDisk" type="string" value="/home/dji/chkpts_cerebro/" />
+           <param name="saveStateToDisk" type="string" value="/Bulk_Data/chkpts_cerebro/" />
 
         </node>
 
         <!-- no need to run the default server as the server is run else using the package https://github.com/mpkuse/tx2_whole_image_desc_server -->
-        <group if="0" >
+        <group if="1" >
             <!-- KERAS SERVER -->
             <!-- $(ubuntu) rosrun cerebro whole_image_desc_compute_server.py _config_file:=/app/catk_ws/src/cerebro/config/vinsfusion/euroc/euroc_stereo_imu_config.yaml -->
             <node name="my_desc_server" pkg="cerebro" type="whole_image_desc_compute_server.py" output="log">
@@ -73,7 +73,7 @@
         <node name="keyframe_pose_graph_slam_node" pkg="solve_keyframe_pose_graph" type="keyframe_pose_graph_slam" output="screen" >
 
             <param name="loadStateFromDisk" type="string" value="" />
-            <param name="saveStateToDisk" type="string" value="/home/dji/chkpts_posegraph_solver/" />
+            <param name="saveStateToDisk" type="string" value="/Bulk_Data/chkpts_posegraph_solver/" />
 
             <param name="adhoc_pubpath" type="string" value="true" />
             <param name="adhoc_pubw0_T_w1" type="string" value="false" />
