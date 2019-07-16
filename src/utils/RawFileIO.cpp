@@ -309,7 +309,14 @@ bool RawFileIO::if_file_exist( char * fname )
 
 bool RawFileIO::if_file_exist( string fname ) { return if_file_exist( fname.c_str() ); }
 
+bool RawFileIO::is_path_a_directory(const char* path)
+{
+    struct stat buf;
+    stat(path, &buf);
+    return S_ISDIR(buf.st_mode);
+}
 
+bool RawFileIO::is_path_a_directory(const string path) { return is_path_a_directory(path.c_str() ); }
 
 int RawFileIO::exec_cmd( const string& system_cmd ) //< Executes a unix command.
 {
@@ -317,3 +324,137 @@ int RawFileIO::exec_cmd( const string& system_cmd ) //< Executes a unix command.
     const int _err_code = system( system_cmd.c_str() );
     return _err_code;
 }
+
+
+#ifdef WITH_NLOHMANN_JSON
+bool RawFileIO::read_eigen_matrix_fromjson( const json str, MatrixXd&  output )
+{
+    int ncols = str["cols"];
+    int nrows = str["rows"];
+    string data = str["data"];
+    if( ncols > 0 && ncols > 0 )
+        output = MatrixXd::Zero(nrows, ncols );
+    else {
+        cout << "[RawFileIO::read_eigen_matrix_fromjson] ERROR, nrows and cols should be positive\n";
+        return false;
+    }
+
+
+    // split( data, '\n')
+    vector<string> all_rows = MiscUtils::split( data, '\n' );
+    if( nrows != all_rows.size() )
+    {
+        cout << "[RawFileIO::read_eigen_matrix_fromjson] ERROR, requested " << nrows << " but actually are " << all_rows.size() << endl;
+        return false;
+    }
+    for( int r=0 ; r<all_rows.size() ; r++ )
+    {
+        vector<string> all_cols_for_this_row = MiscUtils::split( all_rows[r], ',' );
+        if( ncols != all_cols_for_this_row.size() )
+        {
+            cout << "[RawFileIO::read_eigen_matrix_fromjson] ERROR, requested " << ncols << " but actually are " << all_cols_for_this_row.size() << " for row=" << r << endl;
+            return false;
+        }
+
+        for( int c=0 ; c<all_cols_for_this_row.size() ; c++ )
+        {
+            output(r, c) = std::stod( all_cols_for_this_row[c] );
+        }
+    }
+    return true;
+
+}
+#endif //WITH_NLOHMANN_JSON
+
+
+#ifdef WITH_NLOHMANN_JSON
+// The input json need to be something like:
+//{
+//            "cols": 4,
+//            "rows": 4,
+//            "data": "0.2857131543876468, -0.2530077727001951, 0.9243132912401226, -0.02953755668229465,\t\n-0.9566719337894203, -0.01884313243445668, 0.2905576491157474, 0.2114882406102183,\t\n-0.05609638588601445, -0.9672807262182707, -0.2474291659792429, 0.04534835279466286,\t\n0, 0, 0, 1"
+// }
+bool RawFileIO::read_eigen_matrix4d_fromjson( const json str, Matrix4d&  output )
+{
+    output = Matrix4d::Zero();
+    int ncols = str["cols"];
+    int nrows = str["rows"];
+    string data = str["data"];
+
+    if( ncols != 4 || nrows != 4 )
+    {
+        cout << "[RawFileIO::read_eigen_matrix4d_fromjson] ERROR, you request to convert to Matrix4d however the input json rows and cols != 4x4\n";
+        return false;
+    }
+
+
+    // split( data, '\n')
+    vector<string> all_rows = MiscUtils::split( data, '\n' );
+    if( nrows != all_rows.size() )
+    {
+        cout << "[RawFileIO::read_eigen_matrix4d_fromjson] ERROR, requested " << nrows << " but actually are " << all_rows.size() << endl;
+        return false;
+    }
+    for( int r=0 ; r<all_rows.size() ; r++ )
+    {
+        vector<string> all_cols_for_this_row = MiscUtils::split( all_rows[r], ',' );
+        if( ncols != all_cols_for_this_row.size() )
+        {
+            cout << "[RawFileIO::read_eigen_matrix4d_fromjson] ERROR, requested " << ncols << " but actually are " << all_cols_for_this_row.size() << " for row=" << r << endl;
+            return false;
+        }
+
+        for( int c=0 ; c<all_cols_for_this_row.size() ; c++ )
+        {
+            output(r, c) = std::stod( all_cols_for_this_row[c] );
+        }
+    }
+    return true;
+
+}
+#endif //WITH_NLOHMANN_JSON
+
+#ifdef WITH_NLOHMANN_JSON
+bool RawFileIO::read_eigen_vector_fromjson( const json str, VectorXd&  output )
+{
+    int ncols = str["cols"];
+    int nrows = str["rows"];
+    string data = str["data"];
+
+    if( nrows > 0 ) {
+        output = VectorXd::Zero( nrows );
+    }
+    else {
+        cout << "[RawFileIO::read_eigen_vector_fromjson] ERROR, nrows should be positive\n";
+        return false;
+    }
+
+    if( ncols != 1 )
+    {
+        cout << "[RawFileIO::read_eigen_vector_fromjson] ERROR, you request to convert to VectorXd however the input json cols != 1\n";
+        return false;
+    }
+
+    vector<string> all_rows = MiscUtils::split( data, '\n' );
+    if( nrows != all_rows.size() )
+    {
+        cout << "[RawFileIO::read_eigen_vector_fromjson] ERROR, requested " << nrows << " but actually are " << all_rows.size() << endl;
+        return false;
+    }
+
+    for( int r=0 ; r<all_rows.size() ; r++ )
+    {
+        vector<string> all_cols_for_this_row = MiscUtils::split( all_rows[r], ',' );
+        if( all_cols_for_this_row.size() != 1 )
+        {
+            cout << "[RawFileIO::read_eigen_vector_fromjson] ERROR, requested " << ncols << " but actually are " << all_cols_for_this_row.size() << " for row=" << r << endl;
+            return false;
+        }
+
+        output( r ) = std::stod( all_cols_for_this_row[0] );
+    }
+    return true;
+
+
+}
+#endif //WITH_NLOHMANN_JSON

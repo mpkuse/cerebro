@@ -1,0 +1,85 @@
+<launch timeout="100.0">
+
+    <!-- CONFIG FILE -->
+    <arg name="config_path" default="$(find cerebro)/config/vinsfusion/realsense_d435i/realsense_stereo_imu_config.yaml" />
+
+
+    <!-- BAG -->
+    <arg name="bag_path" default="/Bulk_Data/ros_bags/realsense/" />
+
+    <!-- Teach repeat -->
+    <arg name="bag_file" default="/teach-repeat-bags/2019-07-09-11-06-23.bag" doc="teach"/>
+    <!-- <arg name="bag_file" default="/teach-repeat-bags/2019-07-09-11-08-10.bag" doc="teach"/> -->
+
+
+    <!-- <node pkg="rosbag" type="play" name="rosbag" args="$(arg bag_path)/$(arg bag_file) -s 1 -d 2" output="log"/> -->
+
+    <!-- END Bag -->
+
+
+    <!-- VINS-Fusion Estimator -->
+    <!-- unlike previous vins-mono, even the feature tracker is put inside 1 node ie. vins_node.
+    $(ubuntu) rosrun vins vins_node /app/catkin_ws/src/cerebro/config/vinsfusion/mynteye/mynteye_stereo_imu_config.yaml
+    -->
+    <node name="vins_estimator" pkg="vins" type="vins_node" args=" $(arg config_path)" output="log">
+    </node>
+
+    <group if="0">
+        <!-- VINS-Fusion loop_fusion -->
+        <!-- This is the DBOW + posegraph optimization from Qin Tong
+        $(ubuntu) rosrun loop_fusion loop_fusion_node /app/catkin_ws/src/cerebro/config/vinsfusion/euroc/euroc_stereo_imu_config.yaml
+        -->
+        <node name="loop_fusion" pkg="loop_fusion" type="loop_fusion_node" args=" $(arg config_path)" output="log">
+        </node>
+    </group>
+
+
+    <group if="1">
+        <!-- Cerebro -->
+        <node name="cerebro_node" pkg="cerebro" type="cerebro_node" output="screen">
+           <param name="config_file" type="string" value="$(arg config_path)" />
+
+           <param name="loadStateFromDisk" type="string" value="" />
+           <param name="saveStateToDisk" type="string" value="/Bulk_Data/chkpts_cerebro/" />
+
+        </node>
+
+        <!-- no need to run the default server as the server is run else using the package https://github.com/mpkuse/tx2_whole_image_desc_server -->
+        <group if="1" >
+            <!-- KERAS SERVER -->
+            <!-- $(ubuntu) rosrun cerebro whole_image_desc_compute_server.py _config_file:=/app/catk_ws/src/cerebro/config/vinsfusion/euroc/euroc_stereo_imu_config.yaml -->
+            <node name="my_desc_server" pkg="cerebro" type="whole_image_desc_compute_server.py" output="log">
+              <!-- <param name="kerasmodel_file" type="string" value="$(find cerebro)/scripts/keras.models/mobilenet_conv7_allpairloss.keras" /> -->
+              <!-- <param name="kerasmodel_file" type="string" value="$(find cerebro)/scripts/keras.models/modelarch_and_weights.h5" /> -->
+              <!-- <param name="kerasmodel_file" type="string" value="$(find cerebro)/scripts/keras.models/June2019/centeredinput-m1to1-240x320x3__mobilenet-conv_pw_6_relu__K16__allpairloss/modelarch_and_weights.700.h5" /> -->
+              <!-- <param name="kerasmodel_file" type="string" value="$(find cerebro)/scripts/keras.models/June2019/centeredinput-m1to1-240x320x3__mobilenetv2-block_9_add__K16__allpairloss/modelarch_and_weights.800.h5" /> -->
+              <param name="kerasmodel_file" type="string" value="$(find cerebro)/scripts/keras.models/June2019/centeredinput-m1to1-240x320x1__mobilenetv2-block_9_add__K16__allpairloss/modelarch_and_weights.2000.h5" />
+
+
+               <param name="config_file" type="string" value="$(arg config_path)" />
+               <!--         OR -->
+               <!--
+               <param name="nrows" type="string" value="480" />
+               <param name="ncols" type="string" value="752" />
+                -->
+
+               <param name="nchnls" type="string" value="1" />
+               <!-- <param name="nchnls" type="string" value="3" /> -->
+            </node>
+        </group>
+
+        <!-- Pose graph (kidnap aware) -->
+        <!-- $(ubuntu) rosrun solve_keyframe_pose_graph keyframe_pose_graph_slam -->
+        <node name="keyframe_pose_graph_slam_node" pkg="solve_keyframe_pose_graph" type="keyframe_pose_graph_slam" output="screen" >
+
+            <param name="loadStateFromDisk" type="string" value="" />
+            <param name="saveStateToDisk" type="string" value="/Bulk_Data/chkpts_posegraph_solver/" />
+
+            <param name="adhoc_pubpath" type="string" value="true" />
+            <param name="adhoc_pubw0_T_w1" type="string" value="false" />
+
+
+        </node>
+    </group>
+
+</launch>
