@@ -5,7 +5,8 @@
 imu: 1
 num_of_cam: 2
 
-imu_topic: "/camera/imu"
+#imu_topic: "/camera/imu"
+imu_topic: "/djiros/imu"
 image0_topic: "/camera/infra1/image_rect_raw"
 image1_topic: "/camera/infra2/image_rect_raw"
 output_path: "/home/dji/output/"
@@ -33,29 +34,31 @@ body_T_cam0: !!opencv-matrix
    rows: 4
    cols: 4
    dt: d
-   data: [ -5.7586305857286746e-03, -4.0463318787729019e-03,
-       9.9997523237933461e-01, 2.0329267950355900e-02,
-       -9.9998287214160420e-01, -1.0224590553211677e-03,
-       -5.7628118925283633e-03, 7.9325209639615653e-03,
-       1.0457519809151661e-03, -9.9999129084997906e-01,
-       -4.0403746097850135e-03, 2.8559824645148020e-03, 0., 0., 0., 1. ]
+   data: [ -1.0406548080980293e-02, -6.8339359975994052e-04,
+       9.9994561688635142e-01, 5.2600599061337287e-02,
+       -9.9994461366801901e-01, -1.5656625000493030e-03,
+       -1.0407607662295648e-02, 2.5510536758700533e-02,
+       1.5726898469127781e-03, -9.9999854083599726e-01,
+       -6.6706260700977182e-04, 9.5887981235633201e-03, 0., 0., 0., 1. ]
+
+
 
 body_T_cam1: !!opencv-matrix
    rows: 4
    cols: 4
    dt: d
-   data: [ -1.0021770212322867e-03, 3.6313480322730518e-04,
-       9.9999943188700535e-01, 1.5285779565991807e-02,
-       -9.9999216342926500e-01, -3.8303422615924010e-03,
-       -1.0007788055728661e-03, -5.2435791444330505e-02,
-       3.8299766679101843e-03, -9.9999259827824449e-01,
-       3.6697063849344680e-04, 8.6931302450199057e-03, 0., 0., 0., 1. ]
+   data: [ -1.3185778504660295e-02, 1.2513252883544768e-04,
+       9.9991305601390978e-01, 4.2975722207919849e-02,
+       -9.9984703667423980e-01, 1.1490149582040754e-02,
+       -1.3186345829069746e-02, -5.4397185804457168e-02,
+       -1.1490800623434938e-02, -9.9993397822277874e-01,
+       -2.6393179226591457e-05, 1.8167602224138771e-02, 0., 0., 0., 1. ]
 
 #Multiple thread support
 multiple_thread: 1
 
 #feature traker paprameters
-max_cnt: 150            # max feature number in feature tracking
+max_cnt: 100            # max feature number in feature tracking
 min_dist: 30            # min distance between two features
 freq: 10                # frequence (Hz) of publish tracking result. At least 10Hz for good estimation. If set 0, the frequence will be same as raw image
 F_threshold: 1.0        # ransac threshold (pixel)
@@ -75,7 +78,7 @@ gyr_w: 0.0001       # gyroscope bias random work noise standard deviation.     #
 g_norm: 9.805         # gravity magnitude
 
 #unsynchronization parameters
-estimate_td: 1                      # online estimate time offset between camera and imu
+estimate_td: 0                      # online estimate time offset between camera and imu
 td: 0.00                             # initial value of time offset. unit: s. readed image clock + td = real image clock (IMU clock)
 
 #loop closure parameters

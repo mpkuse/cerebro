@@ -7,9 +7,10 @@
     <!-- BAG -->
     <!-- <arg name="bag_path" default="/Bulk_Data/ros_bags/realsense/" /> -->
 
-    <!-- <arg name="bag_file" default="2019-05-14-13-26-05.bag" doc="realsense in lab seq" /> -->
-    <!-- <arg name="bag_file" default="2019-05-16-14-57-55.bag" doc="loopy and 2 kidnaps" /> -->
 
+    <!-- Teach repeat -->
+    <arg name="bag_file" default="/teach-repeat-bags/2019-07-09-11-06-23.bag" doc="teach"/>
+    <!-- <arg name="bag_file" default="/teach-repeat-bags/2019-07-09-11-08-10.bag" doc="teach"/> -->
 
 
     <!-- <node pkg="rosbag" type="play" name="rosbag" args="$(arg bag_path)/$(arg bag_file) -s 1 -d 2" output="log"/> -->
@@ -36,8 +37,17 @@
 
     <group if="0">
         <!-- Cerebro -->
-        <node name="cerebro_node" pkg="cerebro" type="cerebro_node" output="screen">
+        <node name="cerebro_node" pkg="cerebro" type="cerebro_node" output="log">
            <param name="config_file" type="string" value="$(arg config_path)" />
+
+
+           <!-- <param name="loadStateFromDisk" type="string" value="" />
+           <param name="saveStateToDisk" type="string" value="/Bulk_Data/chkpts_cerebro/" /> -->
+
+
+           <param name="loadStateFromDisk" type="string" value="/Bulk_Data/chkpts_cerebro/" />
+           <param name="saveStateToDisk" type="string" value="" />
+
         </node>
 
         <!-- KERAS SERVER -->
@@ -46,7 +56,8 @@
           <!-- <param name="kerasmodel_file" type="string" value="$(find cerebro)/scripts/keras.models/mobilenet_conv7_allpairloss.keras" /> -->
           <!-- <param name="kerasmodel_file" type="string" value="$(find cerebro)/scripts/keras.models/modelarch_and_weights.h5" /> -->
           <!-- <param name="kerasmodel_file" type="string" value="$(find cerebro)/scripts/keras.models/June2019/centeredinput-m1to1-240x320x3__mobilenet-conv_pw_6_relu__K16__allpairloss/modelarch_and_weights.700.h5" /> -->
-          <param name="kerasmodel_file" type="string" value="$(find cerebro)/scripts/keras.models/June2019/centeredinput-m1to1-240x320x3__mobilenetv2-block_9_add__K16__allpairloss/modelarch_and_weights.800.h5" />
+          <!-- <param name="kerasmodel_file" type="string" value="$(find cerebro)/scripts/keras.models/June2019/centeredinput-m1to1-240x320x3__mobilenetv2-block_9_add__K16__allpairloss/modelarch_and_weights.800.h5" /> -->
+          <param name="kerasmodel_file" type="string" value="$(find cerebro)/scripts/keras.models/June2019/centeredinput-m1to1-240x320x1__mobilenetv2-block_9_add__K16__allpairloss/modelarch_and_weights.2000.h5" />
 
 
            <param name="config_file" type="string" value="$(arg config_path)" />
@@ -56,13 +67,21 @@
            <param name="ncols" type="string" value="752" />
             -->
 
-           <!-- <param name="nchnls" type="string" value="1" />  -->
-           <param name="nchnls" type="string" value="3" />
+           <param name="nchnls" type="string" value="1" />
+           <!-- <param name="nchnls" type="string" value="3" /> -->
         </node>
 
         <!-- Pose graph (kidnap aware) -->
         <!-- $(ubuntu) rosrun solve_keyframe_pose_graph keyframe_pose_graph_slam -->
-        <node name="keyframe_pose_graph_slam_node" pkg="solve_keyframe_pose_graph" type="keyframe_pose_graph_slam" output="log" >
+        <node name="keyframe_pose_graph_slam_node" pkg="solve_keyframe_pose_graph" type="keyframe_pose_graph_slam" output="screen" >
+
+            <!-- <param name="loadStateFromDisk" type="string" value="" />
+            <param name="saveStateToDisk" type="string" value="/Bulk_Data/chkpts_posegraph_solver/" /> -->
+
+
+            <param name="loadStateFromDisk" type="string" value="/Bulk_Data/chkpts_posegraph_solver/" />
+            <param name="saveStateToDisk" type="string" value="" />
+
         </node>
     </group>
 

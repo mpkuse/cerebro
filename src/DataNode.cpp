@@ -118,6 +118,28 @@ void DataNode::setPoseFromMsg( const nav_msgs::OdometryConstPtr msg )
 }
 
 
+void DataNode::setPose( const Matrix4d __wTc )
+{
+    std::lock_guard<std::mutex> lk(m);
+
+    wTc_covariance = MatrixXd::Zero(6,6);
+    wTc = Matrix4d( __wTc );
+
+    m_wTc = true;
+}
+
+void DataNode::setPose( const ros::Time __t, const Matrix4d __wTc )
+{
+    std::lock_guard<std::mutex> lk(m);
+
+    wTc_covariance = MatrixXd::Zero(6,6);
+    wTc = Matrix4d( __wTc );
+
+    t_wTc = __t;
+    m_wTc = true;
+}
+
+
 void DataNode::setPointCloudFromMsg( const sensor_msgs::PointCloudConstPtr msg )
 {
     std::lock_guard<std::mutex> lk(m);
@@ -366,7 +388,7 @@ void DataNode::prettyPrint()
 
     }
     else { cout << "\tImage: N/A\n"; }
-    #endif 
+    #endif
 
     if( isPoseAvailable() ) {
         Matrix4d _pose = this->getPose();
