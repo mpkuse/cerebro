@@ -42,8 +42,8 @@ void Cerebro::setPublishers( const string base_topic_name )
 #define __Cerebro__descriptor_computer_thread( msg ) ;
 // #define __Cerebro__descriptor_computer_thread( msg ) msg
 
-// #define __Cerebro__descriptor_computer_thread__imp( msg ) ;
-#define __Cerebro__descriptor_computer_thread__imp( msg ) msg;
+#define __Cerebro__descriptor_computer_thread__imp( msg ) ;
+// #define __Cerebro__descriptor_computer_thread__imp( msg ) msg;
 void Cerebro::descriptor_computer_thread()
 {
     assert( m_dataManager_available && "You need to set the DataManager in class Cerebro before execution of the run() thread can begin. You can set the dataManager by call to Cerebro::setDataManager()\n");
@@ -338,8 +338,8 @@ void Cerebro::wholeImageComputedList_pushback( const ros::Time __tx )
 
 
 
-#define __Cerebro__run__( msg ) msg ;
-// #define __Cerebro__run__( msg ) ;
+// #define __Cerebro__run__( msg ) msg ;
+#define __Cerebro__run__( msg ) ;
 
 // #define __Cerebro__run__debug( msg ) msg ;
 #define __Cerebro__run__debug( msg ) ;
@@ -1167,8 +1167,8 @@ json Cerebro::foundLoops_as_JSON()
 //------------------ Geometry Thread ---------------------------//
 //--------------------------------------------------------------//
 
-#define __Cerebro__loopcandi_consumer__(msg) msg;
-// #define __Cerebro__loopcandi_consumer__(msg)  ;
+// #define __Cerebro__loopcandi_consumer__(msg) msg;
+#define __Cerebro__loopcandi_consumer__(msg)  ;
 // ^This will also imshow image-pairs with gms-matches marked.
 
 // #define __Cerebro__loopcandi_consumer__IMP( msg ) msg;
@@ -1401,8 +1401,8 @@ bool Cerebro::retrive_stereo_pair( DataNode* node, cv::Mat& left_image, cv::Mat&
     }
 
     #if 1
-    cout << "left_image: " << MiscUtils::cvmat_info( left_image ) << "\n";
-    cout << "right_image: " << MiscUtils::cvmat_info( right_image ) << "\n";
+    cout << "[Cerebro::retrive_stereo_pair]left_image: " << MiscUtils::cvmat_info( left_image ) << "\n";
+    cout << "[Cerebro::retrive_stereo_pair]right_image: " << MiscUtils::cvmat_info( right_image ) << "\n";
     cout << endl;
     #endif
     return true;

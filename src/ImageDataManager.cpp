@@ -108,8 +108,8 @@ bool ImageDataManager::setNewImageFromMsg( const string ns, const sensor_msgs::I
 }
 
 
-#define __ImageDataManager__getImage( msg ) msg;
-// #define __ImageDataManager__getImage( msg ) ;
+// #define __ImageDataManager__getImage( msg ) msg;
+#define __ImageDataManager__getImage( msg ) ;
 bool ImageDataManager::getImage( const string ns, const ros::Time t, cv::Mat& outImg )
 {
     ensure_init();
@@ -133,7 +133,12 @@ bool ImageDataManager::getImage( const string ns, const ros::Time t, cv::Mat& ou
                 __ImageDataManager__getImage(
                 cout << TermColor::iYELLOW() << "[ImageDataManager::getImage] retrived (fname=" << fname << ") at ns=" << ns << " t=" << t << TermColor::RESET() << endl;
                 )
-                outImg = cv::imread( fname, -1 ); //-1 is for read as it is.
+
+                if( ns == "depth_image" ) {
+                    outImg = cv::imread( fname+".png", -1 );
+                } else {
+                    outImg = cv::imread( fname, -1 ); //-1 is for read as it is.
+                }
                 if( !outImg.data )
                 {
                     cout << TermColor::RED() << "[ImageDataManager::getImage] failed to load image " << fname << TermColor::RESET() << endl;
@@ -246,7 +251,12 @@ bool ImageDataManager::stashImage( const string ns, const ros::Time t )
             )
 
             // todo: tune jpg quality for saving on more disk space. default is 95/100 for jpg.
-            cv::imwrite( sfname, it_b->second );
+            if( it_b->second.type() == CV_16UC1 ) {
+                // write PNG for depth image
+                cv::imwrite( sfname+".png", it_b->second );
+            }else {
+                cv::imwrite( sfname, it_b->second );
+            }
 
             // erase from map
             image_data.erase( it_b );
