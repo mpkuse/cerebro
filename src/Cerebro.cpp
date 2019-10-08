@@ -1372,7 +1372,7 @@ bool Cerebro::retrive_stereo_pair( DataNode* node, cv::Mat& left_image, cv::Mat&
     img_data_mgr->getImage( "left_image", node->getT(), bgr_left_image );
     img_data_mgr->getImage( "right_image", node->getT(), bgr_right_image );
 
-            #if 1
+            #if 0
             cout << "bgr_left_image: " << MiscUtils::cvmat_info( bgr_left_image ) << "\n";
             cout << "bgr_right_image: " << MiscUtils::cvmat_info( bgr_right_image ) << "\n";
             #endif
@@ -1400,7 +1400,7 @@ bool Cerebro::retrive_stereo_pair( DataNode* node, cv::Mat& left_image, cv::Mat&
         right_image = bgr_right_image;
     }
 
-    #if 1
+    #if 0
     cout << "[Cerebro::retrive_stereo_pair]left_image: " << MiscUtils::cvmat_info( left_image ) << "\n";
     cout << "[Cerebro::retrive_stereo_pair]right_image: " << MiscUtils::cvmat_info( right_image ) << "\n";
     cout << endl;

@@ -308,10 +308,10 @@ void DataManager::raw_image_callback_1( const sensor_msgs::ImageConstPtr& msg )
 
 void DataManager::depth_image_callback( const sensor_msgs::ImageConstPtr& msg )
 {
-    // __DATAMANAGER_CALLBACK_PRINT(
+    __DATAMANAGER_CALLBACK_PRINT(
     cout << "[cerebro/depth_image_callback]" << msg->header.stamp << "\t" << msg->header.stamp-pose_0 << "\t";
     cout << "depth image encoding: " << msg->encoding << endl;
-    // )
+    )
     depth_im_buf.push( msg );
     return ;
 }
@@ -763,8 +763,8 @@ void DataManager::clean_up_useless_images_thread()
 }
 
 
-#define __DataManager__data_association_thread__( msg ) msg;
-// #define __DataManager__data_association_thread__( msg ) ;
+// #define __DataManager__data_association_thread__( msg ) msg;
+#define __DataManager__data_association_thread__( msg ) ;
 
 void DataManager::data_association_thread( int max_loop_rate_in_hz )
 {
