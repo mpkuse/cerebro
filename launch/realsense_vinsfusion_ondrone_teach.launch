@@ -70,7 +70,7 @@
 
         <!-- Pose graph (kidnap aware) -->
         <!-- $(ubuntu) rosrun solve_keyframe_pose_graph keyframe_pose_graph_slam -->
-        <node name="keyframe_pose_graph_slam_node" pkg="solve_keyframe_pose_graph" type="keyframe_pose_graph_slam" output="screen" >
+        <node name="keyframe_pose_graph_slam_node" pkg="solve_keyframe_pose_graph" type="keyframe_pose_graph_slam" output="log" >
 
             <param name="loadStateFromDisk" type="string" value="" />
             <param name="saveStateToDisk" type="string" value="/Bulk_Data/chkpts_posegraph_solver/" />

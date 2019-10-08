@@ -305,6 +305,18 @@ void DataManager::raw_image_callback_1( const sensor_msgs::ImageConstPtr& msg )
     return;
 }
 
+
+void DataManager::depth_image_callback( const sensor_msgs::ImageConstPtr& msg )
+{
+    __DATAMANAGER_CALLBACK_PRINT(
+    cout << "[cerebro/depth_image_callback]" << msg->header.stamp << "\t" << msg->header.stamp-pose_0 << "\t";
+    cout << "depth image encoding: " << msg->encoding << endl;
+    )
+    depth_im_buf.push( msg );
+    return ;
+}
+
+
 void DataManager::extrinsic_cam_imu_callback( const nav_msgs::Odometry::ConstPtr msg )
 {
     // __DATAMANAGER_CALLBACK_PRINT( cout << "[cerebro/extrinsic_cam_imu_callback del]" << msg->header.stamp-pose_0 << endl; )
@@ -486,6 +498,7 @@ string DataManager::print_queue_size( int verbose=1 ) const
     {
         buffer << "img_buf=" << img_buf.size() << "\t";
         buffer << "img_1_buf=" << img_1_buf.size() << "\t";
+        buffer << "depth_im_buf=" << depth_im_buf.size() << "\t";
         buffer << "pose_buf=" << pose_buf.size() << "\t";
         buffer << "kf_pose_buf=" << kf_pose_buf.size() << "\t";
         buffer << "ptcld_buf=" << ptcld_buf.size() << "\t";
@@ -507,6 +520,13 @@ string DataManager::print_queue_size( int verbose=1 ) const
         if( img_1_buf.size()  > 0 ) {
             buffer << std::fixed << std::setprecision(4) << img_1_buf.front()->header.stamp-pose_0 << "-->";
             buffer << std::fixed << std::setprecision(4) << img_1_buf.back()->header.stamp-pose_0 << ";";
+        }
+        buffer << ")\t";
+
+        buffer << "depth_im_buf=" << depth_im_buf.size() << " (";
+        if( depth_im_buf.size()  > 0 ) {
+            buffer << std::fixed << std::setprecision(4) << depth_im_buf.front()->header.stamp-pose_0 << "-->";
+            buffer << std::fixed << std::setprecision(4) << depth_im_buf.back()->header.stamp-pose_0 << ";";
         }
         buffer << ")\t";
 
@@ -730,9 +750,11 @@ void DataManager::clean_up_useless_images_thread()
             if( it->second->isKeyFrame() ) {
                 img_data_mgr->stashImage( "left_image", it->first );
                 img_data_mgr->stashImage( "right_image", it->first );
+                img_data_mgr->stashImage( "depth_image", it->first );
             } else {
                 img_data_mgr->rmImage( "left_image", it->first );
                 img_data_mgr->rmImage( "right_image", it->first );
+                img_data_mgr->rmImage( "depth_image", it->first );
             }
         }
     }
@@ -815,6 +837,45 @@ void DataManager::data_association_thread( int max_loop_rate_in_hz )
                     cout << TermColor::RED() << "[DataManager::data_association_thread]";
                     cout << "attempting to set additional image_1 with t=" << t << " aka " << t-pose_0 <<  " into datanode. ";
                     cout << "However that datanode is not found in the map. This cannot be happening, but might happen when `image_1` preceeds (even a few milis) than `image`.";
+                    cout << TermColor::RESET() << endl ;
+
+                cout << TermColor::CYAN() << "so dont pop from queue.\n" << TermColor::RESET();
+                )
+                break;
+                }
+            }
+        }
+
+
+        // depth image
+        while( depth_im_buf.size() > 0 ) {
+            sensor_msgs::ImageConstPtr depth_image_msg = depth_im_buf.front();
+            ros::Time t = depth_image_msg->header.stamp;
+
+            __DataManager__data_association_thread__(
+            cout << ">> Attempt adding poped() depth_image_msg in data_map with t=" << depth_image_msg->header.stamp << " ie. #####> " << depth_image_msg->header.stamp-pose_0 << endl;
+            )
+            // if( data_map.count(t) > 0 ) { //berks__old
+            //     data_map.at( t )->setImageFromMsg( img_1_msg, 1 );
+            // }
+            if( data_map->count(t) > 0 ) {
+                img_data_mgr->setNewImageFromMsg( "depth_image", depth_image_msg );
+
+                depth_im_buf.pop();
+            }
+            else {
+                ros::Time newest_T = data_map->rbegin()->first;
+                __DataManager__data_association_thread__( cout << "newest_T=" << newest_T << endl; ) ;
+                if( newest_T.toNSec() > t.toNSec() )
+                {
+                    cout << "newest_T is ahead of the t, so just drop this depth-image";
+                    depth_im_buf.pop();
+                } else {
+                // assert( false && "[DataManager::data_association_thread] attempting to set additional image into datanode. However that datanode is not found in the map. This cannot be happening\n");
+                __DataManager__data_association_thread__(
+                    cout << TermColor::RED() << "[DataManager::data_association_thread]";
+                    cout << "attempting to set additional depth_image with t=" << t << " aka " << t-pose_0 <<  " into datanode. ";
+                    cout << "However that datanode is not found in the map. This cannot be happening, but might happen when `depth_image` preceeds (even a few milis) than `image`.";
                     cout << TermColor::RESET() << endl ;
 
                 cout << TermColor::CYAN() << "so dont pop from queue.\n" << TermColor::RESET();

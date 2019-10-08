@@ -214,6 +214,16 @@ int main( int argc, char ** argv )
     }
 
 
+    // [B.2]
+    // Additional Image topic (realsense depth) 16UC1
+    string depth_image_topic = "/camera/depth/image_rect_raw";
+    ros::Subscriber sub_depth_image;
+    ROS_INFO( "******\nSubscribe to depth_image_topic: %s\n********", depth_image_topic.c_str() );
+    sub_depth_image = nh.subscribe( depth_image_topic, 10, &DataManager::depth_image_callback, &dataManager );
+
+
+
+
 
     // [B.2]
     // Additional Cameras (yaml)

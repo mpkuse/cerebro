@@ -189,6 +189,7 @@ public:
 
     void raw_image_callback( const sensor_msgs::ImageConstPtr& msg );
     void raw_image_callback_1( const sensor_msgs::ImageConstPtr& msg );
+    void depth_image_callback( const sensor_msgs::ImageConstPtr& msg );
 
     void extrinsic_cam_imu_callback( const nav_msgs::Odometry::ConstPtr msg );
     void ptcld_callback( const sensor_msgs::PointCloud::ConstPtr msg );
@@ -202,6 +203,7 @@ private:
     // callback-buffers
     std::queue<sensor_msgs::ImageConstPtr> img_buf;
     std::queue<sensor_msgs::ImageConstPtr> img_1_buf;
+    std::queue<sensor_msgs::ImageConstPtr> depth_im_buf;
     std::queue<nav_msgs::OdometryConstPtr> pose_buf;
     std::queue<nav_msgs::OdometryConstPtr> kf_pose_buf;
     std::queue<sensor_msgs::PointCloudConstPtr> ptcld_buf;
