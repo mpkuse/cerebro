@@ -731,6 +731,7 @@ void Cerebro::faiss_clique_loopcandidate_generator()
 
 // #define ___faiss_multihypothesis_tracking___search(msg) msg;
 #define ___faiss_multihypothesis_tracking___search(msg) ;
+
 void Cerebro::faiss_multihypothesis_tracking()
 {
     assert( m_dataManager_available && "You need to set the DataManager in class Cerebro before execution of the run() thread can begin. You can set the dataManager by call to Cerebro::setDataManager()\n");
@@ -762,7 +763,7 @@ void Cerebro::faiss_multihypothesis_tracking()
     // init (misc)
     ros::Rate rate(10);
     auto data_map = dataManager->getDataMapRef();
-    // HypothesisManager * hyp_manager = new HypothesisManager(); // TODO: move this as a shared_ptr in class variable. there is a delete at the end of this function
+
     hyp_manager = std::make_shared<HypothesisManager>();
 
     #if 0
@@ -857,8 +858,11 @@ void Cerebro::faiss_multihypothesis_tracking()
             // cout << "search done in (ms): " << time_to_search.toc_milli() << endl;
 
             // Loop over all the nearest neighbours
-            cout << "\t\t";
+            ___faiss_multihypothesis_tracking___search( cout << "\t\t"; )
             for( int g=0 ; g<K_NEAREST_NEIGHBOURS; g++ ) {
+
+
+                ___faiss_multihypothesis_tracking___search(
                 if( distances[g] > 0.85 )
                     cout << TermColor::GREEN();
                 else cout << TermColor::MAGENTA();
@@ -872,16 +876,13 @@ void Cerebro::faiss_multihypothesis_tracking()
                 printf( "(%4d, %4.2f) ", labels[g], distances[g] );
                 cout << TermColor::RESET();
 
-
-
-
-
+                )
 
                 // add the edge
                 hyp_manager->add_node( l_i, labels[g], distances[g], g );
 
             }
-            cout << endl ;
+            ___faiss_multihypothesis_tracking___search( cout << endl ; )
 
         }
 
@@ -892,27 +893,36 @@ void Cerebro::faiss_multihypothesis_tracking()
 
     #if 1
     // debug look inside hyp_manager
+    cout << TermColor::RED() << "[Cerebro::faiss_multihypothesis_tracking] =====Print debug data for the hyp_manager just before I quit the thread\n" << TermColor::RESET();
     hyp_manager->print_hyp_q_all();
 
 
     // make image pairs
     int seq_a_start, seq_a_end, seq_b_start, seq_b_end;
+    ros::Time seq_a_start_T, seq_a_end_T, seq_b_start_T, seq_b_end_T;
     int n_hyp = hyp_manager->n_hypothesis();
     auto img_data_mgr = dataManager->getImageManagerRef();
     for( int i=0 ; i<n_hyp; i++ )
     {
+        #if 1
+        // this code as exactly the same effect at the #else part.
+        this->loop_hypothesis_i_idx( i,  seq_a_start, seq_a_end, seq_b_start, seq_b_end  );
+        this->loop_hypothesis_i_T( i,   seq_a_start_T, seq_a_end_T, seq_b_start_T, seq_b_end_T );
+        #else
         hyp_manager->hypothesis_i( i, seq_a_start, seq_a_end, seq_b_start, seq_b_end );
-        ros::Time seq_a_start_T = wholeImageComputedList_at( seq_a_start );
-        ros::Time seq_a_end_T   = wholeImageComputedList_at( seq_a_end );
-        ros::Time seq_b_start_T = wholeImageComputedList_at( seq_b_start );
-        ros::Time seq_b_end_T   = wholeImageComputedList_at( seq_b_end );
+        seq_a_start_T = wholeImageComputedList_at( seq_a_start );
+        seq_a_end_T   = wholeImageComputedList_at( seq_a_end );
+        seq_b_start_T = wholeImageComputedList_at( seq_b_start );
+        seq_b_end_T   = wholeImageComputedList_at( seq_b_end );
+        #endif
+
 
 
         // print timestamps for ith hypothesis
         cout << "#" << i << " ";
         cout << "(" << seq_a_start_T << "," << seq_a_end_T << ")";
         cout << "<----->";
-        cout << "(" << seq_b_start_T << "," << seq_b_start_T << ")";
+        cout << "(" << seq_b_start_T << "," << seq_b_end_T << ")";
 
         // make images for ith hypothesis
         cv::Mat seq_a_start_im, seq_a_end_im, seq_b_start_im, seq_b_end_im;
@@ -947,7 +957,7 @@ void Cerebro::faiss_multihypothesis_tracking()
             string fname = "/app/tmp/cerebro/loophyp_" + to_string(i) + ".jpg";
             MiscUtils::side_by_side( seq_a_start_im, seq_b_start_im , dst );
 
-            string status_string = "#" + to_string(i) + ": (" +  to_string(seq_a_start)+","+to_string(seq_b_start) + ") <---> (" + to_string(seq_a_start)+","+to_string(seq_b_start) + ")";
+            string status_string = "#" + to_string(i) + ": (" +  to_string(seq_a_start)+","+to_string(seq_a_end) + ") <---> (" + to_string(seq_b_start)+","+to_string(seq_b_end) + ")";
             MiscUtils::append_status_image( dst , to_string(seq_a_start)+"..."+to_string(seq_b_start) + ";" + status_string );
             cout << "imwrite( " << fname << ")\n";
             cv::imwrite( fname, dst );
@@ -1195,7 +1205,9 @@ void Cerebro::descrip_N__dot__descrip_0_N()
 //------------------------------------------------------------------//
 
 
-
+//------------------------------------------------------------------//
+//----------  Functions to Query about Loop Candidates  ------------//
+//------------------------------------------------------------------//
 const int Cerebro::foundLoops_count() const
 {
     std::lock_guard<std::mutex> lk(m_foundLoops);
@@ -1248,6 +1260,120 @@ json Cerebro::foundLoops_as_JSON()
     return jsonout_obj;
 
 }
+
+
+//------------------------------------------------------------------//
+//----------  Functions to Query about Hypothesis Manager ----------//
+//------------------------------------------------------------------//
+
+const int Cerebro::loop_hypothesis_count() const
+{
+    return hyp_manager->n_hypothesis();
+}
+
+void Cerebro::loop_hypothesis_i_idx( int i, int& seq_a_start, int& seq_a_end, int& seq_b_start, int& seq_b_end ) const
+{
+    bool status = hyp_manager->hypothesis_i( i, seq_a_start, seq_a_end, seq_b_start, seq_b_end );
+    assert( status );
+}
+
+void Cerebro::loop_hypothesis_i_T(   int i, ros::Time& seq_a_start_T, ros::Time& seq_a_end_T, ros::Time& seq_b_start_T, ros::Time& seq_b_end_T  ) const
+{
+    int seq_a_start, seq_a_end, seq_b_start, seq_b_end;
+    bool status = hyp_manager->hypothesis_i( i, seq_a_start, seq_a_end, seq_b_start, seq_b_end );
+    assert( status );
+    seq_a_start_T = wholeImageComputedList_at( seq_a_start );
+    seq_a_end_T   = wholeImageComputedList_at( seq_a_end );
+    seq_b_start_T = wholeImageComputedList_at( seq_b_start );
+    seq_b_end_T   = wholeImageComputedList_at( seq_b_end );
+}
+
+void Cerebro::loop_hypothesis_i_im(  int i, cv::Mat& seq_a_start_im , cv::Mat& seq_a_end_im , cv::Mat& seq_b_start_im , cv::Mat& seq_b_end_im ) const
+{
+    cout << "[Cerebro::loop_hypothesis_i_im] NOT IMPLEMTED....\n";
+    exit(4);
+}
+
+json Cerebro::loop_hypothesis_as_json() const
+{
+    cout << "[Cerebro::loop_hypothesis_as_json] NOT IMPLEMENTED....\n";
+    exit(4);
+}
+
+
+//------------------------------------------------------------------//
+//----------------- Geometry for Loop Hypothesis -------------------//
+//------------------------------------------------------------------//
+
+void Cerebro::loop_hypothesis_consumer_thread()
+{
+    assert( m_dataManager_available && "You need to set the DataManager in class Cerebro before execution of the run() thread can begin. You can set the dataManager by call to Cerebro::setDataManager()\n");
+    assert( b_loopcandidate_consumer && "you need to call loopcandidate_consumer_enable() before loopcandiate_consumer_thread() can start executing\n" );
+    cout << TermColor::GREEN() <<   "[Cerebro::loop_hypothesis_consumer_thread] Start thread" << TermColor::RESET() << endl;
+
+
+
+    ros::Rate rate(1);
+    int prev_count = 0;
+    while( b_loop_hypothesis_consumer )
+    {
+        rate.sleep();
+
+        // if( hyp_manager == nullptr )
+        if( is_loop_hypothesis_manager_allocated() == false )
+        {
+            cout << "[Cerebro::loop_hypothesis_consumer_thread] The shared_ptr, hyp_manager is not allocated yet...wait and do nothing until then\n";
+            continue;
+        }
+
+
+
+        cout << "[Cerebro::loop_hypothesis_consumer_thread] ---loop_hypothesis_count=" << loop_hypothesis_count() << endl;
+        int curr_count = loop_hypothesis_count();
+        if( curr_count > prev_count )
+        {
+            // something new
+            for( int d=prev_count ; d<curr_count ; d++ )
+            {
+                cout << TermColor::iCYAN() << "[[Cerebro::loop_hypothesis_consumer_thread] Process Loop Hypothesis#" << d << TermColor::RESET() << endl;
+                // compute_geometry_for_loop_hypothesis_i( d );
+            }
+        } else {
+            cout << "[Cerebro::loop_hypothesis_consumer_thread] nothing new\n";
+        }
+
+        prev_count = curr_count;
+    }
+
+    cout << TermColor::RED() <<  "[Cerebro::loop_hypothesis_consumer_thread] disable called, quitting loop_hypothesis_consumer_thread" << TermColor::RESET() << endl;
+
+}
+
+
+void Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
+{
+    cout << TermColor::CYAN() << "[Cerebro::compute_geometry_for_loop_hypothesis_i] Process Loop Hypothesis#" << i << TermColor::RESET() << endl;
+    //      a. seq_a_start--->seq_a_end also for seq_b
+    //      b. retrive needed data (include image and pose)
+    //      c. for i in range(10):
+    //          1. draw random pair 1 image from seq_a, 1 from seq_b
+    //          2. point feature matches
+    //          3. 3d points at the feature matches
+    //          4. accumulate the 3d-3d points.
+    //      d. pose from 3d-3d correspondences
+    //      e. verify pose based on pairwise invariance for rotation and translation
+    //      f. report
+
+
+
+
+
+}
+
+//------------------------------------------------------------------//
+//------------- END Geometry for Loop Hypothesis -------------------//
+//------------------------------------------------------------------//
+
 
 //--------------------------------------------------------------//
 //------------------ Geometry Thread ---------------------------//
@@ -2565,9 +2691,9 @@ void Cerebro::kidnap_header_callback( const std_msgs::HeaderConstPtr& rcvd_heade
 
 
 
-///////////////////////////////////////////////////////////
-//---------------------- KIDNAP -------------------------//
-///////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////
+//---------------------- KIDNAP END-------------------------//
+//////////////////////////////////////////////////////////////
 
 
 

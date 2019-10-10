@@ -51,6 +51,8 @@ void Visualization::run( const int looprate    )
     bool bpub_loopcandidates = true;           //< this publishes line marker
     bool bpub_processed_loopcandidates = true; //this publoshes the image-pair as image.
 
+    bool bpub_loop_hypothesis_candidates = true;
+
     ros::Rate rate( looprate );
     while( b_run_thread )
     {
@@ -64,6 +66,11 @@ void Visualization::run( const int looprate    )
 
         if( bpub_processed_loopcandidates )
             this->publish_processed_loopcandidates(); //< this publoshes the image-pair as image.
+
+        if( bpub_loop_hypothesis_candidates ) {
+            this->publish_loop_hypothesis_lines(); //< cerebro->loop_hypothesis_i \forall i
+            this->publish_loop_hypothesis_image_pair(); //< image pair
+        }
 
         rate.sleep();
     }
@@ -429,4 +436,210 @@ void Visualization::publish_test_string()
     ss << "hello world " << ros::Time::now();
     msg.data = ss.str();
     chatter_pub.publish( msg );
+}
+
+
+// #define __Visualization__publish_loop_hypothesis_lines_(msg) msg;
+#define __Visualization__publish_loop_hypothesis_lines_(msg) ;
+void Visualization::publish_loop_hypothesis_lines()
+{
+
+    assert( m_dataManager_available && m_cerebro_available && "You need to set cerebro and DataManager in class Visualization  before execution of the run() thread can begin. You can set the cerebro by call to Visualization::setCerebro() and dataManager as setDataManager.\n");
+    if( cerebro->is_loop_hypothesis_manager_allocated() == false ) {
+        __Visualization__publish_loop_hypothesis_lines_( cout << "[Visualization::publish_loop_hypothesis_lines] Loop Hypothesis manager seem to be not allocated, do nothing...\n"; )
+        return;
+    }
+
+
+
+    visualization_msgs::Marker marker;
+    RosMarkerUtils::init_line_marker( marker );
+    marker.ns = "loop_hypothesis_line";
+    RosMarkerUtils::setcolor_to_marker( 1.0, 0.0, 0.0 , marker );
+
+
+
+    static int prev_count = 0;
+    int istart, iend;
+    int curr_count = cerebro->loop_hypothesis_count();
+
+    istart = prev_count;
+    iend   = curr_count;
+
+    if( curr_count == prev_count )
+    {
+        if( rand() % 1000 < 5 )
+            istart = 0; //once in a while publish all.
+        else
+            return;
+    }
+
+
+    auto data_map = dataManager->getDataMapRef();
+
+
+    __Visualization__publish_loop_hypothesis_lines_(
+    cout << "[Visualization::publish_loop_hypothesis_lines] i=" << prev_count << " to " << curr_count << endl;)
+    for( int i=istart ; i<iend ; i++ )
+    {
+        ros::Time seq_a_start_T, seq_a_end_T, seq_b_start_T, seq_b_end_T;
+        cerebro->loop_hypothesis_i_T( i, seq_a_start_T, seq_a_end_T, seq_b_start_T, seq_b_end_T );
+
+        int  seq_a_start, seq_a_end, seq_b_start, seq_b_end;
+
+        __Visualization__publish_loop_hypothesis_lines_(
+        cerebro->loop_hypothesis_i_idx( i, seq_a_start, seq_a_end, seq_b_start, seq_b_end );
+        cout << "---\n";
+        cout << "#" << i << " ";
+        cout << "(" << seq_a_start << "," << seq_a_end << ")";
+        cout << "<----->";
+        cout << "(" << seq_b_start << "," << seq_b_end << ")";
+        cout << endl;
+        cout << "#" << i << " ";
+        cout << "(" << seq_a_start_T << "," << seq_a_end_T << ")";
+        cout << "<----->";
+        cout << "(" << seq_b_start_T << "," << seq_b_end_T << ")";
+        cout << endl;
+
+        )
+
+        // get poses at these points
+        assert( data_map.count( seq_a_start_T ) > 0 && data_map.count( seq_b_start_T ) > 0  && "One or both of the timestamps in loop_hypothesis_count where not in the data_map. This cannot be happening...fatal...\n" );
+
+        #if 0
+        // more elaborate code, useful for debugging...
+        if( data_map->at(seq_a_start_T)->isPoseAvailable() == false ) {
+            cout << TermColor::RED() << "[Visualization::publish_loop_hypothesis_lines] pose not available at i=" << i << "\tseq_a_start_T=" << seq_a_start_T << TermColor::RESET() << endl;
+            data_map->at(seq_a_start_T)->prettyPrint();
+            continue;
+        }
+
+
+        if( data_map->at(seq_b_start_T)->isPoseAvailable() == false ) {
+            cout << TermColor::RED() << "[Visualization::publish_loop_hypothesis_lines] pose not available at i=" << i  << "\tseq_b_start_T" << seq_b_start_T << TermColor::RESET() << endl;
+            data_map->at(seq_b_start_T)->prettyPrint();
+            continue;
+        }
+        #else
+        if(
+            data_map->at(seq_a_start_T)->isPoseAvailable() == false ||
+            data_map->at(seq_a_end_T)->isPoseAvailable() == false ||
+            data_map->at(seq_b_start_T)->isPoseAvailable() == false ||
+            data_map->at(seq_b_end_T)->isPoseAvailable() == false
+        ) {
+            cout << TermColor::YELLOW() << "[Visualization::publish_loop_hypothesis_lines] WARN pose not available. Usually 1st few seconds poses are not available while the VINS initializes. So, if a part of seq is in first few sec this happens. This is normal behaviour." << TermColor::RESET() << endl;
+            continue;
+        }
+        #endif
+
+
+
+        #if 1
+        Vector4d w_t_a_start = data_map->at(seq_a_start_T)->getPose().col(3);
+        Vector4d w_t_b_start = data_map->at(seq_b_start_T)->getPose().col(3);
+
+        Vector4d w_t_a_end = data_map->at(seq_a_end_T)->getPose().col(3);
+        Vector4d w_t_b_end = data_map->at(seq_b_end_T)->getPose().col(3);
+        __Visualization__publish_loop_hypothesis_lines_( cout << i << " : " << w_t_a_start.transpose() << "<---------->" << w_t_b_start.transpose()<< endl; )
+
+        RosMarkerUtils::add_point_to_marker( w_t_a_start, marker, true );
+        RosMarkerUtils::add_point_to_marker( w_t_b_start, marker, false );
+
+        RosMarkerUtils::add_point_to_marker( w_t_a_end, marker, false );
+        RosMarkerUtils::add_point_to_marker( w_t_b_end, marker, false );
+        marker.id = i;
+        #endif
+        framedata_pub.publish( marker );
+    }
+
+    prev_count = curr_count;
+
+}
+
+
+void Visualization::publish_loop_hypothesis_image_pair()
+{
+    assert( m_dataManager_available && m_cerebro_available && "You need to set cerebro and DataManager in class Visualization  before execution of the run() thread can begin. You can set the cerebro by call to Visualization::setCerebro() and dataManager as setDataManager.\n");
+    if( cerebro->is_loop_hypothesis_manager_allocated() == false ) {
+        __Visualization__publish_loop_hypothesis_lines_( cout << "[Visualization::publish_loop_hypothesis_image_pair] Loop Hypothesis manager seem to be not allocated, do nothing...\n"; )
+        return;
+    }
+
+
+    static int prev_count = 0;
+
+    int curr_count = cerebro->loop_hypothesis_count();
+    if( curr_count == prev_count )
+        return;
+
+    auto img_data_mgr = dataManager->getImageManagerRef();
+
+    for( int i=prev_count ; i<curr_count ; i++ )
+    {
+        //make image for loophypothesis#i
+
+        int seq_a_start, seq_a_end, seq_b_start, seq_b_end;
+        ros::Time seq_a_start_T, seq_a_end_T, seq_b_start_T, seq_b_end_T;
+
+        cerebro->loop_hypothesis_i_idx( i,  seq_a_start, seq_a_end, seq_b_start, seq_b_end  );
+        cerebro->loop_hypothesis_i_T( i,   seq_a_start_T, seq_a_end_T, seq_b_start_T, seq_b_end_T );
+
+        cout << "#" << i << " ";
+        cout << "(" << seq_a_start_T << "," << seq_a_end_T << ")";
+        cout << "<----->";
+        cout << "(" << seq_b_start_T << "," << seq_b_end_T << ")";
+        cout << "\t";
+        cout << "#" << i << " ";
+        cout << "(" << seq_a_start << "," << seq_a_end << ")";
+        cout << "<----->";
+        cout << "(" << seq_b_start << "," << seq_b_end << ")";
+        cout << endl;
+
+        cv::Mat seq_a_start_im, seq_a_end_im, seq_b_start_im, seq_b_end_im;
+        bool status = true;
+        {
+        if( img_data_mgr->isImageRetrivable( "left_image", seq_a_start_T ) ) {
+            // img_data_mgr->getImage( "left_image", seq_a_start_T, seq_a_start_im );
+        }
+        else
+            status = false;
+
+        if( img_data_mgr->isImageRetrivable( "left_image", seq_a_end_T ) ) {
+            // img_data_mgr->getImage( "left_image", seq_a_end_T, seq_a_end_im );
+        }
+        else
+            status = false;
+
+        if( img_data_mgr->isImageRetrivable( "left_image", seq_b_start_T ) ) {
+            img_data_mgr->getImage( "left_image", seq_b_start_T, seq_b_start_im );
+        }
+        else
+            status = false;
+
+        if( img_data_mgr->isImageRetrivable( "left_image", seq_b_end_T ) ) {
+            img_data_mgr->getImage( "left_image", seq_b_end_T, seq_b_end_im );
+        }
+        else
+            status = false;
+        }
+        assert( status == true );
+
+        if( status == false ) {cout << "[Visualization::publish_loop_hypothesis_image_pair] Something is wrong, one or more images cannot be retrieved"; }
+        else
+        {
+            cv::Mat dst;
+            MiscUtils::side_by_side( seq_a_end_im, seq_b_end_im , dst );
+
+            // TODO : Make a good informative string, rather than hap-hazard like this.
+            string status_string = "#" + to_string(i) + ": (" +  to_string(seq_a_start)+","+to_string(seq_a_end) + ") <---> (" + to_string(seq_b_start)+","+to_string(seq_b_end) + ")";
+            MiscUtils::append_status_image( dst , "this image: "+to_string(seq_a_end)+"..."+to_string(seq_b_end) + " resized(0.5);" + status_string, 1.0 );
+
+            cv::resize( dst, dst, cv::Size(), 0.5, 0.5 );
+            cv::imshow( "pair", dst );
+            cv::waitKey(10);
+        }
+
+    }
+    prev_count = curr_count;
+
 }

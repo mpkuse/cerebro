@@ -63,6 +63,8 @@ private:
     void publish_processed_loopcandidates(); //< uses Cerebro::processedLoops_i() and publishes only the newly found loops. cerebro->processedLoops_i( i )
     void publish_test_string();
 
+    void publish_loop_hypothesis_lines(); //< publishes 3d line-markers at all hypothesis
+    void publish_loop_hypothesis_image_pair(); //< publish the image pair if there is anything to publish
 
     //publishers
 private:

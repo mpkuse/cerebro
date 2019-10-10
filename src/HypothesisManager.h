@@ -25,7 +25,7 @@ public:
 
     void print_hyp_q_all() const;
     int n_hypothesis() const; //number of hypothesis in the list
-    void hypothesis_i(int i, int& seq_a_start, int&  seq_a_end, int&  seq_b_start, int&  seq_b_end ) const; //return the ith hypothesis
+    bool hypothesis_i(int i, int& seq_a_start, int&  seq_a_end, int&  seq_b_start, int&  seq_b_end ) const; //return the ith hypothesis
 
 
 private:

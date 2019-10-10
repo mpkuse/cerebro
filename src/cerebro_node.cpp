@@ -504,9 +504,18 @@ int main( int argc, char ** argv )
     //      Monitors the list `foundLoops` aka the putative loop candidates.
     //      If new candidates are present in the list it computes the relative-pose
     //      using GMSMatcher and theia-sfm's pnp. The depth is computed from stereogeom (class StereoGeometry)
-    cer.loopcandidate_consumer_enable();
-    cer.loopcandidate_consumer_disable();
-    std::thread loopcandidate_consumer_th( &Cerebro::loopcandiate_consumer_thread, &cer ); // runs @1hz
+    // cer.loopcandidate_consumer_enable();
+    // cer.loopcandidate_consumer_disable();
+    // std::thread loopcandidate_consumer_th( &Cerebro::loopcandiate_consumer_thread, &cer ); // runs @1hz
+
+
+    // [C.2]
+    // loop hypothesis consumer
+    //      this monitors Cerebro::loop_hypothesis_count and computes geometry if there is
+    //      any new loop hypothesis.
+    cer.loop_hypothesis_consumer_enable();
+    cer.loop_hypothesis_consumer_disable();
+    std::thread loop_hypothesis_consumer_th( &Cerebro::loop_hypothesis_consumer_thread, &cer );
 
     // [D]
     // Kidnap Identification Thread
@@ -536,7 +545,8 @@ int main( int argc, char ** argv )
     #if 1
     cer.run_thread_disable();
     cer.descriptor_computer_thread_disable();
-    cer.loopcandidate_consumer_disable();
+    // cer.loopcandidate_consumer_disable();
+    cer.loop_hypothesis_consumer_disable();
     cer.kidnaped_thread_disable();
     viz.run_thread_disable();
     #endif
@@ -548,7 +558,8 @@ int main( int argc, char ** argv )
     #if 1
     dot_product_th.join(); cout << "dot_product_th.join()\n";
     desc_th.join(); cout << "desc_th.join()\n";
-    loopcandidate_consumer_th.join(); cout << "loopcandidate_consumer_th.join()\n";
+    // loopcandidate_consumer_th.join(); cout << "loopcandidate_consumer_th.join()\n";
+    loop_hypothesis_consumer_th.join(); cout << "loop_hypothesis_consumer_th.join()\n";
     kidnap_th.join(); cout << "kidnap_th.join()\n";
     viz_th.join(); cout << "viz_th.join()\n";
     #endif
