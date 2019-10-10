@@ -1,125 +1,123 @@
 #include "HypothesisManager.h"
 
-
 HypothesisManager::HypothesisManager()
 {
-    std::cout << "HypothesisManager constructor\n";
-}
 
-HypothesisManager::~HypothesisManager()
-{
-    std::cout << "HypothesisManager descrutctor\n";
 }
 
 
-bool HypothesisManager::add_node( int a, int b, float dot_prod )
+void HypothesisManager::add_node( int i, int j, double dot_product_score, int n_nn )
 {
-    // See if (a,b) is in a already active hypothesis ?
-    //      |---(yes) give strength, possibly increase its time-to-live (ttl)
-    //      |---(no ) is it worth creating new hypothesis?
-    //              |--- (yes)
-    //              |--- (no) discard this
-    std::lock_guard<std::mutex> lk(mx);
+    // assert( i > j );
+    if( n_accum == 0 )
+        i_start = i;
 
-    cout << "\n[HypothesisManager::add_node] add_node("<<a <<", " << b << ", " << dot_prod << ")\n";
+    i_latest = i;
+    int I = int( i/W );
+    int J = int( j/W );
 
-    //-----------a
-    bool was_in_one_of_the_active_hyp = false;
-    cout << "[HypothesisManager::add_node] #active_hyp=" << active_hyp.size() << endl;
-    for( auto it=active_hyp.begin() ; it!=active_hyp.end() ; it++ ) // loop over active hyp
+
+    if( M.count(J) == 0 )
     {
-        if( was_in_one_of_the_active_hyp == true )
-            break;
-
-        #if 0
-        // cout << "active_hyp#" << it-active_hyp.begin() << endl;
-        auto header_str = string("");
-        if( it == active_hyp.begin() )
-            header_str = "\n---\n";
-        header_str +="active_hyp#" + std::to_string(  it-active_hyp.begin() );
-        it->print_active_hypothesis(header_str);
-        #endif
-
-        for( auto c=it->list_of_nodes_in_this_hypothesis.rbegin() ;
-                  c!=it->list_of_nodes_in_this_hypothesis.rend() ;
-                  c++    )
-        {
-            int _a = std::get<0>( *c );
-            int _b = std::get<1>( *c );
-            float _dot_prod = std::get<2>( *c );
-
-            if( abs(a-_a) < 7 && abs(b-_b) < 7 ) {
-                it->list_of_nodes_in_this_hypothesis.push_back( make_tuple(a,b,dot_prod) );
-                was_in_one_of_the_active_hyp = true;
-                printf( "Added (%d,%d,%f) in active_hyp#%d\n", a,b,dot_prod, it-active_hyp.begin() );
-
-                printf( "Increment time_to_live of this hypothesis\n" );
-                it->increment_ttl();
-                break;
-            }
-        }
+        M[J] = 0;
     }
 
-
-
-    //-------------b
-    if( was_in_one_of_the_active_hyp == false ) {
-        cout << "New Hypothesis added: "<< a<< ", " << b << ", " << dot_prod << endl;
-        active_hyp.push_back( Hypothesis( a,b, dot_prod) );
+    if( dot_product_score > THRESH ) {//if greater than threshold boost is another 20%
+        dot_product_score *= 1.2;
+        n_greater_than_thresh++;
     }
 
+    if( dot_product_score < LOW_THRESH ) {
+        dot_product_score *= 0.8; // if lower than the LOW_THRESH, suppress this.
+    }
+
+    M[J] += dot_product_score * (0.1 * n_nn + 1.1);  // n_nn == 1 ==> 1.0; n_nn == 2 ==> 0.9 ...
+    n_accum++;
+
+
+    digest();
 
 }
 
 void HypothesisManager::digest()
 {
-    std::lock_guard<std::mutex> lk(mx);
-
-    for( auto it=active_hyp.begin() ; it!=active_hyp.end() ; it++ )
+    if( n_accum == FLUSH_AFTER_N_ACCUMULATES ) //flush after 50, this is approximately 2.5 second if using 5 nearest neighbours in cerebro.
     {
-        it->decrement_ttl();
-        it->decrement_ttl();
-        it->decrement_ttl();
-        it->decrement_ttl();
-        // it->decrement_ttl();
+        // print M
+        cout << "\n========================\n";
+        cout << i_start << " ------ " << i_latest << endl;
+        cout << "========================\n";
+        for( auto it = M.begin() ; it != M.end() ; it++ )
+        {
+            cout << W * (it->first)  << " : " << it->second << endl;
+        }
+        cout << "n_greater_than_thresh = " << n_greater_than_thresh << " of " << FLUSH_AFTER_N_ACCUMULATES << endl;
+        cout << "========================\n";
+
+
+
+        //? any conclusions from this?
+        // (i_start,i) <----> ( W * (it->first)  , W * (it->first+1) ) iff it->second > 20.
+        for( auto it = M.begin() ; it != M.end() ; it++ ) {
+            if( it->second > MANDATE_SCORE_THRESH ) {
+                std::lock_guard<std::mutex> lk(mutex_hyp_q);
+
+                cout << TermColor::GREEN();
+                cout << "ADD : " << i_start << "," << i_latest <<  "<--->" << it->first * W << ", " << (it->first+1)*W << endl;
+                cout << TermColor::RESET();
+                vector<int> tmp = {i_start,i_latest,     W * (it->first)  , W * (it->first+1) };
+                hyp_q.push_back( tmp );
+            }
+        }
+
+
+
+        n_greater_than_thresh = 0;
+        n_accum = 0;
+        M.clear();
     }
 }
 
 
-void HypothesisManager::monitoring_thread()
+void HypothesisManager::print_hyp_q_all() const
 {
-    cout << TermColor::GREEN() << "[HypothesisManager::monitoring_thread] thread started\n" << TermColor::RESET() << endl;
-    while( b_monitoring_thread )
+    std::lock_guard<std::mutex> lk(mutex_hyp_q);
+
+    cout << "[HypothesisManager::print_hyp_q_all] hyp_q.size() = " << hyp_q.size() << endl;
+    for( int i=0 ; i<hyp_q.size() ; i++ )
     {
-        {   // threadsafe zone
-            std::lock_guard<std::mutex> lk(mx);
-            ofstream myfile;
-            myfile.open ("/dev/pts/1");
-            int n_actives = 0;
-            for( int i=0 ; i<active_hyp.size() ; i++ )
-            {
-                if( i==0 )
-                    myfile << "---\n";
+        cout << "#" << i << " ";
+        cout << "(" << hyp_q[i][0] << "," << hyp_q[i][1] << ")";
+        cout << "<---->";
+        cout << "(" << hyp_q[i][2] << "," << hyp_q[i][3] << ")";
+        cout << endl;
+    }
+    cout << "[HypothesisManager::print_hyp_q_all] DONE "<< endl;
 
-                if( active_hyp.at(i).is_hypothesis_active() ) {
-                    n_actives++;
-                    myfile << "i=" << i << "  " << active_hyp.at(i).info_string() << endl;
-                }
-            }
+}
 
-            if( n_actives > 0 ) {
-                myfile << TermColor::GREEN() << "Currently active hypothesis=" << n_actives <<  TermColor::RESET() << endl;
-            }
-            else {
-                myfile << TermColor::RED() << "No active hypothesis" << TermColor::RESET() << endl;
-            }
-            myfile.close();
 
-        } // end of threadsafe zone
+int HypothesisManager::n_hypothesis() const
+{
+    std::lock_guard<std::mutex> lk(mutex_hyp_q);
+    return (int) hyp_q.size();
+}
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
+void HypothesisManager::hypothesis_i(int i, int& seq_a_start, int&  seq_a_end, int&  seq_b_start, int&  seq_b_end ) const
+{
+    std::lock_guard<std::mutex> lk(mutex_hyp_q);
+    assert( i>=0 && i<(int)hyp_q.size() );
+
+    if( i<0 || i>= hyp_q.size() )
+    {
+        cout << TermColor::RED() << "[HypothesisManager::hypothesis_i] ERROR, you requested " << i << "th hypothesis however hyp_q.size()="<< hyp_q.size() << endl << TermColor::RESET();
+        return;
     }
 
-    cout << TermColor::RED() << "[HypothesisManager::monitoring_thread] thread Ended\n" << TermColor::RESET() << endl;
+    seq_a_start = hyp_q[i][0];
+    seq_a_end   = hyp_q[i][1];
+    seq_b_start = hyp_q[i][2];
+    seq_b_end   = hyp_q[i][3];
+
 }

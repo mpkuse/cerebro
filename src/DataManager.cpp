@@ -829,7 +829,7 @@ void DataManager::data_association_thread( int max_loop_rate_in_hz )
                 __DataManager__data_association_thread__( cout << "newest_T=" << newest_T << endl; ) ;
                 if( newest_T.toNSec() > t.toNSec() )
                 {
-                    cout << "newest_T is head of the t, so just drop this image";
+                    cout << "newest_T is head of the t, so just drop this image\n";
                     img_1_buf.pop();
                 } else {
                 // assert( false && "[DataManager::data_association_thread] attempting to set additional image into datanode. However that datanode is not found in the map. This cannot be happening\n");

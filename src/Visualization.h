@@ -66,8 +66,8 @@ private:
 
     //publishers
 private:
-    ros::Publisher chatter_pub;
-    ros::Publisher framedata_pub;
-    ros::Publisher imagepaire_pub;
+    ros::Publisher chatter_pub; // string
+    ros::Publisher framedata_pub; //visualization_msgs::Marker
+    ros::Publisher imagepaire_pub; //image
 
 };

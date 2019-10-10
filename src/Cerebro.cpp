@@ -349,10 +349,10 @@ void Cerebro::wholeImageComputedList_pushback( const ros::Time __tx )
 /// scene-object labels, text etc etc in addition to currently computed whole-image-descriptor
 void Cerebro::run()
 {
-    descrip_N__dot__descrip_0_N();
+    // descrip_N__dot__descrip_0_N();
     // faiss__naive_loopcandidate_generator();
     // faiss_clique_loopcandidate_generator();
-    // faiss_multihypothesis_tracking();
+    faiss_multihypothesis_tracking();
 
 }
 
@@ -723,11 +723,14 @@ void Cerebro::faiss_clique_loopcandidate_generator()
 
 
 
-#define ___faiss_multihypothesis_tracking___add(msg) msg;
-// #define ___faiss_multihypothesis_tracking___add(msg) ;
+// #define ___faiss_multihypothesis_tracking___loophead(msg) msg;
+#define ___faiss_multihypothesis_tracking___loophead(msg) ;
 
-#define ___faiss_multihypothesis_tracking___search(msg) msg;
-// #define ___faiss_multihypothesis_tracking___search(msg) ;
+// #define ___faiss_multihypothesis_tracking___add(msg) msg;
+#define ___faiss_multihypothesis_tracking___add(msg) ;
+
+// #define ___faiss_multihypothesis_tracking___search(msg) msg;
+#define ___faiss_multihypothesis_tracking___search(msg) ;
 void Cerebro::faiss_multihypothesis_tracking()
 {
     assert( m_dataManager_available && "You need to set the DataManager in class Cerebro before execution of the run() thread can begin. You can set the dataManager by call to Cerebro::setDataManager()\n");
@@ -753,18 +756,21 @@ void Cerebro::faiss_multihypothesis_tracking()
     //--- init faiss index //
     //---------------------//
     cout << TermColor::GREEN() << "[[Cerebro::faiss_multihypothesis_tracking]] init a faiss::IndexFlatIP("<< this->descriptor_size << ")" << TermColor::RESET() << endl;
-    faiss::IndexFlatIP index(this->descriptor_size);
+    faiss::IndexFlatIP index(this->descriptor_size); // Eventually replace with some simpler (and portable) nearest-neighbour library
 
 
     // init (misc)
     ros::Rate rate(10);
     auto data_map = dataManager->getDataMapRef();
-    HypothesisManager * hyp_manager = new HypothesisManager(); // there is a delete at the end of this function
+    // HypothesisManager * hyp_manager = new HypothesisManager(); // TODO: move this as a shared_ptr in class variable. there is a delete at the end of this function
+    hyp_manager = std::make_shared<HypothesisManager>();
 
+    #if 0
     // Start monitoring thread
     hyp_manager->monitoring_thread_enable();
     // hyp_manager->monitoring_thread_disable();
     std::thread hyp_monitoring_th( &HypothesisManager::monitoring_thread, hyp_manager );
+    #endif
 
 
 
@@ -782,14 +788,17 @@ void Cerebro::faiss_multihypothesis_tracking()
     while( b_run_thread ) {
         l = wholeImageComputedList_size();
         if( l<= last_l ) {
-            cout << "[Cerebro::faiss_multihypothesis_tracking] nothing new\n";
+            ___faiss_multihypothesis_tracking___loophead(
+            cout << "[Cerebro::faiss_multihypothesis_tracking] nothing new\n"; )
             rate.sleep();
             continue;
         }
 
         // looks like new descriptors are available.
+        ___faiss_multihypothesis_tracking___loophead(
         cout << TermColor::RED() << "--- " << TermColor::RESET() << l << "\t";
         cout << "new [" << last_l << " to " << l << ")\n";
+        )
 
 
 
@@ -827,11 +836,14 @@ void Cerebro::faiss_multihypothesis_tracking()
 
 
         //----------- search
-        cout << TermColor::MAGENTA();
+
         for( int l_i = last_l ; l_i < l ; l_i++ ) {
-            cout << "\t\tindex.search(" << l_i << ")\t";
+            ___faiss_multihypothesis_tracking___search(
+            cout << TermColor::MAGENTA() << "\t\t";
+            cout << "index.search(" << l_i << ")\t";
             cout << "index.search(" << wholeImageComputedList_at(l_i) << ")\t";
-            cout << "index.ntotal=" << index.ntotal << "\n";
+            cout << "index.ntotal=" << index.ntotal << "\n" << TermColor::RESET();
+            )
             if( index.ntotal < K_NEAREST_NEIGHBOURS )
                 break;
 
@@ -850,20 +862,27 @@ void Cerebro::faiss_multihypothesis_tracking()
                 if( distances[g] > 0.85 )
                     cout << TermColor::GREEN();
                 else cout << TermColor::MAGENTA();
-                printf( "g=%d: %4d<--(%4.2f)-->%d\t", g, l_i, distances[g], labels[g] );
+                #if 1 // style-A
+                // printf( "g=%2d: %4d<~(%4.2f)~>%4d; ", g, l_i, distances[g], labels[g] );
+                #endif
+
+                if( g==0 )
+                    printf( "%4d <--- ", l_i );
+
+                printf( "(%4d, %4.2f) ", labels[g], distances[g] );
                 cout << TermColor::RESET();
 
 
 
-                if( distances[g] > 0.85  ) {
-                    // Send (l_i, labels[g], distances[g] ) to HypothesisManager
-                    hyp_manager->add_node( l_i, labels[g], distances[g] );
-                }
+
+
+
+                // add the edge
+                hyp_manager->add_node( l_i, labels[g], distances[g], g );
+
             }
             cout << endl ;
 
-            // Loop through each hypothesis and decrement the time-to-live
-            hyp_manager->digest();
         }
 
 
@@ -871,14 +890,81 @@ void Cerebro::faiss_multihypothesis_tracking()
         rate.sleep();
     }
 
+    #if 1
+    // debug look inside hyp_manager
+    hyp_manager->print_hyp_q_all();
 
+
+    // make image pairs
+    int seq_a_start, seq_a_end, seq_b_start, seq_b_end;
+    int n_hyp = hyp_manager->n_hypothesis();
+    auto img_data_mgr = dataManager->getImageManagerRef();
+    for( int i=0 ; i<n_hyp; i++ )
+    {
+        hyp_manager->hypothesis_i( i, seq_a_start, seq_a_end, seq_b_start, seq_b_end );
+        ros::Time seq_a_start_T = wholeImageComputedList_at( seq_a_start );
+        ros::Time seq_a_end_T   = wholeImageComputedList_at( seq_a_end );
+        ros::Time seq_b_start_T = wholeImageComputedList_at( seq_b_start );
+        ros::Time seq_b_end_T   = wholeImageComputedList_at( seq_b_end );
+
+
+        // print timestamps for ith hypothesis
+        cout << "#" << i << " ";
+        cout << "(" << seq_a_start_T << "," << seq_a_end_T << ")";
+        cout << "<----->";
+        cout << "(" << seq_b_start_T << "," << seq_b_start_T << ")";
+
+        // make images for ith hypothesis
+        cv::Mat seq_a_start_im, seq_a_end_im, seq_b_start_im, seq_b_end_im;
+        bool status = true;
+        {
+        if( img_data_mgr->isImageRetrivable( "left_image", seq_a_start_T ) )
+            img_data_mgr->getImage( "left_image", seq_a_start_T, seq_a_start_im );
+        else
+            status = false;
+
+        if( img_data_mgr->isImageRetrivable( "left_image", seq_a_end_T ) )
+            img_data_mgr->getImage( "left_image", seq_a_end_T, seq_a_end_im );
+        else
+            status = false;
+
+        if( img_data_mgr->isImageRetrivable( "left_image", seq_b_start_T ) )
+            img_data_mgr->getImage( "left_image", seq_b_start_T, seq_b_start_im );
+        else
+            status = false;
+
+        if( img_data_mgr->isImageRetrivable( "left_image", seq_b_end_T ) )
+            img_data_mgr->getImage( "left_image", seq_b_end_T, seq_b_end_im );
+        else
+            status = false;
+        }
+        assert( status == true );
+
+        if( status == false ) {cout << "Something is wrong, one or more images cannot be retrieved"; }
+        else
+        {
+            cv::Mat dst;
+            string fname = "/app/tmp/cerebro/loophyp_" + to_string(i) + ".jpg";
+            MiscUtils::side_by_side( seq_a_start_im, seq_b_start_im , dst );
+
+            string status_string = "#" + to_string(i) + ": (" +  to_string(seq_a_start)+","+to_string(seq_b_start) + ") <---> (" + to_string(seq_a_start)+","+to_string(seq_b_start) + ")";
+            MiscUtils::append_status_image( dst , to_string(seq_a_start)+"..."+to_string(seq_b_start) + ";" + status_string );
+            cout << "imwrite( " << fname << ")\n";
+            cv::imwrite( fname, dst );
+        }
+    }
+
+    #endif
+
+    #if 0
     hyp_manager->monitoring_thread_disable();
     hyp_monitoring_th.join();
+    #endif
 
 
     delete [] distances;
     delete [] labels;
-    delete hyp_manager;
+    // delete hyp_manager;
     cout << "[Cerebro::faiss_multihypothesis_tracking] Finished Thread\n";
 
 

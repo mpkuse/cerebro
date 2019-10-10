@@ -505,7 +505,7 @@ int main( int argc, char ** argv )
     //      If new candidates are present in the list it computes the relative-pose
     //      using GMSMatcher and theia-sfm's pnp. The depth is computed from stereogeom (class StereoGeometry)
     cer.loopcandidate_consumer_enable();
-    // cer.loopcandidate_consumer_disable();
+    cer.loopcandidate_consumer_disable();
     std::thread loopcandidate_consumer_th( &Cerebro::loopcandiate_consumer_thread, &cer ); // runs @1hz
 
     // [D]

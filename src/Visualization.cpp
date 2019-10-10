@@ -280,6 +280,7 @@ void Visualization::publish_loopcandidates()
 
 }
 
+
 // #define __Visualization__publish_frames( cmd ) cmd
 #define __Visualization__publish_frames( cmd ) ;
 void Visualization::publish_frames()
