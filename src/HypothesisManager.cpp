@@ -28,7 +28,7 @@ void HypothesisManager::add_node( int i, int j, double dot_product_score, int n_
     }
 
     if( dot_product_score < LOW_THRESH ) {
-        dot_product_score *= 0.8; // if lower than the LOW_THRESH, suppress this.
+        dot_product_score *= 0.5; // if lower than the LOW_THRESH, suppress this.
     }
 
     M[J] += dot_product_score * (0.1 * n_nn + 1.1);  // n_nn == 1 ==> 1.0; n_nn == 2 ==> 0.9 ...

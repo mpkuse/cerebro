@@ -557,11 +557,15 @@ void Visualization::publish_loop_hypothesis_lines()
 }
 
 
+
+// #define __Visualization__publish_loop_hypothesis_image_pair(msg) msg;
+#define __Visualization__publish_loop_hypothesis_image_pair(msg) ;
+
 void Visualization::publish_loop_hypothesis_image_pair()
 {
     assert( m_dataManager_available && m_cerebro_available && "You need to set cerebro and DataManager in class Visualization  before execution of the run() thread can begin. You can set the cerebro by call to Visualization::setCerebro() and dataManager as setDataManager.\n");
     if( cerebro->is_loop_hypothesis_manager_allocated() == false ) {
-        __Visualization__publish_loop_hypothesis_lines_( cout << "[Visualization::publish_loop_hypothesis_image_pair] Loop Hypothesis manager seem to be not allocated, do nothing...\n"; )
+        __Visualization__publish_loop_hypothesis_image_pair( cout << "[Visualization::publish_loop_hypothesis_image_pair] Loop Hypothesis manager seem to be not allocated, do nothing...\n"; )
         return;
     }
 
@@ -584,6 +588,7 @@ void Visualization::publish_loop_hypothesis_image_pair()
         cerebro->loop_hypothesis_i_idx( i,  seq_a_start, seq_a_end, seq_b_start, seq_b_end  );
         cerebro->loop_hypothesis_i_T( i,   seq_a_start_T, seq_a_end_T, seq_b_start_T, seq_b_end_T );
 
+        __Visualization__publish_loop_hypothesis_image_pair(
         cout << "#" << i << " ";
         cout << "(" << seq_a_start_T << "," << seq_a_end_T << ")";
         cout << "<----->";
@@ -594,6 +599,7 @@ void Visualization::publish_loop_hypothesis_image_pair()
         cout << "<----->";
         cout << "(" << seq_b_start << "," << seq_b_end << ")";
         cout << endl;
+        )
 
         cv::Mat seq_a_start_im, seq_a_end_im, seq_b_start_im, seq_b_end_im;
         bool status = true;
@@ -605,13 +611,13 @@ void Visualization::publish_loop_hypothesis_image_pair()
             status = false;
 
         if( img_data_mgr->isImageRetrivable( "left_image", seq_a_end_T ) ) {
-            // img_data_mgr->getImage( "left_image", seq_a_end_T, seq_a_end_im );
+            img_data_mgr->getImage( "left_image", seq_a_end_T, seq_a_end_im );
         }
         else
             status = false;
 
         if( img_data_mgr->isImageRetrivable( "left_image", seq_b_start_T ) ) {
-            img_data_mgr->getImage( "left_image", seq_b_start_T, seq_b_start_im );
+            // img_data_mgr->getImage( "left_image", seq_b_start_T, seq_b_start_im );
         }
         else
             status = false;
@@ -624,19 +630,44 @@ void Visualization::publish_loop_hypothesis_image_pair()
         }
         assert( status == true );
 
-        if( status == false ) {cout << "[Visualization::publish_loop_hypothesis_image_pair] Something is wrong, one or more images cannot be retrieved"; }
+        if( status == false ) {cout << "[Visualization::publish_loop_hypothesis_image_pair] WARN. Something is wrong, one or more images cannot be retrieved, so not publish image pair"; }
         else
         {
-            cv::Mat dst;
-            MiscUtils::side_by_side( seq_a_end_im, seq_b_end_im , dst );
+            cv::Mat dst, dst_org;
+            __Visualization__publish_loop_hypothesis_image_pair(
+            cout << "seq_a_end_im: " << MiscUtils::cvmat_info( seq_a_end_im ) << "\t";
+            cout << "seq_b_end_im: " << MiscUtils::cvmat_info( seq_b_end_im ) << "\n";)
+            MiscUtils::side_by_side( seq_a_end_im, seq_b_end_im , dst_org );
 
             // TODO : Make a good informative string, rather than hap-hazard like this.
             string status_string = "#" + to_string(i) + ": (" +  to_string(seq_a_start)+","+to_string(seq_a_end) + ") <---> (" + to_string(seq_b_start)+","+to_string(seq_b_end) + ")";
-            MiscUtils::append_status_image( dst , "this image: "+to_string(seq_a_end)+"..."+to_string(seq_b_end) + " resized(0.5);" + status_string, 1.0 );
+            MiscUtils::append_status_image( dst_org , ";this image: "+to_string(seq_a_end)+"..."+to_string(seq_b_end) + " resized(0.5);;" + status_string,
+                            1.0,  cv::Scalar(0,0,0), cv::Scalar(255,255,255), 2.5 );
 
-            cv::resize( dst, dst, cv::Size(), 0.5, 0.5 );
+
+            cv::resize( dst_org, dst, cv::Size(), 0.5, 0.5 );
+
+
+            // make this #if 1 to imshow, make this to 0 to publish image data, customize as needed
+            #if 0
             cv::imshow( "pair", dst );
             cv::waitKey(10);
+            #else
+            cv_bridge::CvImage cv_image;
+            cv_image.image = dst;
+            if( dst.channels() == 1 )
+                cv_image.encoding = "mono8";
+            else if( dst.channels() == 3 )
+                cv_image.encoding = "bgr8";
+            else {
+                cout << TermColor::RED() << "[Visualization::publish_loop_hypothesis_image_pair]invalid number of channels EXIT\n";
+                exit(1);
+            }
+
+            sensor_msgs::Image ros_image_msg;
+            cv_image.toImageMsg(ros_image_msg);
+            imagepaire_pub.publish( ros_image_msg );
+            #endif
         }
 
     }

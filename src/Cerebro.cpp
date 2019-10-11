@@ -891,7 +891,7 @@ void Cerebro::faiss_multihypothesis_tracking()
         rate.sleep();
     }
 
-    #if 1
+    #if 0
     // debug look inside hyp_manager
     cout << TermColor::RED() << "[Cerebro::faiss_multihypothesis_tracking] =====Print debug data for the hyp_manager just before I quit the thread\n" << TermColor::RESET();
     hyp_manager->print_hyp_q_all();
