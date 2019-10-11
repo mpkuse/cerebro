@@ -187,9 +187,9 @@ public:
     void keyframe_pose_callback( const nav_msgs::Odometry::ConstPtr msg ); //X /// pose of imu at keyframes. Use it just as a marker, dont use the poses.
 
 
-    void raw_image_callback( const sensor_msgs::ImageConstPtr& msg );
-    void raw_image_callback_1( const sensor_msgs::ImageConstPtr& msg );
-    void depth_image_callback( const sensor_msgs::ImageConstPtr& msg );
+    void raw_image_callback( const sensor_msgs::ImageConstPtr& msg );   atomic<bool> m_raw_image_callback;
+    void raw_image_callback_1( const sensor_msgs::ImageConstPtr& msg ); atomic<bool> m_raw_image_callback_1;
+    void depth_image_callback( const sensor_msgs::ImageConstPtr& msg ); atomic<bool> m_depth_image_callback;
 
     void extrinsic_cam_imu_callback( const nav_msgs::Odometry::ConstPtr msg );
     void ptcld_callback( const sensor_msgs::PointCloud::ConstPtr msg );

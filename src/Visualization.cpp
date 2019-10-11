@@ -639,10 +639,25 @@ void Visualization::publish_loop_hypothesis_image_pair()
             cout << "seq_b_end_im: " << MiscUtils::cvmat_info( seq_b_end_im ) << "\n";)
             MiscUtils::side_by_side( seq_a_end_im, seq_b_end_im , dst_org );
 
+            std::stringstream buffer;
+            buffer << ";this: " << seq_a_end << "(ie. " << seq_a_end_T << ")";
+            buffer << "  ... ";
+            buffer << seq_b_end << "(ie. " << seq_b_end_T << ")   resized(0.5);;";
+
+            buffer << "#" << i << " ";
+            buffer << "(" << seq_a_start_T << "," << seq_a_end_T << ")";
+            buffer << ";;<----->;;";
+            buffer << "(" << seq_b_start_T << "," << seq_b_end_T << ")";
+            buffer << ";;";
+            buffer << "#" << i << " ";
+            buffer << "(" << seq_a_start << "," << seq_a_end << ")";
+            buffer << "<----->";
+            buffer << "(" << seq_b_start << "," << seq_b_end << ");";
+
             // TODO : Make a good informative string, rather than hap-hazard like this.
-            string status_string = "#" + to_string(i) + ": (" +  to_string(seq_a_start)+","+to_string(seq_a_end) + ") <---> (" + to_string(seq_b_start)+","+to_string(seq_b_end) + ")";
-            MiscUtils::append_status_image( dst_org , ";this image: "+to_string(seq_a_end)+"..."+to_string(seq_b_end) + " resized(0.5);;" + status_string,
-                            1.0,  cv::Scalar(0,0,0), cv::Scalar(255,255,255), 2.5 );
+            // string status_string = "#" + to_string(i) + ": (" +  to_string(seq_a_start)+","+to_string(seq_a_end) + ") <---> (" + to_string(seq_b_start)+","+to_string(seq_b_end) + ")";
+            MiscUtils::append_status_image( dst_org , buffer.str() ,
+                            1.0,  cv::Scalar(0,0,0), cv::Scalar(255,255,255), 3 );
 
 
             cv::resize( dst_org, dst, cv::Size(), 0.5, 0.5 );

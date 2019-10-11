@@ -28,7 +28,7 @@ void HypothesisManager::add_node( int i, int j, double dot_product_score, int n_
     }
 
     if( dot_product_score < LOW_THRESH ) {
-        dot_product_score *= 0.5; // if lower than the LOW_THRESH, suppress this.
+        dot_product_score *= 0.2; // if lower than the LOW_THRESH, suppress this.
     }
 
     M[J] += dot_product_score * (0.1 * n_nn + 1.1);  // n_nn == 1 ==> 1.0; n_nn == 2 ==> 0.9 ...
@@ -63,12 +63,12 @@ void HypothesisManager::digest()
         //? any conclusions from this?
         // (i_start,i) <----> ( W * (it->first)  , W * (it->first+1) ) iff it->second > 20.
         for( auto it = M.begin() ; it != M.end() ; it++ ) {
-            if( it->second > MANDATE_SCORE_THRESH ) {
+            if( it->second > MANDATE_SCORE_THRESH && n_greater_than_thresh > 5 ) {
                 std::lock_guard<std::mutex> lk(mutex_hyp_q);
 
                 __HypothesisManager__digest___(
                 cout << TermColor::GREEN();
-                cout << "ADD : " << i_start << "," << i_latest <<  "<--->" << it->first * W << ", " << (it->first+1)*W << endl;
+                cout << "[HypothesisManager::digest]ADD : " << i_start << "," << i_latest <<  "<--->" << it->first * W << ", " << (it->first+1)*W << endl;
                 cout << TermColor::RESET();
                 )
                 vector<int> tmp = {i_start,i_latest,     W * (it->first)  , W * (it->first+1) };

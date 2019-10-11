@@ -891,7 +891,7 @@ void Cerebro::faiss_multihypothesis_tracking()
         rate.sleep();
     }
 
-    #if 0
+    #if 1
     // debug look inside hyp_manager
     cout << TermColor::RED() << "[Cerebro::faiss_multihypothesis_tracking] =====Print debug data for the hyp_manager just before I quit the thread\n" << TermColor::RESET();
     hyp_manager->print_hyp_q_all();
@@ -902,6 +902,8 @@ void Cerebro::faiss_multihypothesis_tracking()
     ros::Time seq_a_start_T, seq_a_end_T, seq_b_start_T, seq_b_end_T;
     int n_hyp = hyp_manager->n_hypothesis();
     auto img_data_mgr = dataManager->getImageManagerRef();
+    // auto data_map = dataManager->getDataMapRef();
+
     for( int i=0 ; i<n_hyp; i++ )
     {
         #if 1
@@ -957,8 +959,32 @@ void Cerebro::faiss_multihypothesis_tracking()
             string fname = "/app/tmp/cerebro/loophyp_" + to_string(i) + ".jpg";
             MiscUtils::side_by_side( seq_a_start_im, seq_b_start_im , dst );
 
-            string status_string = "#" + to_string(i) + ": (" +  to_string(seq_a_start)+","+to_string(seq_a_end) + ") <---> (" + to_string(seq_b_start)+","+to_string(seq_b_end) + ")";
-            MiscUtils::append_status_image( dst , to_string(seq_a_start)+"..."+to_string(seq_b_start) + ";" + status_string );
+            std::stringstream buffer;
+            buffer << ";this: " << seq_a_start << "(ie. " << seq_a_start_T << ")";
+            buffer << "  ... ";
+            buffer << seq_b_start << "(ie. " << seq_b_start_T << ");";
+
+            buffer << "timestamps #" << i << " ";
+            buffer << "(" << seq_a_start_T << "," << seq_a_end_T << ")";
+            buffer << "<----->";
+            buffer << "(" << seq_b_start_T << "," << seq_b_end_T << ");";
+            buffer << "index in wholeImageComputedList #" << i << " ";
+            buffer << "(" << seq_a_start << "," << seq_a_end << ")";
+            buffer << "<----->";
+            buffer << "(" << seq_b_start << "," << seq_b_end << ");";
+
+            int idx_a_start = std::distance( data_map->begin(), data_map->find( seq_a_start_T )  );
+            int idx_a_end   = std::distance( data_map->begin(), data_map->find( seq_a_end_T )  );
+            int idx_b_start = std::distance( data_map->begin(), data_map->find( seq_b_start_T )  );
+            int idx_b_end   = std::distance( data_map->begin(), data_map->find( seq_b_end_T )  );
+            buffer << "index in data_map #" << i << " ";
+            buffer << "(" << idx_a_start << "," << idx_a_end << ")";
+            buffer << "<----->";
+            buffer << "(" << idx_b_start << "," << idx_b_end << ");";
+
+
+
+            MiscUtils::append_status_image( dst , buffer.str() );
             cout << "imwrite( " << fname << ")\n";
             cv::imwrite( fname, dst );
         }

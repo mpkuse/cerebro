@@ -4,6 +4,10 @@ DataManager::DataManager(ros::NodeHandle &nh )
 //: out_stream(ofstream("/dev/pts/0",ios::out) )
 {
     this->nh = nh;
+
+    m_raw_image_callback   = false;
+    m_raw_image_callback_1 = false;
+    m_depth_image_callback = false;
 }
 
 
@@ -293,6 +297,8 @@ void DataManager::raw_image_callback( const sensor_msgs::ImageConstPtr& msg )
 
     img_buf.push( msg );
     this->last_image_time = msg->header.stamp;
+
+    m_raw_image_callback = true;
     return;
 
 }
@@ -302,6 +308,8 @@ void DataManager::raw_image_callback_1( const sensor_msgs::ImageConstPtr& msg )
     // __DATAMANAGER_CALLBACK_PRINT( cout << "[cerebro/raw_image_callback_1 del]" << msg->header.stamp-pose_0 << endl; )
     __DATAMANAGER_CALLBACK_PRINT( cout << "[cerebro/raw_image_callback_1]" << msg->header.stamp << "\t" << msg->header.stamp-pose_0 << endl; )
     img_1_buf.push( msg );
+
+    m_raw_image_callback_1 = true;
     return;
 }
 
@@ -313,6 +321,8 @@ void DataManager::depth_image_callback( const sensor_msgs::ImageConstPtr& msg )
     cout << "depth image encoding: " << msg->encoding << endl;
     )
     depth_im_buf.push( msg );
+
+    m_depth_image_callback = true;
     return ;
 }
 
@@ -748,13 +758,24 @@ void DataManager::clean_up_useless_images_thread()
             #endif
 
             if( it->second->isKeyFrame() ) {
-                img_data_mgr->stashImage( "left_image", it->first );
-                img_data_mgr->stashImage( "right_image", it->first );
-                img_data_mgr->stashImage( "depth_image", it->first );
+                if( m_raw_image_callback )
+                    img_data_mgr->stashImage( "left_image", it->first );
+
+                if( m_raw_image_callback_1)
+                    img_data_mgr->stashImage( "right_image", it->first );
+
+                if( m_depth_image_callback )
+                    img_data_mgr->stashImage( "depth_image", it->first );
             } else {
-                img_data_mgr->rmImage( "left_image", it->first );
-                img_data_mgr->rmImage( "right_image", it->first );
-                img_data_mgr->rmImage( "depth_image", it->first );
+
+                if( m_raw_image_callback )
+                    img_data_mgr->rmImage( "left_image", it->first );
+
+                if( m_raw_image_callback_1 )
+                    img_data_mgr->rmImage( "right_image", it->first );
+
+                if( m_depth_image_callback )
+                    img_data_mgr->rmImage( "depth_image", it->first );
             }
         }
     }
