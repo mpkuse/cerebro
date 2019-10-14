@@ -169,6 +169,7 @@ public:
     // user: `Visualization::publish_loop_hypothesis()` and `Visualization::rel_pose_from_loop_hypothesis()`
     bool is_loop_hypothesis_manager_allocated() { return (  ( hyp_manager != nullptr )?true:false ); }
     const int loop_hypothesis_count() const;
+    //      seq_a_start, seq_a_end, seq_b_start, seq_b_end
     void loop_hypothesis_i_idx( int i, int& seq_a_start, int& seq_a_end, int& seq_b_start, int& seq_b_end ) const;
     void loop_hypothesis_i_T(   int i, ros::Time& seq_a_start_T, ros::Time& seq_a_end_T, ros::Time& seq_b_start_T, ros::Time& seq_b_end_T  ) const;
     void loop_hypothesis_i_im(  int i, cv::Mat& seq_a_start_im , cv::Mat& seq_a_end_im , cv::Mat& seq_b_start_im , cv::Mat& seq_b_end_im ) const;
@@ -193,6 +194,9 @@ public:
 
 
 private:
+    atomic<bool> b_loop_hypothesis_consumer;
+
+
     // This will take in the i (index of the hypothesis) and do:
     //      a. seq_a_start--->seq_a_end also for seq_b
     //      b. retrive needed data (include image and pose)
@@ -204,8 +208,9 @@ private:
     //      d. pose from 3d-3d correspondences
     //      e. verify pose based on pairwise invariance for rotation and translation
     //      f. report
-    void compute_geometry_for_loop_hypothesis_i( int i );
-    atomic<bool> b_loop_hypothesis_consumer;
+    bool compute_geometry_for_loop_hypothesis_i( int i );
+
+    bool retrive_image_data( ros::Time& stamp, cv::Mat& left_image, cv::Mat& depth_image, Matrix4d& w_T_c );
 
 
 

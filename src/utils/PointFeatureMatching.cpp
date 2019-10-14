@@ -72,6 +72,127 @@ void StaticPointFeatureMatching::gms_point_feature_matches( const cv::Mat& imlef
 }
 
 
+// #define ___StaticPointFeatureMatching__point_feature_matches( msg ) msg;
+#define ___StaticPointFeatureMatching__point_feature_matches( msg ) ;
+void StaticPointFeatureMatching::point_feature_matches( const cv::Mat& imleft_undistorted, const cv::Mat& imright_undistorted,
+            MatrixXd&u, MatrixXd& ud,
+            PointFeatureMatchingSummary& summary )
+{
+    assert( !imleft_undistorted.empty() && !imright_undistorted.empty() );
+
+    ___StaticPointFeatureMatching__point_feature_matches(
+    cout << TermColor::YELLOW() << "=== [StaticPointFeatureMatching::point_feature_matches]\n" << TermColor::RESET() ;)
+    cv::Ptr<cv::Feature2D> fdetector = cv::ORB::create(500);
+    std::vector<cv::KeyPoint> keypoints1, keypoints2;
+    cv::Mat descriptors1, descriptors2;
+    fdetector->detectAndCompute(imleft_undistorted, cv::Mat(), keypoints1, descriptors1);
+    fdetector->detectAndCompute(imright_undistorted, cv::Mat(), keypoints2, descriptors2);
+    ___StaticPointFeatureMatching__point_feature_matches(
+    cout << "# of keypoints : "<< keypoints1.size() << "\t";
+    cout << "# of keypoints : "<< keypoints2.size() << "\t";
+    cout << "descriptors shape : "<< descriptors1.rows << "x" << descriptors1.cols << "\t";
+    cout << "descriptors shape : "<< descriptors2.rows << "x" << descriptors2.cols << endl;
+    )
+
+    summary.feature_detector_type = "ORB";
+    summary.feature_descriptor_type = "ORB";
+    summary.n_keypoints = descriptors1.rows;
+    summary.n_descriptor_dimension = descriptors1.cols;
+
+
+    #if 0
+    cv::BFMatcher matcher(cv::NORM_HAMMING);
+    std::vector< cv::DMatch > matches;
+    matcher.match(descriptors1, descriptors2, matches);
+    ___StaticPointFeatureMatching__point_feature_matches(
+    cout << "#number of matches : " << matches.size() << endl; )
+
+    // MatrixXd M1, M2;
+    if( matches.size() > 0 )
+        MiscUtils::dmatch_2_eigen( keypoints1, keypoints2, matches, u, ud, true );
+
+    #endif
+
+    //
+    // Matcher - FLAN (Approx NN)
+    if(descriptors1.type()!=CV_32F)
+    {
+        descriptors1.convertTo(descriptors1, CV_32F);
+        descriptors2.convertTo(descriptors2, CV_32F);
+    }
+    cv::FlannBasedMatcher matcher;
+    summary.matcher_type = "FlannBasedMatcher";
+
+    std::vector< std::vector< cv::DMatch > > matches_raw;
+    matcher.knnMatch( descriptors1, descriptors2, matches_raw, 2 );
+    ___StaticPointFeatureMatching__point_feature_matches(
+    cout << "# Matches : " << matches_raw.size() << "\t"; //N
+    cout << "# Matches[0] : " << matches_raw[0].size() << endl; //2
+    )
+
+    //
+    // Lowe's Ratio test
+    vector<cv::Point2f> pts_1, pts_2;
+    lowe_ratio_test( keypoints1, keypoints2, matches_raw, pts_1, pts_2 );
+    ___StaticPointFeatureMatching__point_feature_matches(
+    cout << "# Retained (after lowe_ratio_test): "<< pts_1.size() << endl; // == pts_2.size()
+    )
+    summary.n_keypoints_pass_ratio_test = pts_1.size();
+
+
+    #if 0
+    //
+    bool make_homogeneous = true;
+    u = MatrixXd::Constant( (make_homogeneous?3:2), pts_1.size(), 1.0 );
+    ud = MatrixXd::Constant( (make_homogeneous?3:2), pts_2.size(), 1.0 );
+    for( int k=0 ; k<pts_1.size() ; k++ )
+    {
+        u(0,k) = pts_1[k].x;
+        u(1,k) = pts_1[k].y;
+
+        ud(0,k) = pts_2[k].x;
+        ud(1,k) = pts_2[k].y;
+    }
+    #endif
+
+    // F-test
+    vector<uchar> status;
+    cv::findFundamentalMat(pts_1, pts_2, cv::FM_RANSAC, 5.0, 0.99, status);
+    assert( pts_2.size() == status.size() );
+    int n_good = 0;
+    for( int k=0 ;k<status.size();k++) {
+        if( status[k] > 0 )
+            n_good++;
+        }
+    ___StaticPointFeatureMatching__point_feature_matches(
+        cout << "....Only " << n_good << " points pass the F-test\n";)
+        summary.n_keypoints_pass_f_test = n_good;
+
+        //
+        bool make_homogeneous = true;
+        u = MatrixXd::Constant( (make_homogeneous?3:2), n_good, 1.0 );
+        ud = MatrixXd::Constant( (make_homogeneous?3:2), n_good, 1.0 );
+        int ck = 0;
+        for( int k=0 ; k<pts_1.size() ; k++ )
+        {
+            if( status[k] > 0 ) {
+                u(0,ck) = pts_1[k].x;
+                u(1,ck) = pts_1[k].y;
+
+                ud(0,ck) = pts_2[k].x;
+                ud(1,ck) = pts_2[k].y;
+                ck++;
+            }
+        }
+        assert( ck == n_good );
+
+
+
+    ___StaticPointFeatureMatching__point_feature_matches(
+    cout << "=== [StaticPointFeatureMatching::point_feature_matches] Finished\n";)
+}
+
+
 
 
 //-----------------------------------------------
@@ -192,4 +313,216 @@ bool StaticPointFeatureMatching::make_3d_3d_collection__using__pfmatches_and_dis
     }
     // cout << "[make_3d_3d_collection__using__pfmatches_and_disparity] of the total " << uv.cols() << " point feature correspondences " << c << " had valid depths\n";
     return true;
+}
+
+
+
+bool StaticPointFeatureMatching::image_correspondence_with_depth(
+    const cv::Mat& image_a, const cv::Mat& depth_a,
+    const cv::Mat& image_b, const cv::Mat& depth_b,
+    MatrixXd& uv_a, MatrixXd& uv_b,
+    MatrixXd& aX, MatrixXd& bX, vector<bool>& valids
+)
+{
+    ElapsedTime elp;
+
+    #if 0
+    // -- GMS Matcher
+    elp.tic();
+    StaticPointFeatureMatching::gms_point_feature_matches( image_a, image_b, uv_a, uv_b );
+    cout << TermColor::BLUE() << "StaticPointFeatureMatching::gms_point_feature_matches returned in " << elp.toc_milli() << " ms\n" << TermColor::RESET();
+
+    cout << "uv_a: " << uv_a.rows() << "x" << uv_a.cols() << "\t";
+    cout << "uv_b: " << uv_b.rows() << "x" << uv_b.cols() << "\t";
+
+    if( uv_a.cols() < 50 ) {
+        cout << TermColor::YELLOW() << "\nGMSMatcher produced fewer than 50 point matches, return false\n" << TermColor::RESET();
+        return false;
+    }
+
+    #if 0
+    cv::Mat dst_gmsmatcher;
+    MiscUtils::plot_point_pair( image_a, uv_a, idx_a,
+                                image_b, uv_b, idx_b, dst_gmsmatcher, 3, "gms plot (resize 0.5)" );
+    cv::resize(dst_gmsmatcher, dst_gmsmatcher, cv::Size(), 0.5, 0.5);
+    cv::imshow( "GMSMatcher", dst_gmsmatcher );
+    #endif
+    #endif
+
+
+    #if 1
+    // -- Simple ORB Matcher
+
+    elp.tic();
+    PointFeatureMatchingSummary summary;
+    StaticPointFeatureMatching::point_feature_matches( image_a, image_b, uv_a, uv_b, summary );
+    cout << TermColor::BLUE() << "StaticPointFeatureMatching::point_feature_matches returned in " << elp.toc_milli() << " ms\n" << TermColor::RESET();
+
+
+    cout << "uv_a: " << uv_a.rows() << "x" << uv_a.cols() << "\t";
+    cout << "uv_b: " << uv_b.rows() << "x" << uv_b.cols() << "\t";
+
+    if( uv_a.cols() < 5 ) {
+        cout << TermColor::YELLOW() << "\npoint_feature_matches() produced fewer than 5 point matches, return false\n" << TermColor::RESET();
+        return false;
+    }
+
+    #if 0
+    cv::Mat dst_matcher;
+    MiscUtils::plot_point_pair( image_a, uv_a, idx_a,
+                                image_b, uv_b, idx_b, dst_matcher,
+                                // 3, "gms plot (resize 0.5)"
+                                cv::Scalar( 0,0,255 ), cv::Scalar( 0,255,0 ), false, "gms plot (resize 0.5)"
+                            );
+    cv::resize(dst_matcher, dst_matcher, cv::Size(), 0.5, 0.5);
+    cv::imshow( "GMSMatcher", dst_matcher );
+    #endif
+    #endif
+
+    // --- Depth lookup at correspondences
+    #if 0
+    // -- 3D Points from depth image at the correspondences
+    // vector<bool> valids;
+    valids.clear();
+    StaticPointFeatureMatching::make_3d_3d_collection__using__pfmatches_and_depthimage(
+        xloader.left_camera,
+        uv_a, depth_a, uv_b, depth_b,
+        aX, bX, valids
+    );
+
+    int nvalids = 0;
+    for( int i=0 ; i<valids.size() ; i++ )
+        if( valids[i]  == true )
+            nvalids++;
+    cout << TermColor::YELLOW() <<  "nvalids_depths=" << nvalids << " of total=" << valids.size() << TermColor::RESET() << "\t";
+
+    cout << "aX: " << aX.rows() << "x" << aX.cols() << "\t";
+    cout << "bX: " << bX.rows() << "x" << bX.cols() << endl;
+
+    if( nvalids < 5 ) {
+        cout << TermColor::YELLOW() << "Of the total " << valids.size() << " point-matches, only " << nvalids << " had good depths, this is less than the threshold, so return false\n" << TermColor::RESET();
+        return false;
+    }
+    int nvalids = (int) sf.sum();
+    cout << TermColor::YELLOW() << "Of the total " << uv_a.cols() << " point-matches, only " << nvalids << " had good depths\n" << TermColor::RESET();
+    #endif
+
+    return true;
+}
+
+
+bool StaticPointFeatureMatching::make_3d_3d_collection__using__pfmatches_and_depthimage(
+    camodocal::CameraPtr _camera,
+    const MatrixXd& uv, const cv::Mat& depth_image_uv,
+    const MatrixXd& uv_d, const cv::Mat& depth_image_uvd,
+    //vector<Vector3d>& uv_X, vector<Vector3d>& uvd_Y
+    MatrixXd& uv_X, MatrixXd& uvd_Y, vector<bool>& valids
+)
+{
+    float near = 0.5;
+    float far = 4.5;
+    assert( uv.cols() > 0 && uv.cols() == uv_d.cols() );
+    // uv_X.clear();
+    // uvd_Y.clear();
+    valids.clear();
+    if( uv.cols() != uv_d.cols() ) {
+        cout << TermColor::RED() << "[StaticPointFeatureMatching::make_3d_3d_collection__using__pfmatches_and_depthimage] pf-matches need to be of same length. You provided of different lengths\n" << TermColor::RESET();
+        return false;
+    }
+    assert( depth_image_uv.type() == CV_16UC1 || depth_image_uv.type() == CV_32FC1 );
+    assert( depth_image_uv.type() == depth_image_uvd.type() );
+
+
+    // make 3d points out of 2d point feature matches
+    uv_X = MatrixXd::Constant( 4, uv.cols(), 1.0 );
+    for( int i=0 ; i<uv.cols() ; i++ )
+    {
+
+        float depth_val;
+        if( depth_image_uv.type() == CV_16UC1 ) {
+            depth_val = .001 * depth_image_uv.at<uint16_t>( uv(1,i), uv(0,i) );
+        }
+        else if( depth_image_uv.type() == CV_32FC1 ) {
+            // just assuming the depth values are in meters when CV_32FC1
+            depth_val = depth_image_uv.at<float>( uv(1,i), uv(0,i) );
+        }
+        else {
+            assert( false );
+            cout << "[StaticPointFeatureMatching::make_3d_3d_collection__using__pfmatches_and_depthimage]depth type is neighter of CV_16UC1 or CV_32FC1\n";
+            exit(1);
+        }
+        // cout << "ath uv_i=" << i << " depth_val = " << depth_val << endl;
+
+        Vector3d _0P;
+        Vector2d _0p; _0p << uv(0,i), uv(1,i);
+        _camera->liftProjective( _0p, _0P );
+        // uv_X.push_back( depth_val * _0P );
+        uv_X.col(i).topRows(3) = depth_val * _0P;
+
+        if( depth_val > near && depth_val < far )
+            valids.push_back( true );
+        else
+            valids.push_back( false );
+    }
+
+
+    uvd_Y = MatrixXd::Constant( 4, uv_d.cols(), 1.0 );
+    for( int i=0 ; i<uv_d.cols() ; i++ )
+    {
+
+        float depth_val;
+        if( depth_image_uvd.type() == CV_16UC1 ) {
+            depth_val = 0.001 * depth_image_uvd.at<uint16_t>( uv_d(1,i), uv_d(0,i) );
+        }
+        else if( depth_image_uvd.type() == CV_32FC1 ) {
+            // just assuming the depth values are in meters when CV_32FC1
+            depth_val =  depth_image_uvd.at<float>( uv_d(1,i), uv_d(0,i) );
+        }
+        else {
+            assert( false );
+            cout << "[StaticPointFeatureMatching::make_3d_3d_collection__using__pfmatches_and_depthimage]depth type is neighter of CV_16UC1 or CV_32FC1\n";
+            exit(1);
+        }
+        // cout << "ath uvd_i=" << i << " depth_val = " << depth_val << endl;
+
+        Vector3d _1P;
+        Vector2d _1p; _1p << uv_d(0,i), uv_d(1,i);
+        _camera->liftProjective( _1p, _1P );
+        // uvd_Y.push_back( depth_val * _1P );
+        uvd_Y.col(i).topRows(3) = depth_val * _1P;
+
+        if( depth_val > near && depth_val < far )
+            valids[i] = valids[i] && true;
+        else
+            valids[i] = valids[i] && false;
+    }
+
+
+    return true;
+
+
+}
+
+
+void StaticPointFeatureMatching::lowe_ratio_test( const vector<cv::KeyPoint>& keypoints1, const vector<cv::KeyPoint>& keypoints2 ,
+                  const std::vector< std::vector< cv::DMatch > >& matches_raw,
+                  vector<cv::Point2f>& pts_1, vector<cv::Point2f>& pts_2, float threshold )
+{
+    pts_1.clear();
+    pts_2.clear();
+    assert( matches_raw.size() > 0 );
+    assert( matches_raw[0].size() >= 2 );
+
+    for( int j=0 ; j<matches_raw.size() ; j++ )
+    {
+        if( matches_raw[j][0].distance < threshold * matches_raw[j][1].distance ) //good match
+        {
+            // Get points
+            int t = matches_raw[j][0].trainIdx;
+            int q = matches_raw[j][0].queryIdx;
+            pts_1.push_back( keypoints1[q].pt );
+            pts_2.push_back( keypoints2[t].pt );
+        }
+    }
+
 }

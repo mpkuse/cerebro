@@ -1354,18 +1354,21 @@ void Cerebro::loop_hypothesis_consumer_thread()
 
 
 
-        cout << "[Cerebro::loop_hypothesis_consumer_thread] ---loop_hypothesis_count=" << loop_hypothesis_count() << endl;
         int curr_count = loop_hypothesis_count();
         if( curr_count > prev_count )
         {
             // something new
+            cout << "[Cerebro::loop_hypothesis_consumer_thread] ---loop_hypothesis_count=" << curr_count << endl;
             for( int d=prev_count ; d<curr_count ; d++ )
             {
-                cout << TermColor::iCYAN() << "[[Cerebro::loop_hypothesis_consumer_thread] Process Loop Hypothesis#" << d << TermColor::RESET() << endl;
-                // compute_geometry_for_loop_hypothesis_i( d );
+                cout << TermColor::iCYAN() << "[Cerebro::loop_hypothesis_consumer_thread] Process Loop Hypothesis#" << d << TermColor::RESET() << endl;
+                ElapsedTime geom_t;
+                compute_geometry_for_loop_hypothesis_i( d );
+                cout << TermColor::BLUE() << "[Cerebro::loop_hypothesis_consumer_thread] it took ms=" << geom_t.toc_milli() << " to process this loop hypothesis\n";
             }
         } else {
-            cout << "[Cerebro::loop_hypothesis_consumer_thread] nothing new\n";
+            // cout << "[Cerebro::loop_hypothesis_consumer_thread] nothing new\n";
+            ;
         }
 
         prev_count = curr_count;
@@ -1376,9 +1379,9 @@ void Cerebro::loop_hypothesis_consumer_thread()
 }
 
 
-void Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
+bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
 {
-    cout << TermColor::CYAN() << "[Cerebro::compute_geometry_for_loop_hypothesis_i] Process Loop Hypothesis#" << i << TermColor::RESET() << endl;
+    cout << TermColor::CYAN() << "\t\t[Cerebro::compute_geometry_for_loop_hypothesis_i] Process Loop Hypothesis#" << i << TermColor::RESET() << endl;
     //      a. seq_a_start--->seq_a_end also for seq_b
     //      b. retrive needed data (include image and pose)
     //      c. for i in range(10):
@@ -1391,9 +1394,186 @@ void Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
     //      f. report
 
 
+    int seq_a_start, seq_a_end, seq_b_start, seq_b_end ; //< note these idx are in wholeImageComputedList and realisitically useless, u need to use the function `loop_hypothesis_i_T()`
+    ros::Time seq_a_start_T, seq_a_end_T, seq_b_start_T, seq_b_end_T;
+
+    loop_hypothesis_i_idx( i, seq_a_start, seq_a_end, seq_b_start, seq_b_end );
+    loop_hypothesis_i_T( i, seq_a_start_T, seq_a_end_T, seq_b_start_T, seq_b_end_T );
+    cout << "\t\t" << seq_a_start << "," << seq_a_end << "<---->" << seq_b_start << "," << seq_b_end << endl;
+    cout << "\t\t" << seq_a_start_T << "," << seq_a_end_T << "<---->" << seq_b_start_T << "," << seq_b_end_T << endl;
+
+
+    auto img_data_mgr = dataManager->getImageManagerRef();
+    auto data_map = dataManager->getDataMapRef();
+
+
+    //--- get w_T_a0 and w_T_b0
+    Matrix4d w_T_a0, w_T_b0;
+    if( data_map->count( seq_a_start_T ) > 0 && data_map->count( seq_b_end_T) > 0 )
+    {
+        bool is_a = data_map->at( seq_a_start_T )->isPoseAvailable();
+        bool is_b = data_map->at( seq_b_start_T )->isPoseAvailable();
+        if( is_a && is_b ) {
+            w_T_a0 = data_map->at( seq_a_start_T )->getPose();
+            w_T_b0 = data_map->at( seq_b_start_T )->getPose();
+        }
+        else
+        {
+            cout << TermColor::RED();
+            cout << "[Cerebro::compute_geometry_for_loop_hypothesis_i] FATAL-ERROR. Although the datamap had the timestamps,";
+            cout << seq_a_start_T << ", " << seq_b_start_T << ",";
+            cout << " one of them didnt have a valid pose. is_a=" << is_a << ", " << "is_b=" << is_b;
+            cout << TermColor::RESET() << endl;
+
+            return false;
+        }
+    } else {
+        cout << "FATAL-ERROR. The timestamps" << seq_a_start_T << " and " << seq_b_start_T << " were not found on the data_map.\n";
+        exit(1);
+    }
+    cout << "\t\tw_T_a0=" << PoseManipUtils::prettyprintMatrix4d( w_T_a0 ) << endl;
+    cout << "\t\tw_T_b0=" << PoseManipUtils::prettyprintMatrix4d( w_T_b0 ) << endl;
 
 
 
+
+    //--- Randomly draw image pair in the range
+    std::default_random_engine generator;
+    std::uniform_int_distribution<int> rand_a(seq_a_start, seq_a_end);
+    std::uniform_int_distribution<int> rand_b(seq_b_start, seq_b_end);
+
+    vector<MatrixXd> all_a0_X, all_b0_X;
+    vector< vector<bool> > all_valids;
+    for( int itr=0 ; itr<5 ; itr++ )
+    {
+        //--- pick random pair
+        int ra = rand_a(generator);
+        int rb = rand_b(generator);
+        cout << "\t\t\titr=" << itr << "\t" << ra << "<-->" << rb << endl;
+
+        ros::Time t_a = wholeImageComputedList_at( ra );
+        ros::Time t_b = wholeImageComputedList_at( rb );
+
+        cv::Mat left_image_a, left_image_b;
+        cv::Mat depth_a, depth_b;
+        Matrix4d w_T_a, w_T_b;
+
+        //--- retrive data
+        #if 1 // if depth image available
+        bool status_a = retrive_image_data( t_a, left_image_a, depth_a, w_T_a );
+        bool status_b = retrive_image_data( t_b, left_image_b, depth_b, w_T_b );
+        assert( status_a && status_b );
+        #endif
+
+
+        #if 0 //stereo-geometry, aka sgbm using left and right image
+        {
+        // TODO
+        DataNode * node_1 = data_map->find( t_curr )->second;
+        DataNode * node_2 = data_map->find( t_prev )->second;
+
+        cv::Mat a_imleft_raw, a_imright_raw;
+        bool ret_status_a = retrive_stereo_pair( node_1, a_imleft_raw, a_imright_raw );
+        if( !ret_status_a )
+            return false;
+
+        cv::Mat b_imleft_raw, b_imright_raw;
+        bool ret_status_b = retrive_stereo_pair( node_2, b_imleft_raw, b_imright_raw );
+        if( !ret_status_b )
+            return false;
+
+        // disparity computation with SGBM
+
+        // disparity to depth
+
+
+        }
+        #endif
+
+
+        //--- image correspondences
+        MatrixXd uv_a, uv_b, aX, bX;
+        vector<bool> valids;
+        StaticPointFeatureMatching::image_correspondence_with_depth(
+            left_image_a, depth_a,
+            left_image_b, depth_b,
+            uv_a, uv_b, aX, bX, valids );
+
+
+        #if 1
+        cv::Mat dst_matcher;
+        MiscUtils::plot_point_pair( left_image_a, uv_a, ra,
+                                    left_image_b, uv_b, rb, dst_matcher,
+                                    // 3, "gms plot (resize 0.5)"
+                                    cv::Scalar( 0,0,255 ), cv::Scalar( 0,255,0 ), false, "plot (resize 0.5)"
+                                );
+        cv::resize(dst_matcher, dst_matcher, cv::Size(), 0.5, 0.5);
+
+        string fname = "/app/tmp/cerebro/live_system/hyp_" + to_string(i) + "__itr="+to_string(itr) + ".jpg";
+        cout << "imwrite(" << fname << ");\n";
+        cv::imwrite( fname, dst_matcher );
+        #endif
+
+        #if 0
+        MatrixXd a0_X = w_T_a0.inverse() * w_T_a * aX;
+        MatrixXd b0_X = w_T_b0.inverse() * w_T_b * bX;
+
+        all_a0_X.push_back( a0_X );
+        all_b0_X.push_back( b0_X );
+        all_valids.push_back( valids );
+        #endif
+
+
+
+
+    }
+
+    #if 0
+    MatrixXd dst0, dst1;
+    MiscUtils::gather( all_a0_X, all_valids, dst0 );
+    MiscUtils::gather( all_b0_X, all_valids, dst1 );
+    PoseComputation::alternatingMinimization( dst0, dst1, a_T_b, switch_weights );
+
+
+    // if all good, note this result
+
+    // if all good, publish this result with msg/LoopEdge.msg
+    #endif
+
+
+    return true;
+
+}
+
+bool Cerebro::retrive_image_data( ros::Time& stamp, cv::Mat& left_image, cv::Mat& depth_image, Matrix4d& w_T_c )
+{
+    auto img_data_mgr = dataManager->getImageManagerRef();
+    auto data_map = dataManager->getDataMapRef();
+
+    if( data_map->count( stamp ) == 0  )
+    {
+        cout << "[Cerebro::retrive_image_data] FATAL-ERROR. timestamps="<< stamp << " not found in data_map. This is not possible. If this happens, this is definately a bug, report to the authors\n";
+        exit(1);
+    }
+
+    DataNode * node = data_map->at( stamp );
+
+    bool is_left_image = img_data_mgr->isImageRetrivable( "left_image", node->getT() );
+    bool is_depth = img_data_mgr->isImageRetrivable( "depth_image", node->getT() );
+    bool is_pose = node->isPoseAvailable();
+
+    if( is_left_image == false || is_depth == false || is_pose == false )
+    {
+        cout << "[Cerebro::retrive_image_data] WARN cannot retrive data at stamp=" << stamp << "\t";
+        cout << "is_left_image=" << is_left_image << "  is_depth=" << is_depth << "  is_pose=" << is_pose << endl;
+        return false;
+    }
+
+    img_data_mgr->getImage( "left_image", node->getT(), left_image );
+    img_data_mgr->getImage( "depth_image", node->getT(), depth_image );
+    w_T_c = data_map->at( stamp )->getPose();
+
+    return true;
 }
 
 //------------------------------------------------------------------//

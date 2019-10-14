@@ -514,7 +514,7 @@ int main( int argc, char ** argv )
     //      this monitors Cerebro::loop_hypothesis_count and computes geometry if there is
     //      any new loop hypothesis.
     cer.loop_hypothesis_consumer_enable();
-    cer.loop_hypothesis_consumer_disable();
+    // cer.loop_hypothesis_consumer_disable();
     std::thread loop_hypothesis_consumer_th( &Cerebro::loop_hypothesis_consumer_thread, &cer );
 
     // [D]
