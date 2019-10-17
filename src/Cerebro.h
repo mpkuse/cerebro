@@ -16,18 +16,22 @@
 #include <iostream>
 #include <vector>
 
-#include "PinholeCamera.h"
+#include "PinholeCamera.h" //removal as we shifted to camodocal for camera model.
+
 #include "DataManager.h"
 #include "ProcessedLoopCandidate.h"
-#include "DlsPnpWithRansac.h"
 #include "HypothesisManager.h"
+
+
+#include "utils/CameraGeometry.h"
+#include "utils/PointFeatureMatching.h"
+
+#include "DlsPnpWithRansac.h"
+#include "PoseComputation.h"
 
 #include "utils/TermColor.h"
 #include "utils/ElapsedTime.h"
 #include "utils/Plot2Mat.h"
-
-#include "utils/CameraGeometry.h"
-#include "utils/PointFeatureMatching.h"
 
 
 #include "utils/nlohmann/json.hpp"

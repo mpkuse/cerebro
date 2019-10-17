@@ -15,12 +15,12 @@ find_package(catkin REQUIRED COMPONENTS
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
-set( CMAKE_CXX_STANDARD 11 )
+set( CMAKE_CXX_STANDARD 14 )
 find_package(Threads)
 find_package(Eigen3 REQUIRED)
 find_package(Ceres REQUIRED)
 find_package(OpenCV 3 REQUIRED)
-#set( CMAKE_CXX_FLAGS "-fpermissive -std=c++11 -O3 -Wall -Wextra -pedantic" )
+
 
 # Removing the dependence on theia for the production code.
 # If you want to compile unit tests, some of those need theia-sfm as dependence.
@@ -170,6 +170,7 @@ add_executable(
         src/Visualization.cpp
         src/ProcessedLoopCandidate.cpp
         src/DlsPnpWithRansac.cpp
+        src/PoseComputation.cpp
         src/HypothesisManager.cpp
         src/ImageDataManager.cpp
         ${KuseUtilsSources}

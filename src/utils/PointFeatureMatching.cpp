@@ -71,6 +71,13 @@ void StaticPointFeatureMatching::gms_point_feature_matches( const cv::Mat& imlef
 
 }
 
+void StaticPointFeatureMatching::point_feature_matches(
+    const cv::Mat& imleft_undistorted, const cv::Mat& imright_undistorted,
+    MatrixXd&u, MatrixXd& ud )
+{
+    PointFeatureMatchingSummary summary;
+    point_feature_matches(  imleft_undistorted, imright_undistorted, u, ud, summary );
+}
 
 // #define ___StaticPointFeatureMatching__point_feature_matches( msg ) msg;
 #define ___StaticPointFeatureMatching__point_feature_matches( msg ) ;
@@ -78,10 +85,14 @@ void StaticPointFeatureMatching::point_feature_matches( const cv::Mat& imleft_un
             MatrixXd&u, MatrixXd& ud,
             PointFeatureMatchingSummary& summary )
 {
+    ___StaticPointFeatureMatching__point_feature_matches(
+    cout << TermColor::YELLOW() << "StaticPointFeatureMatching::point_feature_matches\n" << TermColor::RESET();
+    cout << "imleft_undistorted: " << MiscUtils::cvmat_info( imleft_undistorted ) << "\n";
+    cout << "imright_undistorted: " << MiscUtils::cvmat_info( imright_undistorted ) << "\t";
+    cout << endl;
+    )
     assert( !imleft_undistorted.empty() && !imright_undistorted.empty() );
 
-    ___StaticPointFeatureMatching__point_feature_matches(
-    cout << TermColor::YELLOW() << "=== [StaticPointFeatureMatching::point_feature_matches]\n" << TermColor::RESET() ;)
     cv::Ptr<cv::Feature2D> fdetector = cv::ORB::create(500);
     std::vector<cv::KeyPoint> keypoints1, keypoints2;
     cv::Mat descriptors1, descriptors2;
@@ -115,14 +126,18 @@ void StaticPointFeatureMatching::point_feature_matches( const cv::Mat& imleft_un
 
     //
     // Matcher - FLAN (Approx NN)
+    ___StaticPointFeatureMatching__point_feature_matches( cout << "FLANN based matcher\n"; )
     if(descriptors1.type()!=CV_32F)
     {
+        ___StaticPointFeatureMatching__point_feature_matches(
+        cout << "descriptors1 is not of type, CV_32F, so convert\n";)
         descriptors1.convertTo(descriptors1, CV_32F);
         descriptors2.convertTo(descriptors2, CV_32F);
     }
     cv::FlannBasedMatcher matcher;
     summary.matcher_type = "FlannBasedMatcher";
 
+    ___StaticPointFeatureMatching__point_feature_matches( cout << "matcher.knnMatch()\n"; )
     std::vector< std::vector< cv::DMatch > > matches_raw;
     matcher.knnMatch( descriptors1, descriptors2, matches_raw, 2 );
     ___StaticPointFeatureMatching__point_feature_matches(
@@ -157,7 +172,16 @@ void StaticPointFeatureMatching::point_feature_matches( const cv::Mat& imleft_un
 
     // F-test
     vector<uchar> status;
-    cv::findFundamentalMat(pts_1, pts_2, cv::FM_RANSAC, 5.0, 0.99, status);
+    ___StaticPointFeatureMatching__point_feature_matches( cout << "compute cv::findFundamentalMat()\n";
+    cout << "pts_1.size=" << pts_1.size() << "\tpts_2.size=" << pts_2.size() << endl;
+    // for( int g=0 ; g<pts_1.size() ; g++ )
+    // {
+    //         cout << g << ":" << pts_1[g] << "\t" << pts_2[g] << endl;
+    // }
+    )
+    cv::findFundamentalMat(pts_1, pts_2, cv::FM_RANSAC, 2.9, 0.99, status);
+    // cv::findFundamentalMat(pts_1, pts_2, cv::FM_LMEDS, 3.0, 0.99, status);
+    ___StaticPointFeatureMatching__point_feature_matches( cout << "done..., pts_2.size="<< pts_2.size() << ", status.size=" << status.size() << " \n"; )
     assert( pts_2.size() == status.size() );
     int n_good = 0;
     for( int k=0 ;k<status.size();k++) {
@@ -189,7 +213,7 @@ void StaticPointFeatureMatching::point_feature_matches( const cv::Mat& imleft_un
 
 
     ___StaticPointFeatureMatching__point_feature_matches(
-    cout << "=== [StaticPointFeatureMatching::point_feature_matches] Finished\n";)
+    cout << "[StaticPointFeatureMatching::point_feature_matches] Finished\n";)
 }
 
 
@@ -317,6 +341,8 @@ bool StaticPointFeatureMatching::make_3d_3d_collection__using__pfmatches_and_dis
 
 
 
+#if 0
+// i dont want such a specific function in the library, removal
 bool StaticPointFeatureMatching::image_correspondence_with_depth(
     const cv::Mat& image_a, const cv::Mat& depth_a,
     const cv::Mat& image_b, const cv::Mat& depth_b,
@@ -324,9 +350,14 @@ bool StaticPointFeatureMatching::image_correspondence_with_depth(
     MatrixXd& aX, MatrixXd& bX, vector<bool>& valids
 )
 {
+    if( image_a.empty() || image_b.empty() || depth_a.empty() || depth_b.empty() ) {
+        cout << TermColor::YELLOW() << "[StaticPointFeatureMatching::image_correspondence_with_depth] WARN, input images where empty...\n";
+        return false;
+    }
+
     ElapsedTime elp;
 
-    #if 0
+    #if 1
     // -- GMS Matcher
     elp.tic();
     StaticPointFeatureMatching::gms_point_feature_matches( image_a, image_b, uv_a, uv_b );
@@ -334,6 +365,7 @@ bool StaticPointFeatureMatching::image_correspondence_with_depth(
 
     cout << "uv_a: " << uv_a.rows() << "x" << uv_a.cols() << "\t";
     cout << "uv_b: " << uv_b.rows() << "x" << uv_b.cols() << "\t";
+    cout << endl;
 
     if( uv_a.cols() < 50 ) {
         cout << TermColor::YELLOW() << "\nGMSMatcher produced fewer than 50 point matches, return false\n" << TermColor::RESET();
@@ -350,17 +382,18 @@ bool StaticPointFeatureMatching::image_correspondence_with_depth(
     #endif
 
 
-    #if 1
+    #if 0
     // -- Simple ORB Matcher
 
     elp.tic();
     PointFeatureMatchingSummary summary;
     StaticPointFeatureMatching::point_feature_matches( image_a, image_b, uv_a, uv_b, summary );
-    cout << TermColor::BLUE() << "StaticPointFeatureMatching::point_feature_matches returned in " << elp.toc_milli() << " ms\n" << TermColor::RESET();
+    cout << TermColor::BLUE() << "[StaticPointFeatureMatching::image_correspondence_with_depth] StaticPointFeatureMatching::point_feature_matches returned in " << elp.toc_milli() << " ms\n" << TermColor::RESET();
 
 
     cout << "uv_a: " << uv_a.rows() << "x" << uv_a.cols() << "\t";
     cout << "uv_b: " << uv_b.rows() << "x" << uv_b.cols() << "\t";
+    cout << endl;
 
     if( uv_a.cols() < 5 ) {
         cout << TermColor::YELLOW() << "\npoint_feature_matches() produced fewer than 5 point matches, return false\n" << TermColor::RESET();
@@ -410,17 +443,19 @@ bool StaticPointFeatureMatching::image_correspondence_with_depth(
     return true;
 }
 
+#endif
 
 bool StaticPointFeatureMatching::make_3d_3d_collection__using__pfmatches_and_depthimage(
     camodocal::CameraPtr _camera,
     const MatrixXd& uv, const cv::Mat& depth_image_uv,
     const MatrixXd& uv_d, const cv::Mat& depth_image_uvd,
     //vector<Vector3d>& uv_X, vector<Vector3d>& uvd_Y
-    MatrixXd& uv_X, MatrixXd& uvd_Y, vector<bool>& valids
+    MatrixXd& uv_X, MatrixXd& uvd_Y, vector<bool>& valids,
+    float near , float far
 )
 {
-    float near = 0.5;
-    float far = 4.5;
+    // float near = 0.5;
+    // float far = 4.5;
     assert( uv.cols() > 0 && uv.cols() == uv_d.cols() );
     // uv_X.clear();
     // uvd_Y.clear();

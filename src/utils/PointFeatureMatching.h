@@ -84,6 +84,8 @@ public:
     static void point_feature_matches( const cv::Mat& imleft_undistorted, const cv::Mat& imright_undistorted,
                     MatrixXd&u, MatrixXd& ud,
                 PointFeatureMatchingSummary& summary  );
+    static void point_feature_matches( const cv::Mat& imleft_undistorted, const cv::Mat& imright_undistorted,
+                                MatrixXd&u, MatrixXd& ud );
 
     // Given the point feature matches and the 3d image (from disparity map) will return
     // the valid world points and corresponding points.
@@ -125,17 +127,20 @@ public:
         const MatrixXd& uv, const cv::Mat& depth_image_uv,
         const MatrixXd& uv_d, const cv::Mat& depth_image_uvd,
         // vector<Vector3d>& uv_X, vector<Vector3d>& uvd_Y
-        MatrixXd& uv_X, MatrixXd& uvd_Y, vector<bool>& valids
+        MatrixXd& uv_X, MatrixXd& uvd_Y, vector<bool>& valids,
+        float near = 0.5, float far = 4.5
     );
 
 
-
+    #if 0
+    // i dont want such a specific function in the library, removal
     static bool image_correspondence_with_depth(
         const cv::Mat& im_a, const cv::Mat& depth_a,
         const cv::Mat& im_b, const cv::Mat& depth_b,
         MatrixXd& uv_a, MatrixXd& uv_b,
         MatrixXd& aX, MatrixXd& bX, vector<bool>& valids
     );
+    #endif
 
 
 

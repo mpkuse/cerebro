@@ -1388,7 +1388,8 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
     //          1. draw random pair 1 image from seq_a, 1 from seq_b
     //          2. point feature matches
     //          3. 3d points at the feature matches
-    //          4. accumulate the 3d-3d points.
+    //          4. change cord-ref from current cam frame to 1st cam in sequence.
+    //          5. accumulate the 3d-3d points.
     //      d. pose from 3d-3d correspondences
     //      e. verify pose based on pairwise invariance for rotation and translation
     //      f. report
@@ -1419,16 +1420,17 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
         }
         else
         {
-            cout << TermColor::RED();
-            cout << "[Cerebro::compute_geometry_for_loop_hypothesis_i] FATAL-ERROR. Although the datamap had the timestamps,";
+            cout << TermColor::YELLOW();
+            cout << "[Cerebro::compute_geometry_for_loop_hypothesis_i] WARN. Although the datamap had the timestamps,";
             cout << seq_a_start_T << ", " << seq_b_start_T << ",";
             cout << " one of them didnt have a valid pose. is_a=" << is_a << ", " << "is_b=" << is_b;
+            cout << " ignore this loop candidate...if this happens very regularly, then there is something wrong\n";
             cout << TermColor::RESET() << endl;
 
             return false;
         }
     } else {
-        cout << "FATAL-ERROR. The timestamps" << seq_a_start_T << " and " << seq_b_start_T << " were not found on the data_map.\n";
+        cout << TermColor::RED() << "[Cerebro::compute_geometry_for_loop_hypothesis_i] FATAL-ERROR. The timestamps" << seq_a_start_T << " and " << seq_b_start_T << " were not found on the data_map.\n" << TermColor::RESET();
         exit(1);
     }
     cout << "\t\tw_T_a0=" << PoseManipUtils::prettyprintMatrix4d( w_T_a0 ) << endl;
@@ -1444,12 +1446,13 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
 
     vector<MatrixXd> all_a0_X, all_b0_X;
     vector< vector<bool> > all_valids;
-    for( int itr=0 ; itr<5 ; itr++ )
+    for( int itr=0 ; itr<10 ; itr++ )
     {
         //--- pick random pair
         int ra = rand_a(generator);
         int rb = rand_b(generator);
-        cout << "\t\t\titr=" << itr << "\t" << ra << "<-->" << rb << endl;
+        cout << TermColor::iWHITE() << "\t\t\titr=" << itr << "\t" << ra << "<-->" << rb << TermColor::RESET() << endl;
+        cout << "\t\t\twholeImageComputedList_size=" << wholeImageComputedList_size() << endl;
 
         ros::Time t_a = wholeImageComputedList_at( ra );
         ros::Time t_b = wholeImageComputedList_at( rb );
@@ -1462,13 +1465,17 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
         #if 1 // if depth image available
         bool status_a = retrive_image_data( t_a, left_image_a, depth_a, w_T_a );
         bool status_b = retrive_image_data( t_b, left_image_b, depth_b, w_T_b );
+        if( (status_a && status_b) == false ) {
+            cout << "[Cerebro::compute_geometry_for_loop_hypothesis_i] retrive_image_data failed, so skip this pair\n" ;
+            continue;
+        }
         assert( status_a && status_b );
         #endif
 
 
-        #if 0 //stereo-geometry, aka sgbm using left and right image
+        #if 0
         {
-        // TODO
+        // TODO stereo-geometry, aka sgbm using left and right image
         DataNode * node_1 = data_map->find( t_curr )->second;
         DataNode * node_2 = data_map->find( t_prev )->second;
 
@@ -1491,30 +1498,76 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
         #endif
 
 
+        #if 0
+        // TODO Monocular case. no depth map,
+        #endif
+
+
         //--- image correspondences
         MatrixXd uv_a, uv_b, aX, bX;
         vector<bool> valids;
-        StaticPointFeatureMatching::image_correspondence_with_depth(
-            left_image_a, depth_a,
-            left_image_b, depth_b,
-            uv_a, uv_b, aX, bX, valids );
+
+        ElapsedTime elp;
+        elp.tic();
+
+        #if 1 //set this to 1 to use the GMS matcher for point feat correspondence (slow), set this to 0 to use simple orb based matcher (fast)
+        cout << "\t\t\t\timage correspondence: GMS ";
+        StaticPointFeatureMatching::gms_point_feature_matches( left_image_a, left_image_b, uv_a, uv_b );
+        #else
+        cout << "\t\t\t\timage correspondence: Simple ";
+        StaticPointFeatureMatching::point_feature_matches( left_image_a, left_image_b, uv_a, uv_b ); //cv::findFundamentalMat strangely fails :()
+        #endif
+
+        auto im_correspondence_elapsed_time_ms = elp.toc_milli();
+
+        cout << "uv_a: " << uv_a.rows() << "x" << uv_a.cols() << "\t";
+        cout << "uv_b: " << uv_b.rows() << "x" << uv_b.cols() << "\t";
+        cout << "ElapsedTime ms = " << im_correspondence_elapsed_time_ms;
+        cout << endl;
 
 
+        //--- plot image correspondence
         #if 1
         cv::Mat dst_matcher;
+        string msg_str = "plot (resize 0.5), took ms="+to_string(im_correspondence_elapsed_time_ms);
         MiscUtils::plot_point_pair( left_image_a, uv_a, ra,
                                     left_image_b, uv_b, rb, dst_matcher,
-                                    // 3, "gms plot (resize 0.5)"
-                                    cv::Scalar( 0,0,255 ), cv::Scalar( 0,255,0 ), false, "plot (resize 0.5)"
+                                    #if 1 // make this to 1 to mark matches by spatial color codes (gms style). set this to 0 to mark the matches with lines
+                                    3, msg_str
+                                    #else
+                                    cv::Scalar( 0,0,255 ), cv::Scalar( 0,255,0 ), false, msg_str
+                                    #endif
                                 );
         cv::resize(dst_matcher, dst_matcher, cv::Size(), 0.5, 0.5);
 
         string fname = "/app/tmp/cerebro/live_system/hyp_" + to_string(i) + "__itr="+to_string(itr) + ".jpg";
-        cout << "imwrite(" << fname << ");\n";
+        cout << "\t\t\t\timwrite(" << fname << ");\n";
         cv::imwrite( fname, dst_matcher );
         #endif
 
-        #if 0
+
+
+        //--- 3d points at image correspondences
+        valids.clear();
+        StaticPointFeatureMatching::make_3d_3d_collection__using__pfmatches_and_depthimage(
+            dataManager->getAbstractCameraRef(),
+            uv_a, depth_a, uv_b, depth_b,
+            aX, bX, valids
+        );
+        int nvalids = MiscUtils::total_true( valids );
+        // for( int i=0 ; i<valids.size() ; i++ )
+            // if( valids[i]  == true )
+                // nvalids++;
+        cout << "\t\t\t\t" << TermColor::YELLOW() <<  "nvalids_depths=" << nvalids << " of total=" << valids.size() << TermColor::RESET() << "\t";
+        cout << "aX: " << aX.rows() << "x" << aX.cols() << "\t";
+        cout << "bX: " << bX.rows() << "x" << bX.cols() << endl;
+        if( nvalids < 5 ) {
+            cout << "\t\t\t\t" << TermColor::YELLOW() << "Of the total " << valids.size() << " point-matches, only " << nvalids << " had good depths, this is less than the threshold, so skip this pair\n" << TermColor::RESET();
+            continue;
+        }
+
+        //--- change the co-ordinate ref frame of the 3d points to a0 and b0 respectively
+        #if 1
         MatrixXd a0_X = w_T_a0.inverse() * w_T_a * aX;
         MatrixXd b0_X = w_T_b0.inverse() * w_T_b * bX;
 
@@ -1523,30 +1576,75 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
         all_valids.push_back( valids );
         #endif
 
-
-
-
     }
 
-    #if 0
+    #if 1
+    //--- gather data
     MatrixXd dst0, dst1;
+    cout << "\t\t\tgather from n_pairs=" << all_a0_X.size() << "\n";
+    if( all_a0_X.size() < 3 )
+    {
+        cout << "\t\t\ttoo few valid pairs, need atleast 3 valid pairs, ie. 3 pairs which each contain atleast 5 valid points\n";
+        return false;
+    }
     MiscUtils::gather( all_a0_X, all_valids, dst0 );
     MiscUtils::gather( all_b0_X, all_valids, dst1 );
-    PoseComputation::alternatingMinimization( dst0, dst1, a_T_b, switch_weights );
+    cout << "\t\t\t";
+    cout << "dst0: " << dst0.rows() << "x" << dst0.cols() << "\t";
+    cout << "dst1: " << dst1.rows() << "x" << dst1.cols() << endl;
+    if( dst0.cols() < 50 ) {
+        cout  << "\t\t\tgathered only " << dst0.cols() << ", too few points, skip\n";
+        return false;
+    }
+
+
+
+    //--- pose computation
+    Matrix4d a_T_b = Matrix4d::Identity();
+    VectorXd switch_weights = VectorXd::Constant( dst0.cols() , 1.0 );
+
+    ElapsedTime al_tp;
+    float minimization_metric = PoseComputation::alternatingMinimization( dst0, dst1, a_T_b, switch_weights );
+    cout << TermColor::BLUE() << "minimization_metric=" << minimization_metric << "; alternatingMinimization took ms=" << al_tp.toc_milli() << endl << TermColor::RESET();
+
+    if( minimization_metric < 0 ) {
+        //minimization had failed
+        return false;
+    }
+    #endif
 
 
     // if all good, note this result
 
     // if all good, publish this result with msg/LoopEdge.msg
-    #endif
+    cerebro::LoopEdge loopedge_msg;
+    loopedge_msg.timestamp0 = seq_a_start_T;
+    loopedge_msg.timestamp1 = seq_b_start_T;
+    geometry_msgs::Pose pose;
+    Matrix4d b_T_a = a_T_b.inverse();
+    PoseManipUtils::eigenmat_to_geometry_msgs_Pose( b_T_a, pose );
+    loopedge_msg.pose_1T0 = pose;
+    loopedge_msg.weight = minimization_metric; //1.0;
+    loopedge_msg.description = to_string(seq_a_start)+","+to_string(seq_a_end)+"<=>"+to_string(seq_b_start)+","+to_string(seq_b_end);
+    loopedge_msg.description += "    this pose is: "+to_string(seq_b_start)+"_T_"+to_string(seq_a_start);
+    cout << loopedge_msg << endl;
+
+    pub_loopedge.publish( loopedge_msg );
+
 
 
     return true;
 
 }
 
+
+// #define __Cerebro__retrive_image_data__( msg ) msg;
+#define __Cerebro__retrive_image_data__( msg ) ;
 bool Cerebro::retrive_image_data( ros::Time& stamp, cv::Mat& left_image, cv::Mat& depth_image, Matrix4d& w_T_c )
 {
+    __Cerebro__retrive_image_data__(
+    cout << "[Cerebro::retrive_image_data] stamp=" << stamp << endl; )
+
     auto img_data_mgr = dataManager->getImageManagerRef();
     auto data_map = dataManager->getDataMapRef();
 
@@ -1556,7 +1654,7 @@ bool Cerebro::retrive_image_data( ros::Time& stamp, cv::Mat& left_image, cv::Mat
         exit(1);
     }
 
-    DataNode * node = data_map->at( stamp );
+    const DataNode * node = data_map->at( stamp );
 
     bool is_left_image = img_data_mgr->isImageRetrivable( "left_image", node->getT() );
     bool is_depth = img_data_mgr->isImageRetrivable( "depth_image", node->getT() );
@@ -1571,7 +1669,19 @@ bool Cerebro::retrive_image_data( ros::Time& stamp, cv::Mat& left_image, cv::Mat
 
     img_data_mgr->getImage( "left_image", node->getT(), left_image );
     img_data_mgr->getImage( "depth_image", node->getT(), depth_image );
+    __Cerebro__retrive_image_data__(
+    cout << "[Cerebro::retrive_image_data]";
+
+
+    cout << "left_image " << MiscUtils::cvmat_info( left_image ) << "\t";
+    cout << "depth_image " << MiscUtils::cvmat_info( depth_image ) << "\n";
+    )
+
     w_T_c = data_map->at( stamp )->getPose();
+    __Cerebro__retrive_image_data__(
+    cout << "w_T_c = " << PoseManipUtils::prettyprintMatrix4d( w_T_c ); << endl;
+    cout << "OK!\n";
+    )
 
     return true;
 }

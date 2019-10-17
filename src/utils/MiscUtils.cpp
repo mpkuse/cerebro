@@ -28,6 +28,10 @@ string MiscUtils::cvmat_info( const cv::Mat& mat )
     std::stringstream buffer;
     buffer << "shape=" << mat.rows << "," << mat.cols << "," << mat.channels() ;
     buffer << "\t" << "dtype=" << MiscUtils::type2str( mat.type() );
+
+    double min, max;
+    cv::minMaxLoc(mat, &min, &max);
+    buffer << "\tmin=" << min << ", max=" << max;
     return buffer.str();
 }
 
@@ -143,6 +147,106 @@ void MiscUtils::dmatch_2_eigen( const std::vector<cv::KeyPoint>& kp1, const std:
 }
 
 
+int MiscUtils::total_true( const vector<bool>& V )
+{
+    int s=0;
+    for( int i=0 ; i<(int)V.size() ; i++ )
+        if( V[i] == true )
+            s++;
+
+    return s;
+}
+
+// #define __MiscUtils___gather( msg ) msg;
+#define __MiscUtils___gather( msg ) ;
+void MiscUtils::gather( const vector<MatrixXd>& mats, const vector<  vector<bool> >& valids, MatrixXd& dst )
+{
+    __MiscUtils___gather(
+    cout << "-----------MiscUtils::gather()\n";
+
+    cout << "mats.size = " << mats.size() << "\tvalids.size=" << valids.size() << endl;)
+    assert( mats.size() == valids.size() && mats.size() > 0 );
+    int ntotalvalids = 0;
+    for( int i=0 ; i<(int)mats.size() ; i++ )
+    {
+        int nvalids = 0;
+        for( int j=0 ; j<(int)valids[i].size() ; j++  )
+        {
+            if( valids[i][j] == true )
+                nvalids++;
+        }
+        ntotalvalids += nvalids;
+
+        __MiscUtils___gather(
+        cout << "i=" << i << "\tmats[i]=" << mats[i].rows() << "x" << mats[i].cols() << "\t";
+        cout << "valids.size=" << valids[i].size() << " " << "nvalids=" << nvalids << endl;)
+    }
+    __MiscUtils___gather( cout << "ntotalvalids=" << ntotalvalids << endl; )
+
+
+    dst = MatrixXd::Zero( mats[0].rows() , ntotalvalids );
+    int c = 0;
+    for( int i=0 ; i<(int)mats.size() ; i++ )
+    {
+        for( int j=0 ; j<(int)valids[i].size() ; j++  )
+        {
+            if( valids[i][j] == true ) {
+                dst.col(c) = mats[i].col(j);
+                c++;
+            }
+        }
+    }
+    assert( c == ntotalvalids );
+
+    __MiscUtils___gather( cout << "-----------END MiscUtils::gather()\n"; )
+}
+
+
+void MiscUtils::gather( const vector<MatrixXd>& mats, MatrixXd& dst )
+{
+    assert( mats.size() > 0 );
+    int total_cols = 0;
+    int nrows = mats[0].rows();
+    for( int i=0 ; i<(int)mats.size() ; i++ )
+    {
+        assert( mats[i].rows() == nrows );
+        total_cols += mats[i].cols();
+    }
+
+    dst = MatrixXd::Zero( nrows, total_cols );
+    int c=0;
+    for( int i=0 ; i<(int)mats.size() ; i++ )
+    {
+        for( int j=0 ; j<mats[i].cols() ; j++ )
+        {
+            dst.col(c) = mats[i].col(j);
+            c++;
+        }
+    }
+    assert( c == total_cols );
+
+}
+
+
+void MiscUtils::gather( const vector<VectorXd>& mats, VectorXd& dst )
+{
+    assert( mats.size() > 0 );
+    int total = 0;
+    for( int i=0 ; i<mats.size() ; i++ )
+        total += mats[i].size();
+
+    dst = VectorXd::Zero( total );
+    int c = 0;
+    for( int i=0 ; i<(int)mats.size() ; i++ )
+    {
+        for( int j=0 ; j<mats[i].size() ; j++ )
+        {
+            dst(c) = (mats[i])(j);
+            c++;
+        }
+    }
+    assert( c == total );
+}
 
 void MiscUtils::plot_point_sets( const cv::Mat& im, const MatrixXd& pts_set, cv::Mat& dst,
                                         const cv::Scalar& color, bool enable_keypoint_annotation, const string& msg )
