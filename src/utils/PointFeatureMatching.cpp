@@ -6,7 +6,7 @@ void StaticPointFeatureMatching::gms_point_feature_matches( const cv::Mat& imlef
                             MatrixXd& u, MatrixXd& ud, int n_orb_feat )
 {
     ElapsedTime timer;
-
+    assert( imleft_undistorted.data() && imright_undistorted.data() );
 
     //
     // Point feature and descriptors extract
@@ -67,6 +67,33 @@ void StaticPointFeatureMatching::gms_point_feature_matches( const cv::Mat& imlef
     // MatrixXd M1, M2;
     if( matches_gms.size() > 0 )
         MiscUtils::dmatch_2_eigen( kp1, kp2, matches_gms, u, ud, true );
+
+
+}
+
+
+void StaticPointFeatureMatching::gms_point_feature_matches_scaled( const cv::Mat& imleft_undistorted, const cv::Mat& imright_undistorted,
+                            MatrixXd& u, MatrixXd& ud,
+                            float scale, int n_orb_feat )
+{
+    assert( imleft_undistorted.data && imright_undistorted.data );
+
+    assert( scale > 0.1 && scale < 0.99 );
+
+    // scale images
+    cv::Mat imleft_undistorted_scaled, imright_undistorted_scaled;
+    cv::resize(imleft_undistorted, imleft_undistorted_scaled, cv::Size(), scale, scale);
+    cv::resize(imright_undistorted, imright_undistorted_scaled, cv::Size(), scale, scale);
+
+    // core matcher
+    gms_point_feature_matches( imleft_undistorted_scaled, imright_undistorted_scaled, u, ud, n_orb_feat );
+
+    // un-scale the co-ordinates
+    if( u.cols() > 0 && ud.cols() > 0 ) {
+        // this will cause seg-fault if no point feature matches were found
+        u *= (1.0/scale);
+        ud *= (1.0/scale);
+    }
 
 
 }
@@ -559,5 +586,113 @@ void StaticPointFeatureMatching::lowe_ratio_test( const vector<cv::KeyPoint>& ke
             pts_2.push_back( keypoints2[t].pt );
         }
     }
+
+}
+
+
+
+
+
+
+bool StaticPointFeatureMatching::image_coordinates_to_normalized_image_coordinates(
+    const camodocal::CameraPtr camera,
+    const MatrixXd& uv, MatrixXd& normed_uv )
+{
+    assert( uv.cols() > 0 );
+    assert( uv.rows() == 3 || uv.rows() == 2 );
+    assert( camera );
+
+
+    normed_uv = MatrixXd::Constant( 3, uv.cols(), 1.0 );
+    for( int mm=0 ; mm<uv.cols() ; mm++ ) //to compute normalized image co-ordinates
+    {
+        Vector2d ____uv(  uv(0,mm), uv(1,mm) );
+        Vector3d ____normed_uv;
+        camera->liftProjective( ____uv, ____normed_uv );
+
+        // eigen_result_of_opticalflow_normed_im_cord.col(mm).topRows(3) = ____normed_uv;
+        normed_uv(0,mm) = ____normed_uv(0);
+        normed_uv(1,mm) = ____normed_uv(1);
+        normed_uv(2,mm) = ____normed_uv(2);
+    }
+
+    return true;
+}
+
+
+MatrixXd StaticPointFeatureMatching::image_coordinates_to_normalized_image_coordinates(
+    const camodocal::CameraPtr camera,
+    const MatrixXd& uv )
+{
+    assert( uv.cols() > 0 );
+    assert( uv.rows() == 3 || uv.rows() == 2 );
+    assert( camera );
+
+
+    MatrixXd normed_uv = MatrixXd::Constant( 3, uv.cols(), 1.0 );
+    for( int mm=0 ; mm<uv.cols() ; mm++ ) //to compute normalized image co-ordinates
+    {
+        Vector2d ____uv(  uv(0,mm), uv(1,mm) );
+        Vector3d ____normed_uv;
+        camera->liftProjective( ____uv, ____normed_uv );
+
+        // eigen_result_of_opticalflow_normed_im_cord.col(mm).topRows(3) = ____normed_uv;
+        normed_uv(0,mm) = ____normed_uv(0);
+        normed_uv(1,mm) = ____normed_uv(1);
+        normed_uv(2,mm) = ____normed_uv(2);
+    }
+
+    return normed_uv;
+}
+
+
+VectorXd StaticPointFeatureMatching::depth_at_image_coordinates( const MatrixXd& uv, const cv::Mat& depth_image )
+{
+    // float near = 0.5;
+    // float far = 4.5;
+    assert( uv.cols() > 0 && (uv.rows() == 2 || uv.rows() == 3)  );
+    assert( depth_image.rows > 0 && depth_image.cols > 0 );
+    assert( depth_image.type() == CV_16UC1 || depth_image.type() == CV_32FC1 );
+    assert( depth_image.type() == depth_image.type() );
+
+
+    // make 3d points out of 2d point feature matches
+    VectorXd uv_X = VectorXd::Zero( uv.cols() );
+    for( int i=0 ; i<uv.cols() ; i++ )
+    {
+        if( uv(0,i) < 0 || uv(0,i) > depth_image.cols || uv(1,i) < 0 || uv(1,i) > depth_image.rows )
+            continue;
+
+        float depth_val;
+        if( depth_image.type() == CV_16UC1 ) {
+            depth_val = .001 * depth_image.at<uint16_t>( uv(1,i), uv(0,i) );
+        }
+        else if( depth_image.type() == CV_32FC1 ) {
+            // just assuming the depth values are in meters when CV_32FC1
+            depth_val = depth_image.at<float>( uv(1,i), uv(0,i) );
+        }
+        else {
+            assert( false );
+            cout << "[StaticPointFeatureMatching::depth_at_image_coordinates]depth type is neighter of CV_16UC1 or CV_32FC1\n";
+            exit(1);
+        }
+        // cout << "ath uv_i=" << i << " depth_val = " << depth_val << endl;
+
+        uv_X(i) = depth_val;
+        #if 0
+        Vector3d _0P;
+        Vector2d _0p; _0p << uv(0,i), uv(1,i);
+        _camera->liftProjective( _0p, _0P );
+        // uv_X.push_back( depth_val * _0P );
+        uv_X.col(i).topRows(3) = depth_val * _0P;
+
+        if( depth_val > near && depth_val < far )
+            valids.push_back( true );
+        else
+            valids.push_back( false );
+        #endif
+    }
+
+    return uv_X;
 
 }

@@ -24,8 +24,8 @@ using namespace Eigen;
 #include <opencv2/core/eigen.hpp>
 
 // Ceres
-// #include <ceres/ceres.h>
-// using namespace ceres;
+#include <ceres/ceres.h>
+using namespace ceres;
 
 class PoseComputation
 {
@@ -51,8 +51,10 @@ public:
     //      b_T_a [input/output] : initial guess. resulting pose between the co-ordinates. Pose of a as observed from b.
     //      sf [input/output]: The switches after the optimization has terminated. If the size of this is equal to N
     //                       then will use this to initialize the switch flags. else will use 1.0 as initialization for the switches
-    // static bool refine( const MatrixXd& aX, const MatrixXd& bX, Matrix4d& a_T_b, VectorXd& sf );
     // ^^ implement if need be, see github.com/mpkuse/gmm_pointcloud_align
+    static bool refine( const MatrixXd& aX, const MatrixXd& bX, Matrix4d& a_T_b, VectorXd& sf );
+    static bool refine_weighted( const MatrixXd& aX, const MatrixXd& bX, Matrix4d& a_T_b, const VectorXd& sf );
+
 
 
     // Given 2 point sets and a transform, test how good the transform is
@@ -78,4 +80,119 @@ private:
     static void quantile_info_on_switch_weights( const VectorXd& switch_weights, VectorXi& quantile, const int n_quantiles );
 
 
+};
+
+
+
+
+//---------------------------------------------------//
+//------------ Ceres Cost Functions -----------------//
+//---------------------------------------------------//
+
+
+class EuclideanDistanceResidue {
+public:
+    EuclideanDistanceResidue( const Vector3d& Xi, const Vector3d& Xid, const double wt=1.0 )
+    {
+        this->Xi = Xi;
+        this->Xid = Xid;
+        this->weight = sqrt(wt);
+    }
+
+    template <typename T>
+    bool operator()( const T* const q, const T* const t , T* residual ) const {
+        // Optimization variables
+        Quaternion<T> eigen_q( q[0], q[1], q[2], q[3] );
+        Eigen::Matrix<T,3,1> eigen_t;
+        eigen_t << t[0], t[1], t[2];
+
+
+        // Known Constant
+        Eigen::Matrix<T,3,1> eigen_Xi, eigen_Xid;
+        eigen_Xi << T(Xi(0)), T(Xi(1)), T(Xi(2));
+        eigen_Xid << T(Xid(0)), T(Xid(1)), T(Xid(2));
+
+
+
+        // Error term
+        Eigen::Matrix<T,3,1> e;
+        e = eigen_Xi - (  eigen_q.toRotationMatrix() * eigen_Xid + eigen_t );
+
+        residual[0] = T(this->weight) * e(0);
+        residual[1] = T(this->weight) * e(1);
+        residual[2] = T(this->weight) * e(2);
+
+        return true;
+    }
+
+
+
+    static ceres::CostFunction* Create(const Vector3d& _Xi, const Vector3d& Xid, const double wt=1.0)
+    {
+        return ( new ceres::AutoDiffCostFunction<EuclideanDistanceResidue,3,4,3>
+        (
+        new EuclideanDistanceResidue(_Xi,Xid, wt)
+        )
+        );
+    }
+
+    private:
+    Vector3d Xi, Xid;
+    double weight;
+};
+
+
+
+
+
+class EuclideanDistanceResidueSwitchingConstraint  {
+public:
+    // lambda is the switch-penalty.
+    EuclideanDistanceResidueSwitchingConstraint( const Vector3d& Xi, const Vector3d& Xid, const double lambda_=3.0 )
+    {
+        this->Xi = Xi;
+        this->Xid = Xid;
+        this->lambda = lambda_;
+    }
+
+    template <typename T>
+    bool operator()( const T* const q, const T* const t , const T* const s, T* residual ) const {
+        // Optimization variables
+        Quaternion<T> eigen_q( q[0], q[1], q[2], q[3] );
+        Eigen::Matrix<T,3,1> eigen_t;
+        eigen_t << t[0], t[1], t[2];
+
+
+        // Known Constant
+        Eigen::Matrix<T,3,1> eigen_Xi, eigen_Xid;
+        eigen_Xi << T(Xi(0)), T(Xi(1)), T(Xi(2));
+        eigen_Xid << T(Xid(0)), T(Xid(1)), T(Xid(2));
+
+
+
+        // Error term
+
+        Eigen::Matrix<T,3,1> e;
+        e = eigen_Xi - (  eigen_q.toRotationMatrix() * eigen_Xid + eigen_t );
+
+        residual[0] = s[0] * e(0);
+        residual[1] = s[0] * e(1);
+        residual[2] = s[0] * e(2);
+        residual[3] = T(lambda) * (T(1.0) - s[0]);
+
+        return true;
+    }
+
+    static ceres::CostFunction* Create(const Vector3d& _Xi, const Vector3d& Xid)
+    {
+        return ( new ceres::AutoDiffCostFunction<EuclideanDistanceResidueSwitchingConstraint,4,   4,3,1>
+          (
+            new EuclideanDistanceResidueSwitchingConstraint(_Xi,Xid)
+          )
+        );
+    }
+
+private:
+    Vector3d Xi, Xid;
+    double lambda;
 };

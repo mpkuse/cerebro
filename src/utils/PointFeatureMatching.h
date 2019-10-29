@@ -79,6 +79,11 @@ public:
     static void gms_point_feature_matches( const cv::Mat& imleft_undistorted, const cv::Mat& imright_undistorted,
                                 MatrixXd& u, MatrixXd& ud, int n_orb_feat=5000 ); //< n_orb_feat has to be a few thousands atleast for spatial consistency checks.
 
+    // This will down scale the input image, do the feature correspondences and then upscale the co-ordinates of
+    // correspondences and return these.
+    static void gms_point_feature_matches_scaled( const cv::Mat& imleft_undistorted, const cv::Mat& imright_undistorted,
+                                MatrixXd& u, MatrixXd& ud,
+                                float scale, int n_orb_feat=2000 );
 
     // u : 3xN. (x,y) or (colID,rowID)
     static void point_feature_matches( const cv::Mat& imleft_undistorted, const cv::Mat& imright_undistorted,
@@ -141,6 +146,24 @@ public:
         MatrixXd& aX, MatrixXd& bX, vector<bool>& valids
     );
     #endif
+
+
+
+    // Give as input the imaged co-ordinates to get these in normalized image co-ordinates.
+    // Params:
+    //      camera [input]: The camodocal (general) camera
+    //      uv : The co-ordinates (x,y) 2xN or 3xN in imaged co-ordinates
+    //      normed_uv [output]: The resulting imaged co-ordinates (uv) to normalized. normed_uv := K.inverse() * [u_i;v_i;1]
+    static bool image_coordinates_to_normalized_image_coordinates( const camodocal::CameraPtr camera,
+        const MatrixXd& uv, MatrixXd& normed_uv );
+    static MatrixXd image_coordinates_to_normalized_image_coordinates(
+        const camodocal::CameraPtr camera,
+        const MatrixXd& uv );
+
+
+    // Given image co-ordinates and the depth_image, will lookup the depth values at those image co-ordinates
+    static VectorXd depth_at_image_coordinates( const MatrixXd& uv, const cv::Mat& depth_image );
+
 
 
 

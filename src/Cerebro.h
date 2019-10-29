@@ -178,6 +178,8 @@ public:
     void loop_hypothesis_i_T(   int i, ros::Time& seq_a_start_T, ros::Time& seq_a_end_T, ros::Time& seq_b_start_T, ros::Time& seq_b_end_T  ) const;
     void loop_hypothesis_i_im(  int i, cv::Mat& seq_a_start_im , cv::Mat& seq_a_end_im , cv::Mat& seq_b_start_im , cv::Mat& seq_b_end_im ) const;
     json loop_hypothesis_as_json() const;
+    void loop_hypothesis_i_datamap_idx( int i, int& datamap_seq_a_start, int& datamap_seq_a_end, int& datamap_seq_b_start, int& datamap_seq_b_end ) const;
+
 
 private:
     std::shared_ptr<HypothesisManager> hyp_manager; // this is allocated in `faiss_multihypothesis_tracking()`

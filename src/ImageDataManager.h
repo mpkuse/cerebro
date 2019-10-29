@@ -116,4 +116,16 @@ public:
             exit(1);
         }
     }
+
+
+public:
+    bool stashImage( const vector<string> ns, const ros::Time t );
+    bool rmImage( const vector<string> ns, const ros::Time t );
+
+
+private:
+    bool stashImage_nolock( const string ns, const ros::Time t );
+    bool rmImage_nolock( const string ns, const ros::Time t );
+
+
 };

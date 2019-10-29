@@ -744,7 +744,7 @@ void DataManager::clean_up_useless_images_thread()
         // for( auto it = data_map.begin() ; it->first < E->first ; it++ ) { //berks__old
         for( auto it = S ; it->first < E->first ; it++ ) {
             #if 0 //old, where images where stored inside datanode.
-            if( it->second->isImageAvailable() && !it->second->isKeyFrame() ) {
+            if( it->second->isImageAvailable() && !it->second->isKeyFrame() )
             // if( it->second->isImageAvailable()  ) {
                 ___clean_up_cout(
                     cout << TermColor::CYAN() << "deallocate_all_images with t=" << it->first << " " << q++ << TermColor::RESET() << endl;
@@ -757,6 +757,10 @@ void DataManager::clean_up_useless_images_thread()
             }
             #endif
 
+
+            #if 0
+            // This is correct, but causes threading issue, especially when left_image is
+            //    deleted but depth_image is not for example.
             if( it->second->isKeyFrame() ) {
                 if( m_raw_image_callback )
                     img_data_mgr->stashImage( "left_image", it->first );
@@ -777,6 +781,26 @@ void DataManager::clean_up_useless_images_thread()
                 if( m_depth_image_callback )
                     img_data_mgr->rmImage( "depth_image", it->first );
             }
+            #endif
+
+
+            vector<string> vec;
+            vec.clear();
+            if( m_raw_image_callback )
+                vec.push_back( "left_image");
+            if( m_raw_image_callback_1 )
+                vec.push_back( "right_image");
+            if( m_depth_image_callback )
+                vec.push_back( "depth_image");
+
+            if( it->second->isKeyFrame() ) {
+                img_data_mgr->stashImage( vec, it->first );
+            }
+            else {
+                img_data_mgr->rmImage( vec, it->first );
+            }
+
+
         }
     }
     cout << TermColor::RED() << "[DataManager::clean_up_useless_images_thread] Finished Thread"<< TermColor::RESET() << endl;
@@ -1206,6 +1230,15 @@ bool DataManager::saveStateToDisk( const string save_folder_name )
 
     //
     // --- Misc Variables in class DataManager
+    x_datamap["MiscVariables"]["isIMUCamExtrinsicAvailable"] = isIMUCamExtrinsicAvailable();
+    if( isIMUCamExtrinsicAvailable() ) {
+        Matrix4d tmp__imu_T_cam = getIMUCamExtrinsic();
+        x_datamap["MiscVariables"]["imu_T_cam"]["rows"] = tmp__imu_T_cam.rows();
+        x_datamap["MiscVariables"]["imu_T_cam"]["cols"] = tmp__imu_T_cam.cols();
+        std::stringstream ss;
+        ss <<  tmp__imu_T_cam.format(CSVFormat);
+        x_datamap["MiscVariables"]["imu_T_cam"]["data"] = ss.str();
+    }
 
     //
     // --- save img_data_mgr

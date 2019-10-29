@@ -218,6 +218,18 @@ string PoseManipUtils::prettyprintMatrix4d( const Matrix4d& M )
   return return_string;
 }
 
+
+string PoseManipUtils::prettyprintMatrix4d( const Matrix4d& M, const string delimiter )
+{
+   Vector3d ypr;
+   ypr = R2ypr(  M.topLeftCorner<3,3>()  );
+
+  char __tmp[200];
+  snprintf( __tmp, 200, ":YPR(deg)=(%5.5lf%s%5.5lf%s%5.5lf)  :TxTyTz=(%5.5lf%s%5.5lf%s%5.5lf)",  ypr(0), delimiter.c_str(), ypr(1), delimiter.c_str(), ypr(2), M(0,3), delimiter.c_str(), M(1,3), delimiter.c_str(), M(2,3) );
+  string return_string = string( __tmp );
+  return return_string;
+}
+
 string PoseManipUtils::prettyprintMatrix4d_YPR( const Matrix4d& M )
 {
    Vector3d ypr;

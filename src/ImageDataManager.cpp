@@ -189,12 +189,51 @@ bool ImageDataManager::getImage( const string ns, const ros::Time t, cv::Mat& ou
 }
 
 
+
+
 // #define __ImageDataManager__rmImage(msg) msg;
 #define __ImageDataManager__rmImage(msg) ;
 bool ImageDataManager::rmImage( const string ns, const ros::Time t )
 {
     ensure_init();
     std::lock_guard<std::mutex> lk(m);
+    auto key = std::make_pair(ns, t);
+    if( status.count(key) > 0  )
+    {
+        if( status.at(key) == MEMSTAT::AVAILABLE_ON_RAM ) {
+            __ImageDataManager__rmImage(
+            cout << TermColor::iWHITE() << "[ImageDataManager::rmImage] ns=" << ns << ", t=" << t << ". FOUND, available on ram, do complete removal" << TermColor::RESET() << endl;
+            )
+            status[key] = MEMSTAT::UNAVAILABLE;
+
+            auto it_b = image_data.find( key );
+            image_data.erase( it_b );
+            return true;
+        }
+        else {
+            __ImageDataManager__rmImage(
+            cout << TermColor::iWHITE() << "[ImageDataManager::rmImage] ns=" << ns << ", t=" << t << ".";
+            cout << "FOUND, however its status is UNAVAILABLE or AVAILABLE_ON_DISK, this means it was previously removed or stashed. No action to take now." << TermColor::RESET() << endl;
+            )
+            return false;
+        }
+
+    }
+    else
+    {
+        cout << TermColor::RED() << "[ImageDataManager::rmImage] FATAL-ERROR you requested to remove ns=" << ns << ", t=" << t << "; However it was not found on the map. FATAL ERRR\n" << TermColor::RESET();
+        // exit(1);
+        cout << "[ImageDataManager::rmImage]No action taken for now.....\n";
+        return false;
+    }
+
+}
+
+
+bool ImageDataManager::rmImage_nolock( const string ns, const ros::Time t )
+{
+    ensure_init();
+    // std::lock_guard<std::mutex> lk(m);
     auto key = std::make_pair(ns, t);
     if( status.count(key) > 0  )
     {
@@ -277,6 +316,76 @@ bool ImageDataManager::stashImage( const string ns, const ros::Time t )
         exit(1);
     }
 }
+
+
+bool ImageDataManager::stashImage_nolock( const string ns, const ros::Time t )
+{
+    ensure_init();
+    // std::lock_guard<std::mutex> lk(m);
+    __ImageDataManager__stashImage(
+    cout << TermColor::iCYAN() << "[ImageDataManager::stashImage] ns=" << ns << ", t=" << t << TermColor::RESET() << endl;
+    )
+    auto key = std::make_pair( ns, t );
+    if( status.count( key ) > 0 )
+    {
+        if( status.at(key) == MEMSTAT::AVAILABLE_ON_RAM )
+        {
+            // save to disk
+            auto it_b = image_data.find( key );
+            // string sfname = STASH_DIR+"/"+ns+"__"+to_string(t.toNSec())+".jpg";
+            string sfname = key_to_imagename( ns, t );
+            ElapsedTime elp; elp.tic();
+            __ImageDataManager__stashImage(
+            cout << TermColor::iCYAN() << "[ImageDataManager] imwrite(" << sfname  << ")\t elapsed_time_ms=" << elp.toc_milli() << TermColor::RESET() << endl ;
+            )
+
+            // todo: tune jpg quality for saving on more disk space. default is 95/100 for jpg.
+            if( it_b->second.type() == CV_16UC1 ) {
+                // write PNG for depth image
+                cv::imwrite( sfname+".png", it_b->second );
+            }else {
+                cv::imwrite( sfname, it_b->second );
+            }
+
+            // erase from map
+            image_data.erase( it_b );
+
+            // change status
+            status[key] = MEMSTAT::AVAILABLE_ON_DISK;
+            return true;
+        } else {
+            __ImageDataManager__stashImage(
+            cout << TermColor::iCYAN() << "[ImageDataManager::stashImage] warning status is not AVAILABLE_ON_RAM so do nothing. You asked me to stash an image which doesnt exists on RAM.\n" << TermColor::RESET();
+            )
+            return false;
+        }
+    }
+    else
+    {
+        cout << TermColor::RED() << "[ImageDataManager::stashImage] FATAL-ERROR you requested to stash ns=" << ns << ", t=" << t << "; However it was not found on the map. FATAL ERRR\n" << TermColor::RESET();
+        exit(1);
+    }
+}
+
+
+bool ImageDataManager::stashImage( const vector<string> ns, const ros::Time t )
+{
+    std::lock_guard<std::mutex> lk(m);
+    for( auto it=ns.begin() ; it!= ns.end() ; it++ )
+    {
+        stashImage_nolock( *it, t );
+    }
+}
+
+bool ImageDataManager::rmImage( const vector<string> ns, const ros::Time t )
+{
+    std::lock_guard<std::mutex> lk(m);
+    for( auto it=ns.begin() ; it!= ns.end() ; it++ )
+    {
+        rmImage_nolock( *it, t );
+    }
+}
+
 
 bool ImageDataManager::isImageRetrivable( const string ns, const ros::Time t ) const
 {
