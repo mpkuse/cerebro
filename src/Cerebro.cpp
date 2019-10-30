@@ -1092,9 +1092,9 @@ void Cerebro::descrip_N__dot__descrip_0_N()
         ros::Time i_v, i_vm, i_vmm;
         {
             // std::lock_guard<std::mutex> lk(m_wholeImageComputedList);
-            assert(  data_map.count( wholeImageComputedList_at(l-1) ) > 0  &&
-                     data_map.count( wholeImageComputedList_at(l-2) ) > 0  &&
-                     data_map.count( wholeImageComputedList_at(l-3) ) > 0 &&
+            assert(  data_map->count( wholeImageComputedList_at(l-1) ) > 0  &&
+                     data_map->count( wholeImageComputedList_at(l-2) ) > 0  &&
+                     data_map->count( wholeImageComputedList_at(l-3) ) > 0 &&
                      "either of l, l-1, l-2 is not available in the datamap"
                  );
 
@@ -1258,7 +1258,7 @@ json Cerebro::foundLoops_as_JSON()
         double score = std::get<2>(u);
 
 
-        assert( data_map.count( t_curr ) > 0 && data_map.count( t_prev ) > 0  && "One or both of the timestamps in foundloops where not in the data_map. This cannot be happening...fatal...\n" );
+        assert( data_map->count( t_curr ) > 0 && data_map->count( t_prev ) > 0  && "One or both of the timestamps in foundloops where not in the data_map. This cannot be happening...fatal...\n" );
         int idx_1 = std::distance( data_map->begin(), data_map->find( t_curr )  );
         int idx_2 = std::distance( data_map->begin(), data_map->find( t_prev )  );
         // cout << "loop#" << i << " of " << n_foundloops << ": ";
@@ -1346,15 +1346,20 @@ json Cerebro::loop_hypothesis_as_json() const
 //----------------- Geometry for Loop Hypothesis -------------------//
 //------------------------------------------------------------------//
 
+#define __Cerebro__loop_hypothesis_consumer_thread( msg ) msg;
+// #define __Cerebro__loop_hypothesis_consumer_thread( msg ) ;
 void Cerebro::loop_hypothesis_consumer_thread()
 {
+    std::this_thread::sleep_for(std::chrono::milliseconds(50)); // wait for 50ms ,
+
     assert( m_dataManager_available && "You need to set the DataManager in class Cerebro before execution of the run() thread can begin. You can set the dataManager by call to Cerebro::setDataManager()\n");
-    assert( b_loopcandidate_consumer && "you need to call loopcandidate_consumer_enable() before loopcandiate_consumer_thread() can start executing\n" );
     cout << TermColor::GREEN() <<   "[Cerebro::loop_hypothesis_consumer_thread] Start thread" << TermColor::RESET() << endl;
+    // assert( b_loopcandidate_consumer && "you need to call loopcandidate_consumer_enable() before loopcandiate_consumer_thread() can start executing\n" );
 
 
 
     ros::Rate rate(1);
+    ros::Rate rate_2( 15 );
     int prev_count = 0;
     while( b_loop_hypothesis_consumer )
     {
@@ -1373,16 +1378,32 @@ void Cerebro::loop_hypothesis_consumer_thread()
         if( curr_count > prev_count )
         {
             // something new
-            cout << "[Cerebro::loop_hypothesis_consumer_thread] ---loop_hypothesis_count=" << curr_count << endl;
+            __Cerebro__loop_hypothesis_consumer_thread(
+            cout << "[Cerebro::loop_hypothesis_consumer_thread] ---loop_hypothesis_count=" << curr_count << endl; )
             for( int d=prev_count ; d<curr_count ; d++ )
             {
-                cout << TermColor::iCYAN() << "[Cerebro::loop_hypothesis_consumer_thread] Process Loop Hypothesis#" << d << TermColor::RESET() << endl;
+                __Cerebro__loop_hypothesis_consumer_thread(
+                cout << TermColor::iCYAN() << "[Cerebro::loop_hypothesis_consumer_thread] Process Loop Hypothesis#" << d << TermColor::RESET() << endl; )
                 ElapsedTime geom_t;
+                dataManager->clean_up_pause();
+                __Cerebro__loop_hypothesis_consumer_thread( cout << "[Cerebro::loop_hypothesis_consumer_thread]dataManager->clean_up_running_status()=" << dataManager->clean_up_running_status() << endl; )
+                while( dataManager->clean_up_running_status() ) {
+                    __Cerebro__loop_hypothesis_consumer_thread(
+                    cout << "[Cerebro::loop_hypothesis_consumer_thread]waiting for cleanup thread to finish its current task" << endl;)
+                    rate_2.sleep();
+                }
+
+
                 compute_geometry_for_loop_hypothesis_i( d );
-                cout << TermColor::BLUE() << "[Cerebro::loop_hypothesis_consumer_thread] it took ms=" << geom_t.toc_milli() << " to process this loop hypothesis\n";
+
+
+                dataManager->clean_up_play();
+                __Cerebro__loop_hypothesis_consumer_thread(
+                cout << TermColor::BLUE() << "[Cerebro::loop_hypothesis_consumer_thread] it took ms=" << geom_t.toc_milli() << " to process this loop hypothesis\n"; )
             }
         } else {
-            // cout << "[Cerebro::loop_hypothesis_consumer_thread] nothing new\n";
+            __Cerebro__loop_hypothesis_consumer_thread(
+            cout << "[Cerebro::loop_hypothesis_consumer_thread] nothing new, curr_count (of number of loop hyp)=" << curr_count << "\n"; )
             ;
         }
 
@@ -1398,8 +1419,8 @@ void Cerebro::loop_hypothesis_consumer_thread()
 // #define __Cerebro__compute_geometry_for_loop_hypothesis_i( msg );
 
 // This will print info on each of the randomly drawn image pairs
-#define __Cerebro__compute_geometry_for_loop_hypothesis_i_randompairs( msg ) msg;
-// #define __Cerebro__compute_geometry_for_loop_hypothesis_i_randompairs( msg );
+// #define __Cerebro__compute_geometry_for_loop_hypothesis_i_randompairs( msg ) msg;
+#define __Cerebro__compute_geometry_for_loop_hypothesis_i_randompairs( msg );
 bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
 {
     __Cerebro__compute_geometry_for_loop_hypothesis_i(
@@ -1418,8 +1439,9 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
 
 
     //--- Params
-    const int N_RANDOM_PAIRS = 15;
-    const bool PLOT_IMAGE_PAIR = true;
+    const int N_RANDOM_PAIRS = 12;
+    const bool PLOT_IMAGE_PAIR = false;
+    const string PLOT_IMAGE_PAIR__SAVE_DIR = "/app/tmp/cerebro/live_system/";
 
 
     int seq_a_start, seq_a_end, seq_b_start, seq_b_end ; //< note these idx are in wholeImageComputedList and realisitically useless, u need to use the function `loop_hypothesis_i_T()`
@@ -1586,7 +1608,12 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
         }
 
 
-
+        if( uv_a.cols() < 10 ) {
+            __Cerebro__compute_geometry_for_loop_hypothesis_i_randompairs(
+            cout << "\t\t\t\tuv_a.cols() is less than 10, don't proceed to get 3d points at these correspondences\n"
+            )
+            continue;
+        }
 
         //--- 3d points at image correspondences
         valids.clear();
@@ -1607,25 +1634,26 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
 
         //--- plot image correspondence
         #if 1
-        if( PLOT_IMAGE_PAIR ) {
-        cv::Mat dst_matcher;
-        string msg_str = "plot (resize 0.5), took ms="+to_string(im_correspondence_elapsed_time_ms);
-        msg_str += ";#valid depths="+to_string( nvalids);
-        MiscUtils::plot_point_pair( left_image_a, uv_a, ra,
-                                    left_image_b, uv_b, rb, dst_matcher,
-                                    #if 1 // make this to 1 to mark matches by spatial color codes (gms style). set this to 0 to mark the matches with lines
-                                    3, msg_str
-                                    #else
-                                    cv::Scalar( 0,0,255 ), cv::Scalar( 0,255,0 ), false, msg_str
-                                    #endif
-                                );
-        cv::resize(dst_matcher, dst_matcher, cv::Size(), 0.5, 0.5);
+        if( PLOT_IMAGE_PAIR )
+        {
+            cv::Mat dst_matcher;
+            string msg_str = "plot (resize 0.5), took ms="+to_string(im_correspondence_elapsed_time_ms);
+            msg_str += ";#valid depths="+to_string( nvalids);
+            MiscUtils::plot_point_pair( left_image_a, uv_a, ra,
+                                        left_image_b, uv_b, rb, dst_matcher,
+                                        #if 1 // make this to 1 to mark matches by spatial color codes (gms style). set this to 0 to mark the matches with lines
+                                        3, msg_str
+                                        #else
+                                        cv::Scalar( 0,0,255 ), cv::Scalar( 0,255,0 ), false, msg_str
+                                        #endif
+                                    );
+            cv::resize(dst_matcher, dst_matcher, cv::Size(), 0.5, 0.5);
 
-        string fname = "/app/tmp/cerebro/live_system/hyp_" + to_string(i) + "__itr="+to_string(itr) + ".jpg";
-        cout << "\t\t\t\timwrite(" << fname << ");\t";
-        cout << "feat_matches=" << uv_a.cols() << "\t";
-        cout << "nvalids_depths=" <<nvalids << "\t" << endl;;
-        cv::imwrite( fname, dst_matcher );
+            string fname = PLOT_IMAGE_PAIR__SAVE_DIR+"/hyp_" + to_string(i) + "__itr="+to_string(itr) + ".jpg";
+            cout << "\t\t\t\timwrite(" << fname << ");\t";
+            cout << "feat_matches=" << uv_a.cols() << "\t";
+            cout << "nvalids_depths=" <<nvalids << "\t" << endl;;
+            cv::imwrite( fname, dst_matcher );
         }
         #endif
 
@@ -1764,7 +1792,19 @@ bool Cerebro::retrive_image_data( ros::Time& stamp, cv::Mat& left_image, cv::Mat
     }
 
     const DataNode * node = data_map->at( stamp );
+    bool is_pose = node->isPoseAvailable();
+    if( is_pose == false )
+    {
+        cout << "[Cerebro::retrive_image_data] WARN cannot retrive pose\n";
+        return false;
+    }
 
+    __Cerebro__retrive_image_data__( cout << "[Cerebro::retrive_image_data]pose is available\n" );
+
+
+    #if 0
+    __Cerebro__retrive_image_data__(
+    cout << "[Cerebro::retrive_image_data] isImageRetrivable?\n"; )
     bool is_left_image = img_data_mgr->isImageRetrivable( "left_image", node->getT() );
     bool is_depth = img_data_mgr->isImageRetrivable( "depth_image", node->getT() );
     bool is_pose = node->isPoseAvailable();
@@ -1775,6 +1815,10 @@ bool Cerebro::retrive_image_data( ros::Time& stamp, cv::Mat& left_image, cv::Mat
         cout << "is_left_image=" << is_left_image << "  is_depth=" << is_depth << "  is_pose=" << is_pose << endl;
         return false;
     }
+    __Cerebro__retrive_image_data__(
+    cout << "[Cerebro::retrive_image_data] isImageRetrivable ...YES\n"; )
+    #endif
+
 
     #if 0
     cv::Mat tmp_left_image, tmp_depth_image;
@@ -1784,8 +1828,31 @@ bool Cerebro::retrive_image_data( ros::Time& stamp, cv::Mat& left_image, cv::Mat
     depth_image = tmp_depth_image.clone();
     #endif
 
+    #if 0
+    // this causes threading issues, better this operation be atomic
     img_data_mgr->getImage( "left_image",  node->getT(),  left_image );
     img_data_mgr->getImage( "depth_image", node->getT(), depth_image );
+    #endif
+
+
+    vector<string> nsX;        nsX.push_back( "left_image"); nsX.push_back( "depth_image");
+    vector<cv::Mat> ou;
+    __Cerebro__retrive_image_data__(
+    cout << "[Cerebro::retrive_image_data] img_data_mgr->getImage(), input vector<string> nsX.size=" << nsX.size() << " \n" )
+    bool getim_status = img_data_mgr->getImage( nsX, node->getT(), ou );
+    __Cerebro__retrive_image_data__(
+    cout << "[Cerebro::retrive_image_data] ou.size = " << ou.size() << "\tgetim_status=" << getim_status << endl; )
+
+    if( getim_status == false )
+    {
+        cout << "[Cerebro::retrive_image_data] WARN cannot retrive image from the image manager\n";
+        return false;
+    }
+
+    assert( nsX.size() == ou.size() && nsX.size() == 2 );
+    left_image = ou[0];//.clone();
+    depth_image = ou[1];//.clone();
+    // ou.clear();
 
     __Cerebro__retrive_image_data__(
     cout << "[Cerebro::retrive_image_data]";
@@ -1795,10 +1862,10 @@ bool Cerebro::retrive_image_data( ros::Time& stamp, cv::Mat& left_image, cv::Mat
     cout << "depth_image " << MiscUtils::cvmat_info( depth_image ) << "\n";
     )
 
-    w_T_c = data_map->at( stamp )->getPose();
+    w_T_c = node->getPose();
     __Cerebro__retrive_image_data__(
-    cout << "w_T_c = " << PoseManipUtils::prettyprintMatrix4d( w_T_c ) << endl;
-    cout << "OK!\n";
+    cout << "[Cerebro::retrive_image_data] w_T_c = " << PoseManipUtils::prettyprintMatrix4d( w_T_c ) << endl;
+    cout << "[Cerebro::retrive_image_data] OK!\n";
     )
 
     return true;

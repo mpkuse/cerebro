@@ -267,7 +267,7 @@ void Visualization::publish_loopcandidates()
         ros::Time t_prev = std::get<1>(u);
         double score = std::get<2>(u);
 
-        assert( data_map.count( t_curr ) > 0 && data_map.count( t_prev ) > 0  && "One or both of the timestamps in foundloops where not in the data_map. This cannot be happening...fatal...\n" );
+        assert( data_map->count( t_curr ) > 0 && data_map->count( t_prev ) > 0  && "One or both of the timestamps in foundloops where not in the data_map. This cannot be happening...fatal...\n" );
         int idx_1 = std::distance( data_map->begin(), data_map->find( t_curr )  );
         int idx_2 = std::distance( data_map->begin(), data_map->find( t_prev )  );
 
@@ -504,7 +504,7 @@ void Visualization::publish_loop_hypothesis_lines()
         )
 
         // get poses at these points
-        assert( data_map.count( seq_a_start_T ) > 0 && data_map.count( seq_b_start_T ) > 0  && "One or both of the timestamps in loop_hypothesis_count where not in the data_map. This cannot be happening...fatal...\n" );
+        assert( data_map->count( seq_a_start_T ) > 0 && data_map->count( seq_b_start_T ) > 0  && "One or both of the timestamps in loop_hypothesis_count where not in the data_map. This cannot be happening...fatal...\n" );
 
         #if 0
         // more elaborate code, useful for debugging...

@@ -709,6 +709,28 @@ void DataManager::trial_thread( )
 }
 
 
+void DataManager::clean_up_pause()
+{
+    cout << TermColor::iBLUE() << "[DataManager::clean_up_pause] commanded to pause cleanup\n" << TermColor::RESET() << endl;
+    b_playpause_switch = false;
+}
+
+void DataManager::clean_up_play()
+{
+    cout << TermColor::iBLUE() << "[DataManager::clean_up_play] commanded to play/resume cleanup\n" << TermColor::RESET() << endl;
+    b_playpause_switch = true;
+}
+
+bool DataManager::clean_up_playpause_switch_status()
+{
+    return b_playpause_switch;
+}
+
+bool DataManager::clean_up_running_status()
+{
+    return b_clean_up_running_status;
+}
+
 // #define ___clean_up_cout(msg) msg;
 #define ___clean_up_cout(msg) ;
 void DataManager::clean_up_useless_images_thread()
@@ -721,13 +743,23 @@ void DataManager::clean_up_useless_images_thread()
     cout << TermColor::GREEN() << "[DataManager::clean_up_useless_images_thread] Start thread "<< TermColor::RESET() << endl;
     ros::Rate looprate(0.3);
     // data_association_thread_disable();
+    clean_up_play();
     while( b_clean_up_useless_images_thread )
     {
+        ___clean_up_cout( cout << "[DataManager::clean_up_useless_images_thread] sleep\n"; )
         looprate.sleep();
+        ___clean_up_cout( cout << "[DataManager::clean_up_useless_images_thread] I am awake now\n"; )
 
-        // if( data_map.begin() == data_map.end() ) { //berks__old
-        if( data_map->begin() == data_map->end() ) {
+
+        if( data_map->begin() == data_map->end() )
+        {
             cout << TermColor::CYAN() << "[clean_up_useless_images_thread] no nodes" << TermColor::RESET() << endl;
+            continue;
+        }
+
+        if(  clean_up_playpause_switch_status() == false )
+        {
+            cout << TermColor::CYAN() << "[clean_up_useless_images_thread] paused\n" << TermColor::RESET();
             continue;
         }
 
@@ -741,21 +773,11 @@ void DataManager::clean_up_useless_images_thread()
         int q=0;
         ___clean_up_cout( cout << "[DataManager::clean_up_useless_images_thread] "  <<  S->first << " to " << E->first << "\t"; )
         ___clean_up_cout( cout << S->first-getPose0Stamp() << " to " << E->first - getPose0Stamp() << endl; )
-        // for( auto it = data_map.begin() ; it->first < E->first ; it++ ) { //berks__old
-        for( auto it = S ; it->first < E->first ; it++ ) {
-            #if 0 //old, where images where stored inside datanode.
-            if( it->second->isImageAvailable() && !it->second->isKeyFrame() )
-            // if( it->second->isImageAvailable()  ) {
-                ___clean_up_cout(
-                    cout << TermColor::CYAN() << "deallocate_all_images with t=" << it->first << " " << q++ << TermColor::RESET() << endl;
-                    it->second->print_image_cvinfo();
-                )
-                it->second->deallocate_all_images();
-            }
-            else {
-                ___clean_up_cout( cout << TermColor::YELLOW() << "not deallocate coz t=" << it->first << " aka t=" << it->first - getPose0Stamp() << "is a keyframe (has pose info)" << q++ << TermColor::RESET() << endl; )
-            }
-            #endif
+
+        b_clean_up_running_status = true;
+        for( auto it = S ; it->first < E->first ; it++ )
+        {
+
 
 
             #if 0
@@ -783,7 +805,6 @@ void DataManager::clean_up_useless_images_thread()
             }
             #endif
 
-
             vector<string> vec;
             vec.clear();
             if( m_raw_image_callback )
@@ -794,14 +815,17 @@ void DataManager::clean_up_useless_images_thread()
                 vec.push_back( "depth_image");
 
             if( it->second->isKeyFrame() ) {
-                img_data_mgr->stashImage( vec, it->first );
+                ___clean_up_cout( cout << "\t\timg_data_mgr->stashImage( t=" << it->first << ")\n"; )
+                bool stash_status = img_data_mgr->stashImage( vec, it->first );
             }
             else {
-                img_data_mgr->rmImage( vec, it->first );
+                ___clean_up_cout( cout << "\t\timg_data_mgr->rmImage( t=" << it->first << ")\n"; )
+                bool rm_status = img_data_mgr->rmImage( vec, it->first );
             }
 
-
         }
+        ___clean_up_cout( cout << "[DataManager::clean_up_useless_images_thread] Done what i set out to do\n"; )
+        b_clean_up_running_status = false;
     }
     cout << TermColor::RED() << "[DataManager::clean_up_useless_images_thread] Finished Thread"<< TermColor::RESET() << endl;
 
@@ -1126,7 +1150,9 @@ void DataManager::data_association_thread( int max_loop_rate_in_hz )
             std::this_thread::sleep_for( std::chrono::milliseconds( sleep_for )  );
         else {
             __DataManager__data_association_thread__( cout << "Queueing in thread `data_association_thread`\n" ; )
-            ROS_WARN( "Queueing in thread `data_association_thread`. requested_loop_time_ms=%f; elapsed=%f. If this occurs occasionally, it might be because of image_manager thread getting blocked by cleanup thread. It is perfectly normal.", requested_loop_time_ms, ellapsed.count() );
+            // ROS_WARN( "Queueing in thread `data_association_thread`. requested_loop_time_ms=%f; elapsed=%f. If this occurs occasionally, it might be because of image_manager thread getting blocked by cleanup thread. It is perfectly normal.", requested_loop_time_ms, ellapsed.count() );
+            __DataManager__data_association_thread__(
+            printf( "Queueing in thread `data_association_thread`. requested_loop_time_ms=%f; elapsed=%f. If this occurs occasionally, it might be because of image_manager thread getting blocked by cleanup thread. It is perfectly normal.", requested_loop_time_ms, ellapsed.count() );)
         }
 
     }

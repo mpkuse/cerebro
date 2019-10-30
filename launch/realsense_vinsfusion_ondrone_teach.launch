@@ -36,7 +36,8 @@
 
     <group if="1">
         <!-- Cerebro -->
-        <node name="cerebro_node" pkg="cerebro" type="cerebro_node" output="screen">
+        <!-- <node name="cerebro_node" pkg="cerebro" type="cerebro_node" output="screen" launch-prefix="gdb -ex run -x-args"> -->
+        <node name="cerebro_node" pkg="cerebro" type="cerebro_node" output="screen" >
            <param name="config_file" type="string" value="$(arg config_path)" />
 
            <param name="loadStateFromDisk" type="string" value="" />

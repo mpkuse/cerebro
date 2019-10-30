@@ -39,10 +39,10 @@ include_directories(${Boost_INCLUDE_DIRS})
 #find_package(Gperftools REQUIRED)
 #message( "----- GPERF")
 #message( "----- "${GPERFTOOLS_LIBRARIES} )
-set (CMAKE_CXX_FLAGS " -Wl,-no-as-needed")
-#set(CMAKE_BUILD_TYPE Debug)
-set(CMAKE_BUILD_TYPE Release)
-#set(CMAKE_BUILD_TYPE RelWithDebInfo)
+set (CMAKE_CXX_FLAGS " -Wl,-no-as-needed -O0")
+set(CMAKE_BUILD_TYPE Debug)
+#set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_BUILD_TYPE RelWithDebInfo)
 
 #----------END GPERFTOOLS
 

@@ -121,11 +121,14 @@ public:
 public:
     bool stashImage( const vector<string> ns, const ros::Time t );
     bool rmImage( const vector<string> ns, const ros::Time t );
+    bool getImage( const vector<string> ns, const ros::Time t, vector<cv::Mat>& outImg );
 
 
 private:
     bool stashImage_nolock( const string ns, const ros::Time t );
     bool rmImage_nolock( const string ns, const ros::Time t );
+    bool getImage_nolock( const string ns, const ros::Time t, cv::Mat& outImg );
+    int decrement_hit_counts_and_deallocate_expired_nolock();
 
 
 };

@@ -6,7 +6,7 @@ void StaticPointFeatureMatching::gms_point_feature_matches( const cv::Mat& imlef
                             MatrixXd& u, MatrixXd& ud, int n_orb_feat )
 {
     ElapsedTime timer;
-    assert( imleft_undistorted.data() && imright_undistorted.data() );
+    assert( imleft_undistorted.data && imright_undistorted.data );
 
     //
     // Point feature and descriptors extract

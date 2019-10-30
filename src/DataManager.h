@@ -243,8 +243,23 @@ public:
     void clean_up_useless_images_thread_enable() { b_clean_up_useless_images_thread = true; }
     void clean_up_useless_images_thread_disable() { b_clean_up_useless_images_thread = false; }
 
+
+    // TODO: Currently I have implemented this mutual exclusion with atomic-bools. However ideally
+    //      this needs to be done with a mutex lock mechanism. The idea is that while cleanup threads deletes data
+    //      pose computation should not happen and also as computation happens the cleanup cleanthread should pause (ie.. not delete notes)
+
+    // Where we compute the relative pose temporary stop the clean up process
+    void clean_up_pause();
+    void clean_up_play();
+    bool clean_up_playpause_switch_status();
+
+    bool clean_up_running_status();
+
 private:
     atomic<bool> b_clean_up_useless_images_thread;
+
+    atomic<bool> b_playpause_switch;
+    atomic<bool> b_clean_up_running_status; // this will be true only when the cleanup thread is actively cleaning up. this will be false when cleanup thread is sleeping
 
 
 };

@@ -1,5 +1,8 @@
 #include "ImageDataManager.h"
 
+#define acq_lock( msg ) msg;
+#define acq_lock( msg ) ;
+
 
 ImageDataManager::ImageDataManager()
 {
@@ -55,6 +58,7 @@ bool ImageDataManager::initStashDir( bool clear_dir, const string __dir )
 
 ImageDataManager::~ImageDataManager()
 {
+    acq_lock( cout << __LINE__ << "[ImageDataManager::~ImageDataManager] Acquire lock\n"; )
     std::lock_guard<std::mutex> lk(m);
     // TODO
     // rm all available on RAM
@@ -92,6 +96,7 @@ bool ImageDataManager::setImage( const string ns, const ros::Time t, const cv::M
 #define __ImageDataManager__setImageFromMsg( msg ) ;
 bool ImageDataManager::setNewImageFromMsg( const string ns, const sensor_msgs::ImageConstPtr msg )
 {
+    acq_lock( cout << __LINE__ << "[ImageDataManager::setNewImageFromMsg] Acquire lock\n"; )
     std::lock_guard<std::mutex> lk(m);
     cv::Mat __image = (cv_bridge::toCvCopy(msg)->image).clone();
 
@@ -112,10 +117,89 @@ bool ImageDataManager::setNewImageFromMsg( const string ns, const sensor_msgs::I
 #define __ImageDataManager__getImage( msg ) ;
 bool ImageDataManager::getImage( const string ns, const ros::Time t, cv::Mat& outImg )
 {
-    ensure_init();
-    decrement_hit_counts_and_deallocate_expired();
-
+    acq_lock( cout << __LINE__ << "[ImageDataManager::getImage__1] Acquire lock\n"; )
     std::lock_guard<std::mutex> lk(m);
+    ensure_init();
+    decrement_hit_counts_and_deallocate_expired_nolock();
+
+    auto key = std::make_pair(ns,t);
+    if( status.count(key) > 0 ) {
+        if( status.at(key) == MEMSTAT::AVAILABLE_ON_RAM ) {
+            __ImageDataManager__getImage(
+            cout << TermColor::iGREEN() << "[ImageDataManager::getImage] retrived (from ram) at ns=" << ns << " t=" << t << TermColor::RESET() << endl;
+            )
+            outImg = image_data.at( key );
+            return true;
+        }
+        else {
+            if( status.at(key) == MEMSTAT::AVAILABLE_ON_DISK )
+            {
+                const string fname = key_to_imagename(ns, t);
+                __ImageDataManager__getImage(
+                cout << TermColor::iYELLOW() << "[ImageDataManager::getImage] retrived (fname=" << fname << ") at ns=" << ns << " t=" << t << TermColor::RESET() << endl;
+                )
+
+                if( ns == "depth_image" ) {
+                    outImg = cv::imread( fname+".png", -1 );
+                } else {
+                    outImg = cv::imread( fname, -1 ); //-1 is for read as it is.
+                }
+                if( !outImg.data )
+                {
+                    cout << TermColor::RED() << "[ImageDataManager::getImage] failed to load image " << fname << TermColor::RESET() << endl;
+                    exit(1);
+                    return false;
+                }
+
+                //=----------------cache hit this
+                __ImageDataManager__getImage(
+                cout << TermColor::iYELLOW() << "\t\tchange the status to MEMSTAT::AVAILABLE_ON_RAM_DUETO_HIT and set expiry to 10\n" << TermColor::RESET();
+                )
+                status[key] = MEMSTAT::AVAILABLE_ON_RAM_DUETO_HIT;
+                image_data[key] = outImg;
+                hit_count[key] = 10;
+                //=----------------
+                return true;
+            }
+
+            if( status.at(key) == MEMSTAT::AVAILABLE_ON_RAM_DUETO_HIT )
+            {
+                __ImageDataManager__getImage(
+                cout << TermColor::iBLUE() << "[ImageDataManager::getImage]  retrived (AVAILABLE_ON_RAM_DUETO_HIT) at ns=" << ns << " t=" << t << TermColor::RESET()  << endl;
+                )
+                outImg = image_data.at(key);
+                hit_count[key] +=5;
+                return true;
+            }
+
+            if( status.at(key) == MEMSTAT::UNAVAILABLE )
+            {
+                cout << TermColor::iYELLOW() << "[ImageDataManager::getImage] WARNING you requested image which was MEMSTAT::UNAVAILABLE, this should not be happening but for now return false,  at ns=" << ns << " t=" << t << TermColor::RESET() << endl;
+                return false;
+            }
+
+
+            cout <<  TermColor::iGREEN() <<  "[ImageDataManager::getImage] got a corrupt key. Report this error to authors if this occurs\n" << TermColor::RESET();
+            exit(1);
+        }
+    }
+    else
+    {
+        cout << TermColor::RED() << "[ImageDataManager::getImage] FATAL-ERROR you requested image ns=" << ns << ", t=" << t << "; However it was not found on the map. FATAL ERRR\n" << TermColor::RESET();
+        exit(1);
+        return false;
+    }
+
+    return false;
+}
+
+
+bool ImageDataManager::getImage_nolock( const string ns, const ros::Time t, cv::Mat& outImg )
+{
+    ensure_init();
+    decrement_hit_counts_and_deallocate_expired_nolock();
+
+    // std::lock_guard<std::mutex> lk(m);
 
     auto key = std::make_pair(ns,t);
     if( status.count(key) > 0 ) {
@@ -195,8 +279,10 @@ bool ImageDataManager::getImage( const string ns, const ros::Time t, cv::Mat& ou
 #define __ImageDataManager__rmImage(msg) ;
 bool ImageDataManager::rmImage( const string ns, const ros::Time t )
 {
-    ensure_init();
+    acq_lock( cout << __LINE__ << "[ImageDataManager::rmImage__1] Acquire lock\n"; )
+
     std::lock_guard<std::mutex> lk(m);
+    ensure_init();
     auto key = std::make_pair(ns, t);
     if( status.count(key) > 0  )
     {
@@ -270,8 +356,9 @@ bool ImageDataManager::rmImage_nolock( const string ns, const ros::Time t )
 #define __ImageDataManager__stashImage(msg) ;
 bool ImageDataManager::stashImage( const string ns, const ros::Time t )
 {
-    ensure_init();
+    acq_lock( cout << __LINE__ << "[ImageDataManager::stashImage__1] Acquire lock\n"; )
     std::lock_guard<std::mutex> lk(m);
+    ensure_init();
     __ImageDataManager__stashImage(
     cout << TermColor::iCYAN() << "[ImageDataManager::stashImage] ns=" << ns << ", t=" << t << TermColor::RESET() << endl;
     )
@@ -370,6 +457,8 @@ bool ImageDataManager::stashImage_nolock( const string ns, const ros::Time t )
 
 bool ImageDataManager::stashImage( const vector<string> ns, const ros::Time t )
 {
+    acq_lock( cout << __LINE__ << "[ImageDataManager::stashImage__ vec] Acquire lock\n"; )
+
     std::lock_guard<std::mutex> lk(m);
     for( auto it=ns.begin() ; it!= ns.end() ; it++ )
     {
@@ -379,6 +468,8 @@ bool ImageDataManager::stashImage( const vector<string> ns, const ros::Time t )
 
 bool ImageDataManager::rmImage( const vector<string> ns, const ros::Time t )
 {
+    acq_lock( cout << __LINE__ << "[ImageDataManager::rmImage __ vec] Acquire lock\n"; )
+
     std::lock_guard<std::mutex> lk(m);
     for( auto it=ns.begin() ; it!= ns.end() ; it++ )
     {
@@ -387,9 +478,44 @@ bool ImageDataManager::rmImage( const vector<string> ns, const ros::Time t )
 }
 
 
+// #define ImageDataManager_getImage_multins_debug( msg ) msg;
+#define ImageDataManager_getImage_multins_debug( msg ) ;
+bool ImageDataManager::getImage( const vector<string> ns, const ros::Time t, vector<cv::Mat>& outImg )
+{
+    ImageDataManager_getImage_multins_debug(
+    cout << __FILE__ << ":" <<  __LINE__ << "[ImageDataManager::getImage__vec] Acquire lock\n";
+    )
+
+    #if 0 //this causing the deadlock and also lot of head ache, so as a quick fix I just removed it. not sure of the implications.
+    // std::lock_guard<std::mutex> lk(m);
+    #endif
+
+    ImageDataManager_getImage_multins_debug(
+    cout << __FILE__ << ":" << __LINE__ << "[ImageDataManager::getImage__vec] got the lock\n"; )
+    outImg.clear();
+    bool status = true;
+    for( auto it=ns.begin() ; it!= ns.end() ; it++ )
+    {
+        ImageDataManager_getImage_multins_debug(
+        cout << __LINE__ << "ImageDataManager::getImage XXv  getImage_nolock(" << *it <<  " )\n"; )
+        cv::Mat tmp;
+        bool status_it = getImage_nolock( *it, t, tmp );
+        ImageDataManager_getImage_multins_debug(
+        cout << __LINE__ << "status_it = " << status_it << endl;)
+        status = status && status_it;
+
+        if( status_it )
+            outImg.push_back( tmp );
+    }
+    return status;
+}
+
+
 bool ImageDataManager::isImageRetrivable( const string ns, const ros::Time t ) const
 {
     ensure_init();
+    acq_lock( cout << __LINE__ << "[ImageDataManager::isImageRetrivable] Acquire lock\n"; )
+
     std::lock_guard<std::mutex> lk(m);
     auto key = std::make_pair( ns, t );
     if( status.count( key ) > 0 ) {
@@ -510,7 +636,49 @@ bool ImageDataManager::print_status(  ) const
 #define __ImageDataManager__decrement_hit_counts_and_deallocate_expired(msg) ;
 int ImageDataManager::decrement_hit_counts_and_deallocate_expired()
 {
+    acq_lock(  cout << __LINE__ << "[ImageDataManager::decrement_hit_counts_and_deallocate_expired] Acquire lock\n"; )
+
     std::lock_guard<std::mutex> lk(m);
+
+    // decrement all by 1
+    int n_elements_in_hitlist = 0;
+    for( auto it=hit_count.begin() ; it!=hit_count.end() ; it++ )
+    {
+        it->second--;
+        __ImageDataManager__decrement_hit_counts_and_deallocate_expired(
+        cout << "[decrement_hit_counts_and_deallocate_expired]" << std::get<0>(it->first) << "," << std::get<1>(it->first) << " expry=" << it->second << endl;
+        )
+        n_elements_in_hitlist++;
+    }
+
+    // deallocate expired
+    int n_removed = 0;
+    for( auto it=hit_count.begin() ; it!=hit_count.end() ; it++ )
+    {
+        if( it->second <= 0 )
+        {
+            __ImageDataManager__decrement_hit_counts_and_deallocate_expired(
+            cout << "[decrement_hit_counts_and_deallocate_expired] REMOVE: " <<  std::get<0>(it->first) << "," << std::get<1>(it->first) << endl;
+            )
+            auto key = it->first;
+            image_data.erase(key);
+            hit_count.erase(key);
+            status[key] = MEMSTAT::AVAILABLE_ON_DISK;
+            n_removed++;
+        }
+    }
+
+    __ImageDataManager__decrement_hit_counts_and_deallocate_expired(
+    cout << "[decrement_hit_counts_and_deallocate_expired] n_elements_in_hitlist=" << n_elements_in_hitlist << "\tn_removed=" << n_removed<< endl;
+    )
+    return n_removed;
+
+}
+
+
+int ImageDataManager::decrement_hit_counts_and_deallocate_expired_nolock()
+{
+    // std::lock_guard<std::mutex> lk(m);
 
     // decrement all by 1
     int n_elements_in_hitlist = 0;
