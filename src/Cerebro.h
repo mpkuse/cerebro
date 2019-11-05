@@ -215,8 +215,15 @@ private:
     //      e. verify pose based on pairwise invariance for rotation and translation
     //      f. report
     bool compute_geometry_for_loop_hypothesis_i( int i );
+    bool compute_geometry_for_loop_hypothesis_i_old( int i );
 
+    // helpers for compute_geometry_for_loop_hypothesis_i
     bool retrive_image_data( ros::Time& stamp, cv::Mat& left_image, cv::Mat& depth_image, Matrix4d& w_T_c );
+
+    bool retrive_full_sequence_info(
+        const ros::Time seq_start_T, const ros::Time seq_end_T,
+        vector<ros::Time>& seq_T, vector<int>& seq_idx, vector<Matrix4d>& seq_odom_pose
+    );
 
 
 

@@ -165,6 +165,7 @@ public:
     static VectorXd depth_at_image_coordinates( const MatrixXd& uv, const cv::Mat& depth_image );
 
 
+    static MatrixXd normalized_image_coordinates_and_depth_to_3dpoints( const MatrixXd& normed_uv, const VectorXd d, bool make_homogeneous );
 
 
 private:

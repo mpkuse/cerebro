@@ -696,3 +696,24 @@ VectorXd StaticPointFeatureMatching::depth_at_image_coordinates( const MatrixXd&
     return uv_X;
 
 }
+
+
+
+MatrixXd StaticPointFeatureMatching::normalized_image_coordinates_and_depth_to_3dpoints(
+    const MatrixXd& normed_uv, const VectorXd d, bool make_homogeneous )
+{
+    assert( normed_uv.rows() == 3 && d.size() == normed_uv.cols() && normed_uv.cols() > 0  );
+    int N = normed_uv.cols();
+
+    MatrixXd result_3d;
+    if( make_homogeneous )
+        result_3d = MatrixXd::Constant( 4, N, 1.0 );
+    else
+        result_3d = MatrixXd::Constant( 3, N, 1.0 );
+
+
+    result_3d.row(0) = normed_uv.row(0).array() * d.transpose().array();
+    result_3d.row(1) = normed_uv.row(1).array() * d.transpose().array();
+    result_3d.row(2) = normed_uv.row(2).array() * d.transpose().array();
+    return result_3d;
+}
