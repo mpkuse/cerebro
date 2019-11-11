@@ -248,6 +248,38 @@ void MiscUtils::gather( const vector<VectorXd>& mats, VectorXd& dst )
     assert( c == total );
 }
 
+vector<bool> MiscUtils::filter_near_far( const VectorXd& dd, double near, double far )
+{
+    vector<bool> valids;
+    valids.clear();
+    for( int i=0 ; i<dd.size() ; i++ )
+    {
+        if( dd(i) > near && dd(i) < far )
+            valids.push_back(true);
+        else
+            valids.push_back(false);
+
+    }
+    return valids;
+}
+
+
+vector<bool> MiscUtils::vector_of_bool_AND( const vector<bool>& A, const vector<bool>& B )
+{
+    assert( A.size() == B.size() );
+    int n = (int) A.size();
+    vector<bool> valids;
+    valids.clear();
+    for( int i=0 ; i<n ; i++ )
+    {
+        if( A[i] && B[i] )
+            valids.push_back( true );
+        else
+            valids.push_back( false );
+    }
+    return valids;
+}
+
 void MiscUtils::plot_point_sets( const cv::Mat& im, const MatrixXd& pts_set, cv::Mat& dst,
                                         const cv::Scalar& color, bool enable_keypoint_annotation, const string& msg )
 {

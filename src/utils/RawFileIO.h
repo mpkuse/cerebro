@@ -87,6 +87,20 @@ public:
     static bool read_eigen_matrix_fromjson( const json str, MatrixXd&  output );
     static bool read_eigen_matrix4d_fromjson( const json str, Matrix4d&  output );
     static bool read_eigen_vector_fromjson( const json str, VectorXd&  output );
+
+    template <typename Derived>
+    static json write_eigen_matrix_tojson( const MatrixBase<Derived>& a )
+    {
+        IOFormat CSVFormat(StreamPrecision, DontAlignCols, ", ", "\n");
+
+        json pose_ifo;
+        pose_ifo["rows"] = a.rows();
+        pose_ifo["cols"] = a.cols();
+        std::stringstream ss;
+        ss <<  a.format(CSVFormat);
+        pose_ifo["data"] = ss.str();
+        return pose_ifo;
+    }
     #endif
 
 

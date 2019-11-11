@@ -28,6 +28,7 @@
 
 #include "DlsPnpWithRansac.h"
 #include "PoseComputation.h"
+#include "LocalBundle.h"
 
 #include "utils/TermColor.h"
 #include "utils/ElapsedTime.h"
@@ -222,10 +223,15 @@ private:
 
     bool retrive_full_sequence_info(
         const ros::Time seq_start_T, const ros::Time seq_end_T,
-        vector<ros::Time>& seq_T, vector<int>& seq_idx, vector<Matrix4d>& seq_odom_pose
+        vector<ros::Time>& seq_T, vector<int>& seq_idx,
+        vector<Matrix4d>& seq_odom_pose, vector<Matrix4d>& seq_odom_a0_T_a
     );
 
-
+    void publish_pose_from_seq(
+        const vector<ros::Time>& seq_a_T, const vector<int>& seq_a_idx, const vector<Matrix4d>& seq_a_odom_pose,
+        const vector<ros::Time>& seq_b_T, const vector<int>& seq_b_idx, const vector<Matrix4d>& seq_b_odom_pose,
+        const Matrix4d& opt_a0_T_b0
+    );
 
     //------------------ END Geometry for Loop Hypothesis --------------------------//
 

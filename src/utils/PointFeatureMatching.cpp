@@ -182,7 +182,7 @@ void StaticPointFeatureMatching::point_feature_matches( const cv::Mat& imleft_un
     summary.n_keypoints_pass_ratio_test = pts_1.size();
 
 
-    #if 0
+    #if 1
     //
     bool make_homogeneous = true;
     u = MatrixXd::Constant( (make_homogeneous?3:2), pts_1.size(), 1.0 );
@@ -197,6 +197,8 @@ void StaticPointFeatureMatching::point_feature_matches( const cv::Mat& imleft_un
     }
     #endif
 
+
+    #if 0
     // F-test
     vector<uchar> status;
     ___StaticPointFeatureMatching__point_feature_matches( cout << "compute cv::findFundamentalMat()\n";
@@ -236,7 +238,7 @@ void StaticPointFeatureMatching::point_feature_matches( const cv::Mat& imleft_un
             }
         }
         assert( ck == n_good );
-
+        #endif
 
 
     ___StaticPointFeatureMatching__point_feature_matches(

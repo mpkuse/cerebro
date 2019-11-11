@@ -64,6 +64,10 @@ public:
 
     static int total_true( const vector<bool>& V );
 
+    static vector<bool> filter_near_far( const VectorXd& dd, double near, double far );
+    static vector<bool> vector_of_bool_AND( const vector<bool>& A, const vector<bool>& B );
+    
+
     //---------------------------- Conversions ---------------------------------//
 
 

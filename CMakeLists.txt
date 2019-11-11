@@ -173,6 +173,7 @@ add_executable(
         src/PoseComputation.cpp
         src/HypothesisManager.cpp
         src/ImageDataManager.cpp
+        src/LocalBundle.cpp
         ${KuseUtilsSources}
         ${CamodocalCameraModelSources}
 )
