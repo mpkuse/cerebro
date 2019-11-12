@@ -2368,19 +2368,16 @@ void Cerebro::publish_pose_from_seq(
     ra = rand_a(generator);
     rb = rand_b(generator);
 
-    Matrix4d a0_T_ra = seq_a_odom_pose[0].inverse() * seq_a_odom_pose[ra];
-    Matrix4d b0_T_rb = seq_b_odom_pose[0].inverse() * seq_b_odom_pose[rb];
 
-    Matrix4d rb_T_ra = b0_T_rb.inverse() * bundle.retrive_optimized_pose( 0, ra, 1, rb ).inverse() * a0_T_ra;
-    // Matrix4d rb_T_ra = b0_T_rb.inverse() * opt_a0_T_b0.inverse() * a0_T_ra;
+    Matrix4d rb_T_ra = bundle.retrive_optimized_pose( 0, ra, 1, rb ).inverse();
 
-    loopedge_msg.timestamp0 = seq_a_T[ra];
-    loopedge_msg.timestamp1 = seq_b_T[rb];
+    loopedge_msg.timestamp0 = seq_a_T.at(ra);
+    loopedge_msg.timestamp1 = seq_b_T.at(rb);
     PoseManipUtils::eigenmat_to_geometry_msgs_Pose( rb_T_ra, pose );
     loopedge_msg.pose_1T0 = pose;
     loopedge_msg.weight = 1.0; //1.0;
     loopedge_msg.description = to_string( *( seq_a_idx.begin()  ) )+","+to_string( *( seq_a_idx.rbegin() ) )+"<=>"+to_string( *(seq_b_idx.begin()) )+","+to_string(  *(seq_b_idx.rbegin()) );
-    loopedge_msg.description += "    this pose is: "+to_string(seq_b_idx[rb])+"_T_"+to_string(seq_a_idx[ra]);
+    loopedge_msg.description += "    this pose is: "+to_string(seq_b_idx.at(rb))+"_T_"+to_string(seq_a_idx.at(ra));
     // __Cerebro__compute_geometry_for_loop_hypothesis_i( cout << loopedge_msg << endl; )
     pub_loopedge.publish( loopedge_msg );
     }
