@@ -10,7 +10,8 @@ LocalBundle::LocalBundle()
 //              INPUT
 //----------------------------------------------------------------------------//
 
-
+// #define __LocalBundle__input(msg) msg;
+#define __LocalBundle__input(msg) ;
 void LocalBundle::inputOdometry( int seqJ, vector<Matrix4d> _x0_T_c )
 {
     if( this->x0_T_c.count( seqJ) != 0 ) {
@@ -19,7 +20,8 @@ void LocalBundle::inputOdometry( int seqJ, vector<Matrix4d> _x0_T_c )
         exit(2);
     }
 
-    cout << "[LocalBundle::inputOdometry] set odometry for seqID=" << seqJ << " this seq has " << _x0_T_c.size() << " frames" <<  endl;
+    __LocalBundle__input(
+    cout << "[LocalBundle::inputOdometry] set odometry for seqID=" << seqJ << " this seq has " << _x0_T_c.size() << " frames" <<  endl; )
     x0_T_c[ seqJ ] = _x0_T_c;
 }
 
@@ -33,7 +35,8 @@ void LocalBundle::inputInitialGuess(  int seqa, int seqb, Matrix4d ___a0_T_b0 )
         exit(2);
     }
 
-    cout << "[LocalBundle::inputInitialGuess] set initial guess for a0_T_b0={" << seqa << "}0_T_{" << seqb<< "}0" << endl;
+    __LocalBundle__input(
+    cout << "[LocalBundle::inputInitialGuess] set initial guess for a0_T_b0={" << seqa << "}0_T_{" << seqb<< "}0" << endl; )
     this->a0_T_b0[ p ] = ___a0_T_b0;
 }
 
@@ -57,11 +60,13 @@ void LocalBundle::inputFeatureMatches( int seq_a, int seq_b,
         exit(2);
     }
 
+    __LocalBundle__input(
     cout << "[LocalBundle::inputFeatureMatches] Set correspondences for " << all_normed_uv_a.size() << " image-pairs in seqa=" << seq_a << ", seqb=" << seq_b << endl;
     for( int i=0 ; i<(int)all_normed_uv_a.size() ; i++ )
     {
         cout << ">>>> [LocalBundle::inputFeatureMatches]image-pair#" << i << " has " << all_normed_uv_a[i].cols() << " feature correspondences\n";
     }
+    )
     normed_uv_a[p] = all_normed_uv_a;
     normed_uv_b[p] = all_normed_uv_b;
 }
@@ -71,11 +76,13 @@ void LocalBundle::inputFeatureMatchesDepths( int seq_a, int seq_b,
     const vector<VectorXd> all_d_a, const vector<VectorXd> all_d_b, const vector<VectorXd> all_sf )
 {
     assert( all_d_a.size() == all_d_b.size() && all_d_a.size() > 0 );
-    cout << "[LocalBundle::inputFeatureMatchesDepths] all_d_a.size() = " << all_d_a.size() << "\t" << "all_d_b.size() = " << all_d_b.size() << endl;
+    __LocalBundle__input(
+    cout << "[LocalBundle::inputFeatureMatchesDepths] all_d_a.size() = " << all_d_a.size() << "\t" << "all_d_b.size() = " << all_d_b.size() << endl; )
     for( int i=0 ; i<(int)all_d_a.size() ; i++ )
     {
         assert( all_d_a[i].size() == all_d_b[i].size() && all_d_a[i].size() > 0 );
-        cout << "[LocalBundle::inputFeatureMatchesDepths]image-pair#" << i << " has " << all_d_a[i].size() << " depth values\n";
+        __LocalBundle__input(
+        cout << "[LocalBundle::inputFeatureMatchesDepths]image-pair#" << i << " has " << all_d_a[i].size() << " depth values\n"; )
     }
 
     auto p = std::make_pair( seq_a, seq_b );
@@ -85,11 +92,13 @@ void LocalBundle::inputFeatureMatchesDepths( int seq_a, int seq_b,
         exit(2);
     }
 
+    __LocalBundle__input(
     cout << "[LocalBundle::inputFeatureMatchesDepths] Set depths for " << all_d_a.size() << " image-pairs in seqa=" << seq_a << ", seqb=" << seq_b << endl;
     for( int i=0 ; i<(int)all_d_a.size() ; i++ )
     {
         cout << ">>>> [LocalBundle::inputFeatureMatchesDepths]image-pair#" << i << " has " << all_d_a[i].size() << " depth values\n";
     }
+    )
 
     d_a[p] = all_d_a;
     d_b[p] = all_d_b;
@@ -109,7 +118,8 @@ void LocalBundle::inputFeatureMatchesPoses( int seq_a, int seq_b,
         exit(2);
     }
 
-    cout << "[LocalBundle::inputFeatureMatchesPoses] Set poses (a0_T_a and b0_T_b) for " << all_a0_T_a.size() << " image-pairs in seqa=" << seq_a << ", seqb=" << seq_b << endl;
+    __LocalBundle__input(
+    cout << "[LocalBundle::inputFeatureMatchesPoses] Set poses (a0_T_a and b0_T_b) for " << all_a0_T_a.size() << " image-pairs in seqa=" << seq_a << ", seqb=" << seq_b << endl; )
     a0_T_a[p] = all_a0_T_a;
     b0_T_b[p] = all_b0_T_b;
 
@@ -119,14 +129,24 @@ void LocalBundle::inputFeatureMatchesPoses( int seq_a, int seq_b,
 void LocalBundle::inputFeatureMatchesImIdx( int seq_a, int seq_b, vector< std::pair<int,int> > all_pair_idx )
 {
     auto p = std::make_pair( seq_a, seq_b );
+    __LocalBundle__input(
     cout << "[LocalBundle::inputFeatureMatchesImIdx] all_pair_idx.size()=" << all_pair_idx.size() << endl;
     for( auto it=all_pair_idx.begin() ; it!=all_pair_idx.end() ; it++ )
-        cout << "[LocalBundle::inputFeatureMatchesImIdx]\t" << it->first << ", " << it->second << endl;
+        cout << "[LocalBundle::inputFeatureMatchesImIdx]\t" << it->first << ", " << it->second << endl; )
     this->all_pair_idx[ p ] = all_pair_idx;
 }
 
 void LocalBundle::inputOdometryImIdx( int seqJ, vector<int> odom_seqJ_idx )
 {
+    __LocalBundle__input(
+    cout << "[LocalBundle::inputOdometryImIdx] odom_seqJ_idx.size=" << odom_seqJ_idx.size() << endl;
+    for( auto it=odom_seqJ_idx.begin() ; it!= odom_seqJ_idx.end() ; it++ )
+    {
+        cout << *it << ", ";
+    }
+    cout << endl;
+    )
+
     seq_x_idx[ seqJ ] = odom_seqJ_idx;
 }
 
@@ -835,7 +855,8 @@ void LocalBundle::add_batched_correspondence_residues( ceres::Problem& problem )
 }
 
 
-
+#define __LocalBundle__solve( msg ) msg;
+// #define __LocalBundle__solve( msg ) ;
 void LocalBundle::solve()
 {
     ceres::Problem problem;
@@ -879,19 +900,34 @@ void LocalBundle::solve()
 
 
     // solve
-    cout << TermColor::iGREEN() << "||||||SOLVE||||||" << TermColor::RESET() << endl;
+    ElapsedTime t_solve( "LocalBundle::Solve");
+    __LocalBundle__solve(
+    cout << TermColor::iGREEN() << "||||||[LocalBundle::solve]SOLVE||||||" << TermColor::RESET() << endl; )
     ceres::Solver::Options reint_options;
     ceres::Solver::Summary reint_summary;
     // reint_options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
     reint_options.linear_solver_type = ceres::DENSE_QR;
-    reint_options.minimizer_progress_to_stdout = true;
+    reint_options.minimizer_progress_to_stdout = false;
+    __LocalBundle__solve( reint_options.minimizer_progress_to_stdout = true; )
     reint_options.max_num_iterations = 50;
     // reint_options.enable_fast_removal = true;
     ceres::Solve( reint_options, &problem, &reint_summary );
+    __LocalBundle__solve(
     cout << reint_summary.BriefReport() << endl;
     cout << TermColor::iGREEN() << "||||||END SOLVE||||||" << TermColor::RESET() << endl;
+    )
 
-
+    // look at the solution a0_T_b0
+    {
+    Matrix4d optz__w_T_a0, optz__w_T_b0;
+    PoseManipUtils::raw_xyzw_to_eigenmat( get_raw_ptr_to_opt_variable_q(0,0), get_raw_ptr_to_opt_variable_t(0,0), optz__w_T_a0 );
+    PoseManipUtils::raw_xyzw_to_eigenmat( get_raw_ptr_to_opt_variable_q(1,0), get_raw_ptr_to_opt_variable_t(1,0), optz__w_T_b0 );
+    Matrix4d optz__a0_T_b0 = optz__w_T_a0.inverse() * optz__w_T_b0;
+    assert( a0_T_b0.count( std::make_pair(0,1) ) > 0 );
+    cout << t_solve.toc() << endl;
+    cout << "initial       : " << PoseManipUtils::prettyprintMatrix4d( a0_T_b0.at( std::make_pair(0,1) ) ) << endl;
+    cout << "optz__a0_T_b0 : " << PoseManipUtils::prettyprintMatrix4d( optz__a0_T_b0 ) << endl;
+    }
 
 
 
@@ -912,8 +948,8 @@ Matrix4d LocalBundle::retrive_optimized_pose( int seqID_0, int frame_0, int seqI
     PoseManipUtils::raw_xyzw_to_eigenmat( get_raw_ptr_to_opt_variable_q(seqID_1,frame_1), get_raw_ptr_to_opt_variable_t(seqID_1,frame_1), optz__w_T_b0 );
     Matrix4d optz__a0_T_b0 = optz__w_T_a0.inverse() * optz__w_T_b0;
     assert( a0_T_b0.count( std::make_pair(0,1) ) > 0 );
-    cout << "initial       : " << PoseManipUtils::prettyprintMatrix4d( a0_T_b0.at( std::make_pair(0,1) ) ) << endl;
-    cout << "optz__a0_T_b0 : " << PoseManipUtils::prettyprintMatrix4d( optz__a0_T_b0 ) << endl;
+    // cout << "initial       : " << PoseManipUtils::prettyprintMatrix4d( a0_T_b0.at( std::make_pair(0,1) ) ) << endl;
+    // cout << "optz__a0_T_b0 : " << PoseManipUtils::prettyprintMatrix4d( optz__a0_T_b0 ) << endl;
 
     return optz__a0_T_b0;
 

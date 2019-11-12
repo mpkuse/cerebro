@@ -181,6 +181,7 @@ public:
     json loop_hypothesis_as_json() const;
     void loop_hypothesis_i_datamap_idx( int i, int& datamap_seq_a_start, int& datamap_seq_a_end, int& datamap_seq_b_start, int& datamap_seq_b_end ) const;
 
+    void loop_hypothesis_i__set_computed_pose( int i, Matrix4d a_T_b, string info_str );
 
 private:
     std::shared_ptr<HypothesisManager> hyp_manager; // this is allocated in `faiss_multihypothesis_tracking()`
@@ -231,6 +232,11 @@ private:
         const vector<ros::Time>& seq_a_T, const vector<int>& seq_a_idx, const vector<Matrix4d>& seq_a_odom_pose,
         const vector<ros::Time>& seq_b_T, const vector<int>& seq_b_idx, const vector<Matrix4d>& seq_b_odom_pose,
         const Matrix4d& opt_a0_T_b0
+    );
+    void publish_pose_from_seq(
+        const vector<ros::Time>& seq_a_T, const vector<int>& seq_a_idx, const vector<Matrix4d>& seq_a_odom_pose,
+        const vector<ros::Time>& seq_b_T, const vector<int>& seq_b_idx, const vector<Matrix4d>& seq_b_odom_pose,
+        const LocalBundle& bundle
     );
 
     //------------------ END Geometry for Loop Hypothesis --------------------------//

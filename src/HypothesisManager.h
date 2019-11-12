@@ -27,7 +27,6 @@ public:
     int n_hypothesis() const; //number of hypothesis in the list
     bool hypothesis_i(int i, int& seq_a_start, int&  seq_a_end, int&  seq_b_start, int&  seq_b_end ) const; //return the ith hypothesis
 
-
 private:
     std::map< int , float > M;
     int n_accum = 0;
@@ -55,4 +54,13 @@ private:
     void digest(); // the processing at FLUSH_AFTER_N_ACCUMULATES.
 
 
+#if 0
+public:
+    void set_computed_pose( int i, Matrix4d a_T_b, string info_str );
+
+private:
+    bool m_computed_pose = false;
+    Matrix4d computed_pose;
+    string computed_pose_info;
+#endif 
 };
