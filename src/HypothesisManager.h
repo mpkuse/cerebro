@@ -9,6 +9,12 @@
 #include <cassert>
 
 
+#include <Eigen/Core>
+#include <Eigen/Dense>
+#include <Eigen/Geometry>
+using namespace Eigen;
+#include <opencv2/core/eigen.hpp>
+
 #include "utils/TermColor.h"
 
 using namespace std;
@@ -54,13 +60,15 @@ private:
     void digest(); // the processing at FLUSH_AFTER_N_ACCUMULATES.
 
 
-#if 0
 public:
-    void set_computed_pose( int i, Matrix4d a_T_b, string info_str );
+    void set_computed_pose( int i, const Matrix4d a_T_b, const string info_str );
+    bool is_computed_pose_available( int i ) const ;
+    Matrix4d get_computed_pose( int i ) const ;
+    string get_computed_pose_info_string( int i ) const;
 
 private:
-    bool m_computed_pose = false;
-    Matrix4d computed_pose;
-    string computed_pose_info;
-#endif 
+    map<int,bool> m_computed_pose;
+    map<int,Matrix4d> computed_pose_a_T_b;
+    map<int,string> computed_pose_info;
+
 };

@@ -898,7 +898,8 @@ void Cerebro::faiss_multihypothesis_tracking()
 
 
     // make image pairs
-    int seq_a_start, seq_a_end, seq_b_start, seq_b_end;
+    int seq_a_start, seq_a_end, seq_b_start, seq_b_end; //these index in `wholeImageComputedList`
+    int idx_a_start, idx_a_end, idx_b_start, idx_b_end;
     ros::Time seq_a_start_T, seq_a_end_T, seq_b_start_T, seq_b_end_T;
     int n_hyp = hyp_manager->n_hypothesis();
     auto img_data_mgr = dataManager->getImageManagerRef();
@@ -910,6 +911,7 @@ void Cerebro::faiss_multihypothesis_tracking()
         // this code as exactly the same effect at the #else part.
         this->loop_hypothesis_i_idx( i,  seq_a_start, seq_a_end, seq_b_start, seq_b_end  );
         this->loop_hypothesis_i_T( i,   seq_a_start_T, seq_a_end_T, seq_b_start_T, seq_b_end_T );
+        this->loop_hypothesis_i_datamap_idx( i, idx_a_start, idx_a_end, idx_b_start, idx_b_end  );
         #else
         hyp_manager->hypothesis_i( i, seq_a_start, seq_a_end, seq_b_start, seq_b_end );
         seq_a_start_T = wholeImageComputedList_at( seq_a_start );
@@ -919,12 +921,27 @@ void Cerebro::faiss_multihypothesis_tracking()
         #endif
 
 
+        if( hyp_manager->is_computed_pose_available(i) == true )
+            cout << TermColor::GREEN();
+
 
         // print timestamps for ith hypothesis
         cout << "#" << i << " ";
-        cout << "(" << seq_a_start_T << "," << seq_a_end_T << ")";
+
+        cout << "data_map_idx=(" << idx_a_start << "," << idx_a_end << ")";
         cout << "<----->";
-        cout << "(" << seq_b_start_T << "," << seq_b_end_T << ")";
+        cout << "(" << idx_b_start << "," << idx_b_end << ")";
+
+        if( hyp_manager->is_computed_pose_available(i) )
+        {
+            cout << "\n\ta_T_b = " << PoseManipUtils::prettyprintMatrix4d( hyp_manager->get_computed_pose(i) ) << " ";
+        }
+
+        // cout << "(" << seq_a_start_T << "," << seq_a_end_T << ")";
+        // cout << "<----->";
+        // cout << "(" << seq_b_start_T << "," << seq_b_end_T << ")";
+
+        cout << TermColor::RESET();
 
         // make images for ith hypothesis
         cv::Mat seq_a_start_im, seq_a_end_im, seq_b_start_im, seq_b_end_im;
@@ -973,10 +990,10 @@ void Cerebro::faiss_multihypothesis_tracking()
             buffer << "<----->";
             buffer << "(" << seq_b_start << "," << seq_b_end << ");";
 
-            int idx_a_start = std::distance( data_map->begin(), data_map->find( seq_a_start_T )  );
-            int idx_a_end   = std::distance( data_map->begin(), data_map->find( seq_a_end_T )  );
-            int idx_b_start = std::distance( data_map->begin(), data_map->find( seq_b_start_T )  );
-            int idx_b_end   = std::distance( data_map->begin(), data_map->find( seq_b_end_T )  );
+            // int idx_a_start = std::distance( data_map->begin(), data_map->find( seq_a_start_T )  );
+            // int idx_a_end   = std::distance( data_map->begin(), data_map->find( seq_a_end_T )  );
+            // int idx_b_start = std::distance( data_map->begin(), data_map->find( seq_b_start_T )  );
+            // int idx_b_end   = std::distance( data_map->begin(), data_map->find( seq_b_end_T )  );
             buffer << "index in data_map #" << i << " ";
             buffer << "(" << idx_a_start << "," << idx_a_end << ")";
             buffer << "<----->";
@@ -1344,8 +1361,7 @@ json Cerebro::loop_hypothesis_as_json() const
 
 void Cerebro::loop_hypothesis_i__set_computed_pose( int i,  Matrix4d a_T_b, string info_str )
 {
-    // hyp_manager->setComputedP
-
+    hyp_manager->set_computed_pose( i, a_T_b, info_str );
 }
 
 
@@ -1753,6 +1769,9 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
                            seq_b_T, seq_b_idx, seq_b_odom_pose,
                             bundle );
     #endif
+
+
+    loop_hypothesis_i__set_computed_pose( i, a_T_b, "successful" );
 
     return false;
 
@@ -2343,10 +2362,11 @@ void Cerebro::publish_pose_from_seq(
     std::uniform_int_distribution<int> rand_a(0, (int)seq_a_idx.size() );
     std::uniform_int_distribution<int> rand_b(0, (int)seq_b_idx.size() );
 
-    // for( int g=0 ; g<10 ; g++ )
+    int ra=0, rb=0;
+    for( int g=0 ; g<10 ; g++ )
     {
-    int ra = 0;//rand_a(generator);
-    int rb = 0;//rand_b(generator);
+    ra = rand_a(generator);
+    rb = rand_b(generator);
 
     Matrix4d a0_T_ra = seq_a_odom_pose[0].inverse() * seq_a_odom_pose[ra];
     Matrix4d b0_T_rb = seq_b_odom_pose[0].inverse() * seq_b_odom_pose[rb];

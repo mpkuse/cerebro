@@ -128,3 +128,55 @@ bool HypothesisManager::hypothesis_i(int i, int& seq_a_start, int&  seq_a_end, i
     return true;
 
 }
+
+
+//-------- Set/Get pose info for the specified hypothesis
+
+void HypothesisManager::set_computed_pose( int i, const Matrix4d a_T_b, const string info_str )
+{
+    std::lock_guard<std::mutex> lk(mutex_hyp_q);
+    if( i<0 || i>= (int)hyp_q.size() )
+        throw "[HypothesisManager::set_computed_pose] invalid i";
+    m_computed_pose[i] = true;
+    computed_pose_a_T_b[i] = a_T_b;
+    computed_pose_info[i] = info_str;
+}
+
+bool HypothesisManager::is_computed_pose_available( int i ) const
+{
+    std::lock_guard<std::mutex> lk(mutex_hyp_q);
+    if( i<0 || i>= (int)hyp_q.size() )
+        throw "[HypothesisManager::set_computed_pose] invalid i";
+
+    if( m_computed_pose.count(i) > 0 )
+        return true;
+    else
+        return false;
+}
+
+Matrix4d HypothesisManager::get_computed_pose( int i ) const
+{
+    if( i<0 || i>= (int)hyp_q.size()  )
+        throw "[HypothesisManager::get_computed_pose] invalid i";
+
+    if( is_computed_pose_available( i ) == false )
+        throw "[HypothesisManager::get_computed_pose] pose not available at this i";
+
+
+    std::lock_guard<std::mutex> lk(mutex_hyp_q);
+    return computed_pose_a_T_b.at(i);
+}
+
+string HypothesisManager::get_computed_pose_info_string( int i ) const
+{
+    
+    if( i<0 || i>= (int)hyp_q.size() )
+        throw "[HypothesisManager::get_computed_pose_info_string] invalid i";
+
+    if( is_computed_pose_available( i ) == false )
+        throw "[HypothesisManager::get_computed_pose_info_string] info string not available at this i";
+
+    std::lock_guard<std::mutex> lk(mutex_hyp_q);
+    return computed_pose_info.at(i);
+
+}
