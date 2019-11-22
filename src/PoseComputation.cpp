@@ -341,7 +341,7 @@ bool PoseComputation::refine_weighted( const MatrixXd& aX, const MatrixXd& bX, M
     _PoseComputation__refine_info( cout << "Setup " << aX.cols() << " residue terms\n"; )
     for( int i=0 ; i<aX.cols() ; i++ )
     {
-        auto norm = new CauchyLoss(.05); // NULL
+        // auto norm = new CauchyLoss(.05); // NULL
         CostFunction* cost_function = EuclideanDistanceResidue::Create( aX.col(i).head(3), bX.col(i).head(3), sf(i) );
         problem.AddResidualBlock( cost_function, NULL, T_cap_q, T_cap_t );
 

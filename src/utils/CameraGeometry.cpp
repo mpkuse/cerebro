@@ -463,7 +463,7 @@ void StereoGeometry::disparity_to_3DPoints(const cv::Mat& disparity_raw,
     // Adopted from : https://github.com/bkornel/Reproject-Image-To-3D
     // OpenCV3.3 version has a bug not sure about other version. It produces inf.
 
-    // /\/\/\/\/\/\/\/\/\ ATTEMPT-1 /\/\/\/\/\/\/\/\/\
+    // /\/\/\/\/\/\/\/\/\ ATTEMPT-1 /\/\/\/\/\/\/\/\//
     //---------------- assemble all the data needed for computation
     const cv::Mat Q = this->get_Q();
     CV_Assert( !disparity_raw.empty() );
@@ -956,7 +956,7 @@ void GeometryUtils::idealProjection( const Matrix3d& K, const vector<Vector3d>& 
     MatrixXd uv_normalized = MatrixXd::Constant( 3, c_X.size(), 1.0 );
     // uv_normalized.row(0) = c_X.row(0).array() / c_X.row(2).array();
     // uv_normalized.row(1) = c_X.row(1).array() / c_X.row(2).array();
-    for( int i=0 ; i<c_X.size() ; i++ ) {
+    for( int i=0 ; i<(int)c_X.size() ; i++ ) {
         uv_normalized.col(i) = c_X[i] / c_X[i](2);
     }
 
@@ -977,7 +977,7 @@ void GeometryUtils::idealProjection( const Matrix3d& K, const Matrix4d& w_T_c, c
     MatrixXd uv_normalized = MatrixXd::Constant( 3, c_X.size(), 1.0 );
     // uv_normalized.row(0) = c_X.row(0).array() / c_X.row(2).array();
     // uv_normalized.row(1) = c_X.row(1).array() / c_X.row(2).array();
-    for( int i=0 ; i<c_X.size() ; i++ ) {
+    for( int i=0 ; i<(int)c_X.size() ; i++ ) {
         Vector4d __x;
         __x << c_X[i], 1.0;
         __x = w_T_c * __x;

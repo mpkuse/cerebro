@@ -112,6 +112,7 @@ bool Plot2Mat::plot( const VectorXd& y, const cv::Scalar line_color, bool mark_p
         snprintf( buf, 15, "%.2f", _yd );
         cv::putText(im, buf, cv::Point2f(im_width+20,_y), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.8, cv::Scalar(255,255,255), 1, CV_AA);
     }
+    return true;
 }
 
 
@@ -128,4 +129,5 @@ bool Plot2Mat::mark( const int x_, const cv::Scalar color, bool enable_text_labe
     if( enable_text_label )
         cv::putText(im, to_string(x_), c, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.8, color, 1, CV_AA);
 
+    return true; 
 }

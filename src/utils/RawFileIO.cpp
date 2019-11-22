@@ -295,9 +295,10 @@ bool RawFileIO::read_eigen_matrix( const std::vector<double>& ary, Matrix4d& res
 {
     assert( ary.size() == result.rows() * result.cols() && "[RawFileIO::read_eigen_matrix] size of vector<double> need to be equal to the size of Eigen::Matrix");
 
-    for( int i=0 ; i<ary.size() ; i++ ) {
+    for( int i=0 ; i<(int)ary.size() ; i++ ) {
         result(i/4, i%4) = ary[i];
     }
+    return true;
 }
 
 
@@ -308,6 +309,13 @@ bool RawFileIO::if_file_exist( char * fname )
 }
 
 bool RawFileIO::if_file_exist( string fname ) { return if_file_exist( fname.c_str() ); }
+
+
+bool RawFileIO::if_file_exist_2 (const std::string& name) {
+  struct stat buffer;
+  return (stat (name.c_str(), &buffer) == 0);
+}
+
 
 bool RawFileIO::is_path_a_directory(const char* path)
 {
@@ -342,21 +350,21 @@ bool RawFileIO::read_eigen_matrix_fromjson( const json str, MatrixXd&  output )
 
     // split( data, '\n')
     vector<string> all_rows = MiscUtils::split( data, '\n' );
-    if( nrows != all_rows.size() )
+    if( nrows != (int)all_rows.size() )
     {
         cout << "[RawFileIO::read_eigen_matrix_fromjson] ERROR, requested " << nrows << " but actually are " << all_rows.size() << endl;
         return false;
     }
-    for( int r=0 ; r<all_rows.size() ; r++ )
+    for( int r=0 ; r<(int)all_rows.size() ; r++ )
     {
         vector<string> all_cols_for_this_row = MiscUtils::split( all_rows[r], ',' );
-        if( ncols != all_cols_for_this_row.size() )
+        if( ncols != (int)all_cols_for_this_row.size() )
         {
             cout << "[RawFileIO::read_eigen_matrix_fromjson] ERROR, requested " << ncols << " but actually are " << all_cols_for_this_row.size() << " for row=" << r << endl;
             return false;
         }
 
-        for( int c=0 ; c<all_cols_for_this_row.size() ; c++ )
+        for( int c=0 ; c<(int)all_cols_for_this_row.size() ; c++ )
         {
             output(r, c) = std::stod( all_cols_for_this_row[c] );
         }
@@ -390,21 +398,21 @@ bool RawFileIO::read_eigen_matrix4d_fromjson( const json str, Matrix4d&  output 
 
     // split( data, '\n')
     vector<string> all_rows = MiscUtils::split( data, '\n' );
-    if( nrows != all_rows.size() )
+    if( nrows != (int) all_rows.size() )
     {
         cout << "[RawFileIO::read_eigen_matrix4d_fromjson] ERROR, requested " << nrows << " but actually are " << all_rows.size() << endl;
         return false;
     }
-    for( int r=0 ; r<all_rows.size() ; r++ )
+    for( int r=0 ; r<(int)all_rows.size() ; r++ )
     {
         vector<string> all_cols_for_this_row = MiscUtils::split( all_rows[r], ',' );
-        if( ncols != all_cols_for_this_row.size() )
+        if( ncols != (int) all_cols_for_this_row.size() )
         {
             cout << "[RawFileIO::read_eigen_matrix4d_fromjson] ERROR, requested " << ncols << " but actually are " << all_cols_for_this_row.size() << " for row=" << r << endl;
             return false;
         }
 
-        for( int c=0 ; c<all_cols_for_this_row.size() ; c++ )
+        for( int c=0 ; c<(int)all_cols_for_this_row.size() ; c++ )
         {
             output(r, c) = std::stod( all_cols_for_this_row[c] );
         }
@@ -436,7 +444,7 @@ bool RawFileIO::read_eigen_vector_fromjson( const json str, VectorXd&  output )
     }
 
     vector<string> all_rows = MiscUtils::split( data, '\n' );
-    if( nrows != all_rows.size() )
+    if( nrows != (int) all_rows.size() )
     {
         cout << "[RawFileIO::read_eigen_vector_fromjson] ERROR, requested " << nrows << " but actually are " << all_rows.size() << endl;
         return false;

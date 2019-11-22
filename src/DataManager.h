@@ -66,7 +66,7 @@
 using namespace Eigen;
 #include <opencv2/core/eigen.hpp>
 
-#include "PinholeCamera.h"
+// #include "PinholeCamera.h"
 #include "camodocal/camera_models/Camera.h" // this is in include/camodocal. src files in src/utils/camodocal_src
 #include "camodocal/camera_models/CameraFactory.h"
 
@@ -89,6 +89,8 @@ class DataManager
 public:
     DataManager( ros::NodeHandle &nh );
     DataManager(const DataManager &obj);
+
+    ~DataManager();
 
     // void setCamera( const PinholeCamera& camera );
     // PinholeCamera& getCameraRef() { return camera;}

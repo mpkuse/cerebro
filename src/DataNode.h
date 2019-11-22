@@ -100,7 +100,7 @@ public:
     const MatrixXd& getUnVn() const ; // returns a 3xN matrix
     const MatrixXd& getUV() const ; // returns a 3xN matrix
     const VectorXi& getFeatIds() const; // return a N-vector
-    int nPts() const;
+    // int nPts() const;
 
     const ros::Time getT() const;
     #if 0

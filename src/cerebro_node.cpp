@@ -128,7 +128,7 @@ int main( int argc, char ** argv )
             vector<string> ___path = MiscUtils::split( config_file, '/' );
             // does::> $(python) '/'.join( ___path[0:-1] )
             string ___cam0_path = string("");
-            for( int _i = 0 ; _i<___path.size()-1 ; _i++ ) {
+            for( int _i = 0 ; _i<(int)___path.size()-1 ; _i++ ) {
                 ___cam0_path += ___path[_i] + "/";
             }
             ___cam0_path += "/"+cam0_calib;
@@ -240,7 +240,7 @@ int main( int argc, char ** argv )
         vector<string> ___path = MiscUtils::split( config_file, '/' );
         // does::> $(python) '/'.join( ___path[0:-1] )
         string ___camera_yaml_1_path = string("");
-        for( int _i = 0 ; _i<___path.size()-1 ; _i++ ) {
+        for( int _i = 0 ; _i<(int)___path.size()-1 ; _i++ ) {
             ___camera_yaml_1_path += ___path[_i] + "/";
         }
         ___camera_yaml_1_path += "/"+camera_yaml_1;
@@ -317,7 +317,7 @@ int main( int argc, char ** argv )
         vector<string> ___path = MiscUtils::split( config_file, '/' );
         // does::> $(python) '/'.join( ___path[0:-1] )
         string ___extrinsic_1_T_0_path = string("");
-        for( int _i = 0 ; _i<___path.size()-1 ; _i++ ) {
+        for( int _i = 0 ; _i<(int)___path.size()-1 ; _i++ ) {
             ___extrinsic_1_T_0_path += ___path[_i] + "/";
         }
         ___extrinsic_1_T_0_path += "/"+extrinsic_1_T_0;
@@ -551,17 +551,17 @@ int main( int argc, char ** argv )
     viz.run_thread_disable();
     #endif
 
-    data_association_th.join(); cout << "data_association_th.join()\n";
-    dm_trial_th.join(); cout << "t1_trial.join()\n";
-    dm_cleanup_th.join(); cout << "dm_cleanup_th.join()\n";
+    cout << "attempt to join data_association_th\n"; data_association_th.join(); cout << "data_association_th.join()\n";
+    cout << "attampt to join dm_trial_th\n"; dm_trial_th.join(); cout << "t1_trial.join()\n";
+    cout << "attempt to join  dm_cleanup_th\n"; dm_cleanup_th.join(); cout << "dm_cleanup_th.join()\n";
 
     #if 1
-    dot_product_th.join(); cout << "dot_product_th.join()\n";
-    desc_th.join(); cout << "desc_th.join()\n";
+    cout << "attempt to join dot_product_th\n"; dot_product_th.join(); cout << "dot_product_th.join()\n";
+    cout << "attempt to join desc_th\n"; desc_th.join(); cout << "desc_th.join()\n";
     // loopcandidate_consumer_th.join(); cout << "loopcandidate_consumer_th.join()\n";
-    loop_hypothesis_consumer_th.join(); cout << "loop_hypothesis_consumer_th.join()\n";
-    kidnap_th.join(); cout << "kidnap_th.join()\n";
-    viz_th.join(); cout << "viz_th.join()\n";
+    cout << "attempt to join loop_hypothesis_consumer_th\n"; loop_hypothesis_consumer_th.join(); cout << "loop_hypothesis_consumer_th.join()\n";
+    cout << "attempt to join kidnap_th\n"; kidnap_th.join(); cout << "kidnap_th.join()\n";
+    cout << "attempt to join viz_th\n"; viz_th.join(); cout << "viz_th.join()\n";
     #endif
 
 

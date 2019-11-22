@@ -107,6 +107,9 @@ public:
     static bool if_file_exist( char * fname );
     static bool if_file_exist( string fname );
 
+    static bool if_file_exist_2( const string& fname );
+
+
     static bool is_path_a_directory(const char* path);
     static bool is_path_a_directory(const string path);
 

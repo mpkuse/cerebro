@@ -6,7 +6,7 @@
 #include <queue>
 #include <ostream>
 #include <memory> //for std::shared_ptr
-
+#include <csignal>
 
 //opencv
 #include <opencv2/core/core.hpp>
@@ -159,6 +159,17 @@ public:
     static MatrixXd image_coordinates_to_normalized_image_coordinates(
         const camodocal::CameraPtr camera,
         const MatrixXd& uv );
+
+
+
+        // Give as input the normalized image co-ordinates and get the image co-ordinates
+    // Params:
+    //      camera [input]: The camodocal (general) camera
+    //      normed_uv [input]: as a 3xN or 2xN matrix
+    //      uv [output] : The image co-ordinates
+    static MatrixXd normalized_image_cordinates_to_image_coordinates(
+        const camodocal::CameraPtr camera, const MatrixXd& normed_uv );
+
 
 
     // Given image co-ordinates and the depth_image, will lookup the depth values at those image co-ordinates

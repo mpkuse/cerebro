@@ -1,12 +1,16 @@
 #include "PointFeatureMatching.h"
 
-// #define ___StaticPointFeatureMatching__gms_point_feature_matches( msg ) msg;
-#define ___StaticPointFeatureMatching__gms_point_feature_matches( msg ) ;
+#define ___StaticPointFeatureMatching__gms_point_feature_matches( msg ) msg;
+// #define ___StaticPointFeatureMatching__gms_point_feature_matches( msg ) ;
 void StaticPointFeatureMatching::gms_point_feature_matches( const cv::Mat& imleft_undistorted, const cv::Mat& imright_undistorted,
                             MatrixXd& u, MatrixXd& ud, int n_orb_feat )
 {
+    ___StaticPointFeatureMatching__gms_point_feature_matches( cout << "in function StaticPointFeatureMatching::gms_point_feature_matches\n";)
     ElapsedTime timer;
     assert( imleft_undistorted.data && imright_undistorted.data );
+
+    if(imleft_undistorted.empty() || imright_undistorted.empty() )
+        return;
 
     //
     // Point feature and descriptors extract
@@ -17,7 +21,9 @@ void StaticPointFeatureMatching::gms_point_feature_matches( const cv::Mat& imlef
     cv::Ptr<cv::ORB> orb = cv::ORB::create(n_orb_feat);
     orb->setFastThreshold(0);
 
-    ___StaticPointFeatureMatching__gms_point_feature_matches(timer.tic();)
+    ___StaticPointFeatureMatching__gms_point_feature_matches(
+        cout << "attempt detectAndCompute\n";
+        timer.tic();)
     orb->detectAndCompute(imleft_undistorted, cv::Mat(), kp1, d1);
     orb->detectAndCompute(imright_undistorted, cv::Mat(), kp2, d2);
     ___StaticPointFeatureMatching__gms_point_feature_matches(cout <<  timer.toc_milli()  << " (ms) 2X detectAndCompute(ms) : "<< endl;)
@@ -38,7 +44,10 @@ void StaticPointFeatureMatching::gms_point_feature_matches( const cv::Mat& imlef
     // Point feature matching
     cv::BFMatcher matcher(cv::NORM_HAMMING); // TODO try FLANN matcher here.
     vector<cv::DMatch> matches_all, matches_gms;
-    ___StaticPointFeatureMatching__gms_point_feature_matches(timer.tic();)
+    ___StaticPointFeatureMatching__gms_point_feature_matches(
+        cout << "Attempt cv::BFMatcher\n";
+        timer.tic();
+    )
     matcher.match(d1, d2, matches_all);
     ___StaticPointFeatureMatching__gms_point_feature_matches(
     std::cout << timer.toc_milli() << " : (ms) BFMatcher took (ms)\t";
@@ -47,7 +56,10 @@ void StaticPointFeatureMatching::gms_point_feature_matches( const cv::Mat& imlef
 
 
     // gms_matcher
-    ___StaticPointFeatureMatching__gms_point_feature_matches(timer.tic();)
+    ___StaticPointFeatureMatching__gms_point_feature_matches(
+        cout << "Attept GMS match\n";
+        timer.tic();
+    )
     std::vector<bool> vbInliers;
     gms_matcher gms(kp1, imleft_undistorted.size(), kp2, imright_undistorted.size(), matches_all);
     int num_inliers = gms.GetInlierMask(vbInliers, false, false);
@@ -79,6 +91,9 @@ void StaticPointFeatureMatching::gms_point_feature_matches_scaled( const cv::Mat
     assert( imleft_undistorted.data && imright_undistorted.data );
 
     assert( scale > 0.1 && scale < 0.99 );
+
+    if(imleft_undistorted.empty() || imright_undistorted.empty() )
+        return;
 
     // scale images
     cv::Mat imleft_undistorted_scaled, imright_undistorted_scaled;
@@ -187,7 +202,7 @@ void StaticPointFeatureMatching::point_feature_matches( const cv::Mat& imleft_un
     bool make_homogeneous = true;
     u = MatrixXd::Constant( (make_homogeneous?3:2), pts_1.size(), 1.0 );
     ud = MatrixXd::Constant( (make_homogeneous?3:2), pts_2.size(), 1.0 );
-    for( int k=0 ; k<pts_1.size() ; k++ )
+    for( int k=0 ; k<(int)pts_1.size() ; k++ )
     {
         u(0,k) = pts_1[k].x;
         u(1,k) = pts_1[k].y;
@@ -577,7 +592,7 @@ void StaticPointFeatureMatching::lowe_ratio_test( const vector<cv::KeyPoint>& ke
     assert( matches_raw.size() > 0 );
     assert( matches_raw[0].size() >= 2 );
 
-    for( int j=0 ; j<matches_raw.size() ; j++ )
+    for( int j=0 ; j<(int)matches_raw.size() ; j++ )
     {
         if( matches_raw[j][0].distance < threshold * matches_raw[j][1].distance ) //good match
         {
@@ -645,6 +660,30 @@ MatrixXd StaticPointFeatureMatching::image_coordinates_to_normalized_image_coord
     }
 
     return normed_uv;
+}
+
+
+
+MatrixXd StaticPointFeatureMatching::normalized_image_cordinates_to_image_coordinates(
+    const camodocal::CameraPtr camera, const MatrixXd& normed_uv )
+{
+    assert( normed_uv.cols() > 0 );
+    assert( normed_uv.rows() == 3 );
+    assert( camera );
+
+    MatrixXd uv = MatrixXd::Constant( 3, normed_uv.cols(), 1.0 );
+    for( int mm=0 ; mm<normed_uv.cols() ; mm++ )
+    {
+        Vector2d p;
+        Vector3d PP;
+        PP = normed_uv.col(mm);
+        camera->spaceToPlane( PP, p );
+        uv(0,mm) = p(0);
+        uv(1,mm) = p(1);
+        uv(2,mm) = 1.0;
+    }
+
+    return uv;
 }
 
 

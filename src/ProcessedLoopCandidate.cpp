@@ -145,7 +145,7 @@ bool ProcessedLoopCandidate::asJson( json& out_json )
 
 
     // write the poses which were computed with various methods
-    for( int i=0 ; i<opX_b_T_a.size() ; i++ )
+    for( int i=0 ; i<(int)opX_b_T_a.size() ; i++ )
     {
         json u;
         u["name"] = opX_b_T_a_name[i];

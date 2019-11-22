@@ -9,9 +9,9 @@ LocalBundle::LocalBundle()
 //----------------------------------------------------------------------------//
 //              INPUT
 //----------------------------------------------------------------------------//
-
 // #define __LocalBundle__input(msg) msg;
 #define __LocalBundle__input(msg) ;
+
 void LocalBundle::inputOdometry( int seqJ, vector<Matrix4d> _x0_T_c )
 {
     if( this->x0_T_c.count( seqJ) != 0 ) {
@@ -40,6 +40,20 @@ void LocalBundle::inputInitialGuess(  int seqa, int seqb, Matrix4d ___a0_T_b0 )
     this->a0_T_b0[ p ] = ___a0_T_b0;
 }
 
+
+void LocalBundle::inputOdometry_a0_T_b0( int seqa, int seqb, Matrix4d odom_a0_T_b0 )
+{
+    auto p = std::make_pair( seqa, seqb );
+    if( this->odom__a0_T_b0.count(p) != 0 ) {
+        cout << TermColor::RED() << "[LocalBundle::inputOdometry_a0_T_b0] ERROR the initial guess between 0th frames of seq= " << seqa << " and seq=" << seqb << " already exist. You are trying to set it again. This is not the intended purpose.\n" << TermColor::RESET();
+        cout << "....exit....\n";
+        exit(2);
+    }
+
+    __LocalBundle__input(
+    cout << "[LocalBundle::inputOdometry_a0_T_b0] set odometry for a0_T_b0={" << seqa << "}0_T_{" << seqb<< "}0" << endl; )
+    this->odom__a0_T_b0[ p ] = odom_a0_T_b0;
+}
 
 
 void LocalBundle::inputFeatureMatches( int seq_a, int seq_b,
@@ -76,13 +90,10 @@ void LocalBundle::inputFeatureMatchesDepths( int seq_a, int seq_b,
     const vector<VectorXd> all_d_a, const vector<VectorXd> all_d_b, const vector<VectorXd> all_sf )
 {
     assert( all_d_a.size() == all_d_b.size() && all_d_a.size() > 0 );
-    __LocalBundle__input(
-    cout << "[LocalBundle::inputFeatureMatchesDepths] all_d_a.size() = " << all_d_a.size() << "\t" << "all_d_b.size() = " << all_d_b.size() << endl; )
     for( int i=0 ; i<(int)all_d_a.size() ; i++ )
     {
         assert( all_d_a[i].size() == all_d_b[i].size() && all_d_a[i].size() > 0 );
-        __LocalBundle__input(
-        cout << "[LocalBundle::inputFeatureMatchesDepths]image-pair#" << i << " has " << all_d_a[i].size() << " depth values\n"; )
+        cout << "[LocalBundle::inputFeatureMatchesDepths]image-pair#" << i << " has " << all_d_a[i].size() << " depth values\n";
     }
 
     auto p = std::make_pair( seq_a, seq_b );
@@ -117,7 +128,6 @@ void LocalBundle::inputFeatureMatchesPoses( int seq_a, int seq_b,
         cout << "exit...\n";
         exit(2);
     }
-
     __LocalBundle__input(
     cout << "[LocalBundle::inputFeatureMatchesPoses] Set poses (a0_T_a and b0_T_b) for " << all_a0_T_a.size() << " image-pairs in seqa=" << seq_a << ", seqb=" << seq_b << endl; )
     a0_T_a[p] = all_a0_T_a;
@@ -128,28 +138,25 @@ void LocalBundle::inputFeatureMatchesPoses( int seq_a, int seq_b,
 
 void LocalBundle::inputFeatureMatchesImIdx( int seq_a, int seq_b, vector< std::pair<int,int> > all_pair_idx )
 {
+    cout << "[LocalBundle::inputFeatureMatchesImIdx] setting feature matches image index between seq_a=" << seq_a << " and seq_b=" << seq_b << "\tall_pair_idx.size()=" << all_pair_idx.size() << endl;
     auto p = std::make_pair( seq_a, seq_b );
-    __LocalBundle__input(
-    cout << "[LocalBundle::inputFeatureMatchesImIdx] all_pair_idx.size()=" << all_pair_idx.size() << endl;
-    for( auto it=all_pair_idx.begin() ; it!=all_pair_idx.end() ; it++ )
-        cout << "[LocalBundle::inputFeatureMatchesImIdx]\t" << it->first << ", " << it->second << endl; )
     this->all_pair_idx[ p ] = all_pair_idx;
 }
 
 void LocalBundle::inputOdometryImIdx( int seqJ, vector<int> odom_seqJ_idx )
 {
     __LocalBundle__input(
-    cout << "[LocalBundle::inputOdometryImIdx] odom_seqJ_idx.size=" << odom_seqJ_idx.size() << endl;
-    for( auto it=odom_seqJ_idx.begin() ; it!= odom_seqJ_idx.end() ; it++ )
-    {
-        cout << *it << ", ";
-    }
-    cout << endl;
-    )
-
+    cout << "[LocalBundle::inputOdometryImIdx] set " << odom_seqJ_idx.size() << " images-idx for seqJ=" << seqJ << endl; )
     seq_x_idx[ seqJ ] = odom_seqJ_idx;
 }
 
+
+void LocalBundle::inputSequenceImages( int seqJ, vector<cv::Mat> images_seq_j )
+{
+    __LocalBundle__input(
+    cout << "[LocalBundle::inputSequenceImages] set " << images_seq_j.size() << " images for seqJ=" << seqJ << endl; )
+    seq_x_images[ seqJ ] = images_seq_j;
+}
 
 
 //----------------------------------------------------------------------------//
@@ -202,6 +209,7 @@ json LocalBundle::matches_SeqPair_toJSON( int seq_a, int seq_b ) const
 
     // save `a0_T_b0`
     obj["initial_guess____a0_T_b0"] = RawFileIO::write_eigen_matrix_tojson( a0_T_b0.at(p) );
+    obj["odom__a0_T_b0"] = RawFileIO::write_eigen_matrix_tojson( odom__a0_T_b0.at(p) );
 
     assert( this->normed_uv_a.count(p) > 0 );
     assert( this->d_a.count(p) > 0 );
@@ -277,6 +285,27 @@ void LocalBundle::toJSON(const string BASE) const
         std::ofstream o(fname);
         o << std::setw(4) << tmp_p << std::endl;
     }
+
+
+    // save IMAGES if available
+    for( auto it = seq_x_images.begin() ; it!=seq_x_images.end() ; it++ )
+    {
+        cout << "seq_x_images[" << it->first << "] has " << (it->second).size() << " images\n";
+        int seqJ = it->first ;
+
+        for( auto it_im= it->second.begin() ; it_im != it->second.end() ; it_im++ )
+        {
+            int im_i = std::distance( it->second.begin(), it_im );
+            string fname = BASE+"/odomSeq"+std::to_string( seqJ ) +"_im_" + to_string( im_i ) + ".jpg";
+            cv::imwrite( fname, *it_im );
+
+            cout << "\t#" << im_i << ": ";
+            cout << MiscUtils::cvmat_info( *it_im ) << "\n\t";
+            cout << "imwrite(" << fname << ")" ;
+            cout << endl;
+        }
+    }
+
 }
 
 //---
@@ -352,6 +381,12 @@ bool LocalBundle::matches_SeqPair_fromJSON( const string BASE, int seqa, int seq
     cout << "a0_T_b0[(" << pyp.first << "," << pyp.second  << ")]=" << a0_T_b0[pyp] << endl;
 
 
+    json tmp2 = obj["odom__a0_T_b0"];
+    odom__a0_T_b0[pyp] = Matrix4d::Identity();
+    RawFileIO::read_eigen_matrix4d_fromjson( tmp2, odom__a0_T_b0[pyp] );
+    cout << "odom__a0_T_b0[(" << pyp.first << "," << pyp.second  << ")]=" << odom__a0_T_b0[pyp] << endl;
+
+
     //
     int N = (int)obj["data"].size();
     cout << "There are " << N << "data items\n";
@@ -414,6 +449,7 @@ bool LocalBundle::matches_SeqPair_fromJSON( const string BASE, int seqa, int seq
 
 
     }
+    return true;
 
 }
 
@@ -423,6 +459,57 @@ void LocalBundle::fromJSON( const string BASE )
     odomSeqJ_fromJSON(BASE, 0);
     odomSeqJ_fromJSON(BASE, 1);
     matches_SeqPair_fromJSON(BASE, 0, 1);
+
+
+    // Load Images (if available)
+    #if 1
+    cout << "[LocalBundle::fromJSON] Load Images if available\n";
+    for( auto it = x0_T_c.begin() ; it != x0_T_c.end() ; it++ )
+    {
+        int seqJ = it->first;
+        int n_images_in_seqJ = it->second.size();
+        cout << "\tLoad Images for seqJ=" << seqJ << ", I will try to load " << n_images_in_seqJ << " images\n";
+
+        bool status = true;
+        for( int im_i=0 ; im_i<n_images_in_seqJ ; im_i++ )
+        {
+            string fname = BASE+"/odomSeq"+std::to_string( seqJ ) +"_im_" + to_string( im_i ) + ".jpg";
+            bool is_file_exist = RawFileIO::if_file_exist_2( fname );
+            if( is_file_exist ) {
+                // cout << "\t\tExist: " << TermColor::GREEN() << fname << TermColor::RESET() << endl;
+            }
+            else {
+                cout << "\t\tDoesn't Exist: " << TermColor::RED() << fname << TermColor::RESET() << endl;
+                status = false;
+            }
+
+        }
+
+
+        if( status == false )
+            cout << "[LocalBundle::fromJSON] Cannot load images for seqJ=" << seqJ << " because, I cannot see the image files\n";
+
+
+
+        // Now that it is confirmed, all images exisit, load those
+        seq_x_images[ seqJ ] = vector<cv::Mat>();
+        for( int im_i=0 ; im_i<n_images_in_seqJ ; im_i++ )
+        {
+            string fname = BASE+"/odomSeq"+std::to_string( seqJ ) +"_im_" + to_string( im_i ) + ".jpg";
+            cout << "\t\timread : " << fname << endl;
+            cv::Mat im = cv::imread( fname , 0 );
+            if (im.empty())
+            {
+                std::cout << "[LocalBundle::fromJSON] !!! Failed imread(): image not found" << std::endl;
+                exit(3);
+            }
+
+            seq_x_images[ seqJ ].push_back( im );
+
+        }
+
+    }
+    #endif
 }
 //---
 
@@ -435,7 +522,14 @@ void LocalBundle::print_inputs_info() const
     int i=0;
     for( auto it=x0_T_c.begin() ; it!=x0_T_c.end() ; it++ )
     {
-        cout << "Seq#" << it->first  << ": (n_items=" << it->second.size() << ")\n";
+        cout << "Seq#" << it->first  << ": (n_items=" << it->second.size() << ")";
+
+        if( seq_x_images.count(it->first) == 0 )
+            cout << "(n_images=0)";
+        else
+            cout << "(n_images=" << seq_x_images.at( it->first ).size() << ")";
+
+        cout << "\n";
         cout << char_list[i] << 0 << "  , " << char_list[i] << 1 << " ... " << char_list[i] << it->second.size()-1 << endl;
         cout << *( seq_x_idx.at( it->first ).begin() ) << "," << *( seq_x_idx.at( it->first ).begin()+1 ) << " ... " << *( seq_x_idx.at( it->first ).rbegin() ) << endl;
         cout << endl;
@@ -471,9 +565,9 @@ void LocalBundle::print_inputs_info() const
 
         auto y = it->second;
         auto pyp = it->first;
-        for( int k=0 ; k<y.size() ; k++ ) {
+        for( int k=0 ; k<(int)y.size() ; k++ ) {
             cout << "\t#" << k << "\t";
-            cout << all_pair_idx.at(pyp).at( k ).first << "<--->" << all_pair_idx.at(pyp).at( k ).first<< "\t";
+            cout << all_pair_idx.at(pyp).at( k ).first << "<--->" << all_pair_idx.at(pyp).at( k ).second<< "\t";
             cout << normed_uv_a.at(pyp).at( k ).rows() << "x" << normed_uv_a.at(pyp).at( k ).cols() << "\t";
             cout << normed_uv_b.at(pyp).at( k ).rows() << "x" << normed_uv_b.at(pyp).at( k ).cols() << "\t";
             cout << d_a.at(pyp).at(k).size() << "\t" <<  d_b.at(pyp).at(k).size() << "\t";
@@ -548,7 +642,7 @@ void LocalBundle::allocate_and_init_optimization_vars()
 
         // set values from it->second
         auto pose_list = it->second;
-        for( int i=0 ; i<pose_list.size() ; i++ )
+        for( int i=0 ; i< (int)pose_list.size() ; i++ )
         {
             Matrix4d use;
             if( seqID == 0 )
@@ -595,7 +689,7 @@ void LocalBundle::set_params_constant_for_seq( int seqID, ceres::Problem& proble
     cout << TermColor::YELLOW() << "[LocalBundle::set_params_constant_for_seq]Set nodes with seqID=" << seqID << " as constant. There are " << x0_T_c.at( seqID ).size() << " such nodes\n" << TermColor::RESET();
     )
 
-    for( int i=0 ; i<x0_T_c.at( seqID ).size() ; i++ )
+    for( int i=0 ; i<(int)x0_T_c.at( seqID ).size() ; i++ )
     {
         problem.SetParameterBlockConstant( get_raw_ptr_to_opt_variable_q(seqID, i)   );
         problem.SetParameterBlockConstant( get_raw_ptr_to_opt_variable_t(seqID, i)   );
@@ -622,7 +716,7 @@ void LocalBundle::add_odometry_residues( ceres::Problem& problem )
         cout << "n_frame_in_this_series( this=" << it->first << ") = " << n_frame_in_this_series << endl; )
 
         // add u<-->u-1, add u<-->u-2, add u<-->u-3, add u<-->u-4
-        for( int u=0 ; u<pose_list.size() ; u++ )
+        for( int u=0 ; u<(int)pose_list.size() ; u++ )
         {
             for( int f=1 ; f<=4 ; f++ )
             {
@@ -680,7 +774,7 @@ void LocalBundle::add_correspondence_residues( ceres::Problem& problem )
     cout << "normed_uv_a[p].size()=" << normed_uv_a[p].size() << endl; )
     auto robust_loss = new CauchyLoss(.1) ;
 
-    for( int i=0 ; i<normed_uv_a[p].size() ; i++ )
+    for( int i=0 ; i<(int)normed_uv_a[p].size() ; i++ )
     {
             __LocalBundle__add_correspondence_residues(
         cout << "---frame-pair#" << i << "\t"; )
@@ -723,6 +817,10 @@ void LocalBundle::add_correspondence_residues( ceres::Problem& problem )
             double ___d_b = d_b[p][i](j);
             if( ___d_a < 0.5 || ___d_a > 5.0 || ___d_b < 0.5 || ___d_b > 5.0 )
                 continue;
+
+            if( n_good_depths > 500 ) // dont add more than 500 terms per image-pair.
+                break;
+
             a_3d << ___d_a * normed_uv_a[p][i].col(j).topRows(3), 1.0;
             b_3d << ___d_b * normed_uv_b[p][i].col(j).topRows(3), 1.0;
             a_2d << normed_uv_a[p][i].col(j).topRows(3);
@@ -746,6 +844,7 @@ void LocalBundle::add_correspondence_residues( ceres::Problem& problem )
     cout << TermColor::iGREEN() << "END correspondence residues" << TermColor::RESET() << endl; )
 }
 
+#if 0 //TODO removal, donest work as expected,
 void LocalBundle::add_batched_correspondence_residues( ceres::Problem& problem )
 {
     cout << TermColor::iGREEN() << "batched correspondence residues\n" << TermColor::RESET();
@@ -854,9 +953,8 @@ void LocalBundle::add_batched_correspondence_residues( ceres::Problem& problem )
 
 }
 
+#endif
 
-#define __LocalBundle__solve( msg ) msg;
-// #define __LocalBundle__solve( msg ) ;
 void LocalBundle::solve()
 {
     ceres::Problem problem;
@@ -873,7 +971,7 @@ void LocalBundle::solve()
     {
         int seqID = it->first;
         auto pose_list = it->second;
-        for( int u=0 ; u<pose_list.size() ; u++ )
+        for( int u=0 ; u<(int)pose_list.size() ; u++ )
         {
             problem.AddParameterBlock( get_raw_ptr_to_opt_variable_q(seqID, u), 4 );
             problem.SetParameterization( get_raw_ptr_to_opt_variable_q(seqID, u),  eigenquaternion_parameterization );
@@ -901,34 +999,31 @@ void LocalBundle::solve()
 
     // solve
     ElapsedTime t_solve( "LocalBundle::Solve");
-    __LocalBundle__solve(
-    cout << TermColor::iGREEN() << "||||||[LocalBundle::solve]SOLVE||||||" << TermColor::RESET() << endl; )
+    cout << TermColor::iGREEN() << "||||||SOLVE||||||" << TermColor::RESET() << endl;
     ceres::Solver::Options reint_options;
     ceres::Solver::Summary reint_summary;
     // reint_options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
     reint_options.linear_solver_type = ceres::DENSE_QR;
-    reint_options.minimizer_progress_to_stdout = false;
-    __LocalBundle__solve( reint_options.minimizer_progress_to_stdout = true; )
+    reint_options.minimizer_progress_to_stdout = true;
     reint_options.max_num_iterations = 50;
     // reint_options.enable_fast_removal = true;
     ceres::Solve( reint_options, &problem, &reint_summary );
-    __LocalBundle__solve(
     cout << reint_summary.BriefReport() << endl;
     cout << TermColor::iGREEN() << "||||||END SOLVE||||||" << TermColor::RESET() << endl;
-    )
+
 
     // look at the solution a0_T_b0
-    {
-    Matrix4d optz__w_T_a0, optz__w_T_b0;
-    PoseManipUtils::raw_xyzw_to_eigenmat( get_raw_ptr_to_opt_variable_q(0,0), get_raw_ptr_to_opt_variable_t(0,0), optz__w_T_a0 );
-    PoseManipUtils::raw_xyzw_to_eigenmat( get_raw_ptr_to_opt_variable_q(1,0), get_raw_ptr_to_opt_variable_t(1,0), optz__w_T_b0 );
-    Matrix4d optz__a0_T_b0 = optz__w_T_a0.inverse() * optz__w_T_b0;
-    assert( a0_T_b0.count( std::make_pair(0,1) ) > 0 );
-    cout << t_solve.toc() << endl;
-    cout << "initial       : " << PoseManipUtils::prettyprintMatrix4d( a0_T_b0.at( std::make_pair(0,1) ) ) << endl;
-    cout << "optz__a0_T_b0 : " << PoseManipUtils::prettyprintMatrix4d( optz__a0_T_b0 ) << endl;
-    }
-
+       {
+       Matrix4d optz__w_T_a0, optz__w_T_b0;
+       PoseManipUtils::raw_xyzw_to_eigenmat( get_raw_ptr_to_opt_variable_q(0,0), get_raw_ptr_to_opt_variable_t(0,0), optz__w_T_a0 );
+       PoseManipUtils::raw_xyzw_to_eigenmat( get_raw_ptr_to_opt_variable_q(1,0), get_raw_ptr_to_opt_variable_t(1,0), optz__w_T_b0 );
+       Matrix4d optz__a0_T_b0 = optz__w_T_a0.inverse() * optz__w_T_b0;
+       assert( a0_T_b0.count( std::make_pair(0,1) ) > 0 );
+       cout << t_solve.toc() << endl;
+       cout << "initial       : " << PoseManipUtils::prettyprintMatrix4d( a0_T_b0.at( std::make_pair(0,1) ) ) << endl;
+       cout << "optz__a0_T_b0 : " << PoseManipUtils::prettyprintMatrix4d( optz__a0_T_b0 ) << endl;
+       cout << "optz__a0_T_b0 :\n" << optz__a0_T_b0 << endl;
+       }
 
 
 }
@@ -941,17 +1036,310 @@ Matrix4d LocalBundle::retrive_optimized_pose( int seqID_0, int frame_0, int seqI
     assert( m_opt_vars_allocated );
     assert( frame_0 >=0 && frame_0 < x0_T_c.at(seqID_0).size() );
     assert( frame_1 >=0 && frame_1 < x0_T_c.at(seqID_1).size() );
+    assert( a0_T_b0.count( std::make_pair(0,1) ) > 0 );
 
     // retrive solution
-    Matrix4d optz__w_T_a0, optz__w_T_b0;
-    PoseManipUtils::raw_xyzw_to_eigenmat( get_raw_ptr_to_opt_variable_q(seqID_0,frame_0), get_raw_ptr_to_opt_variable_t(seqID_0,frame_0), optz__w_T_a0 );
-    PoseManipUtils::raw_xyzw_to_eigenmat( get_raw_ptr_to_opt_variable_q(seqID_1,frame_1), get_raw_ptr_to_opt_variable_t(seqID_1,frame_1), optz__w_T_b0 );
-    Matrix4d optz__a0_T_b0 = optz__w_T_a0.inverse() * optz__w_T_b0;
-    assert( a0_T_b0.count( std::make_pair(0,1) ) > 0 );
+    Matrix4d optz__w_T_ai, optz__w_T_bj;
+    PoseManipUtils::raw_xyzw_to_eigenmat( get_raw_ptr_to_opt_variable_q(seqID_0,frame_0), get_raw_ptr_to_opt_variable_t(seqID_0,frame_0), optz__w_T_ai );
+    PoseManipUtils::raw_xyzw_to_eigenmat( get_raw_ptr_to_opt_variable_q(seqID_1,frame_1), get_raw_ptr_to_opt_variable_t(seqID_1,frame_1), optz__w_T_bj );
+    Matrix4d optz__ai_T_bj = optz__w_T_ai.inverse() * optz__w_T_bj;
     // cout << "initial       : " << PoseManipUtils::prettyprintMatrix4d( a0_T_b0.at( std::make_pair(0,1) ) ) << endl;
     // cout << "optz__a0_T_b0 : " << PoseManipUtils::prettyprintMatrix4d( optz__a0_T_b0 ) << endl;
 
-    return optz__a0_T_b0;
+    return optz__ai_T_bj;
 
+
+}
+
+void LocalBundle::reprojection_test( const camodocal::CameraPtr camera )
+{
+    int seq_a = 0;
+    int seq_b = 1;
+    // int im_pair_idx = 3;
+    auto pyp = std::make_pair( seq_a, seq_b );
+
+    int n_im_pairs = (int) all_pair_idx.at( pyp ).size();
+    cout << "# of image pairs = " << n_im_pairs << endl;
+
+    for( int h=0 ; h<n_im_pairs ; h++ ) {
+        reprojection_test_for_this_image_pair( camera, h );
+        reprojection_error_for_this_image_pair( camera, h );
+
+        char key = cv::waitKey(0);
+
+        if( key == 27 )
+            break;
+
+    }
+
+    cv::destroyWindow( "observed point feat matching");
+    cv::destroyWindow( "plot( im_bj, uv_b )");
+    cv::destroyWindow( "plot( im_ai, uv_a )");
+}
+
+
+void LocalBundle::reprojection_test_for_this_image_pair( const camodocal::CameraPtr camera, int im_pair_idx )
+{
+    cout << TermColor::iCYAN() << "=====LocalBundle::reprojection_test_for_this_image_pair=====" << im_pair_idx << TermColor::RESET() << endl;
+    int seq_a = 0;
+    int seq_b = 1;
+    // int im_pair_idx = 3;
+    auto pyp = std::make_pair( seq_a, seq_b );
+    int n_im_pairs = (int) all_pair_idx.at( pyp ).size();
+    if( im_pair_idx < 0 || im_pair_idx >= n_im_pairs ) {
+        cout << __FILE__ << ":" << __LINE__ << "[LocalBundle::reprojection_error_for_this_image_pair]invalid im_pair_idx=" << im_pair_idx << " has to be between 0 and " <<   n_im_pairs << endl;
+        exit(2);
+    }
+
+
+    // randomly picking the 3rd image pair
+    int ai = all_pair_idx.at( pyp ).at( im_pair_idx ).first;
+    int bj = all_pair_idx.at( pyp ).at( im_pair_idx ).second;
+    cout << "ai="<< ai << "\tbj=" << bj << "\t";
+
+    int local_ai = std::distance( seq_x_idx.at( seq_a ).begin(),     std::find( seq_x_idx.at( seq_a).begin(), seq_x_idx.at( seq_a).end(), ai ) );
+    int local_bj = std::distance( seq_x_idx.at( seq_b ).begin(),     std::find( seq_x_idx.at( seq_b).begin(), seq_x_idx.at( seq_b).end(), bj ) );
+    cout << "local_ai=" << local_ai << "\tlocal_bj=" << local_bj << endl;
+
+    cv::Mat im_ai, im_bj;
+    MatrixXd uv_a_observed, uv_b_observed;
+
+    // plot( im_ai, uv_ai | im_bj, uv_bj ) : The point feature matches
+    {
+        im_ai = seq_x_images.at( seq_a ).at( local_ai );
+        im_bj = seq_x_images.at( seq_b ).at( local_bj );
+        if( im_ai.empty() || im_bj.empty() ) {
+            cout << "PPP@ Cannot load im_ai or im_bj\n";
+            exit(3);
+        }
+
+        uv_a_observed = StaticPointFeatureMatching::normalized_image_cordinates_to_image_coordinates( camera, normed_uv_a.at(pyp).at(im_pair_idx) );
+        uv_b_observed = StaticPointFeatureMatching::normalized_image_cordinates_to_image_coordinates( camera, normed_uv_b.at(pyp).at(im_pair_idx) );
+
+        cv::Mat dst_p;
+        MiscUtils::plot_point_pair( im_ai, uv_a_observed, local_ai,
+                                    im_bj, uv_b_observed, local_bj,
+                                    dst_p,
+                                    3
+                                );
+        MiscUtils::append_status_image( dst_p, ";im_pair_idx="+to_string( im_pair_idx )+" to total="+to_string(n_im_pairs), 1.0 );
+        MiscUtils::imshow( "observed point feat matching", dst_p, 0.5 );
+
+    }
+
+    //---POSE---//
+    #if 1
+    //  optimized pose
+    cout << TermColor::iYELLOW() << " Using optz__ai_T_bj <--- this->retrive_optimized_pose()\n" << TermColor::RESET();
+    Matrix4d optz__ai_T_bj = this->retrive_optimized_pose( seq_a, local_ai, seq_b, local_bj );
+    #endif
+
+    #if 0
+    // retrive_odometry_pose
+    cout << TermColor::iYELLOW() << " Using optz__ai_T_bj <--- this->retrive_odometry_pose()\n" << TermColor::RESET();
+    Matrix4d optz__ai_T_bj = x0_T_c.at(0).at( local_ai ).inverse() * odom__a0_T_b0.at( make_pair(0,1) ) * x0_T_c.at(1).at( local_bj );
+    #endif
+
+    #if 0
+    //  retrive_initial_guess_pose
+    cout << TermColor::iYELLOW() << " Using optz__ai_T_bj <--- this->retrive_initial_guess_pose()\n" << TermColor::RESET();
+    Matrix4d optz__ai_T_bj = x0_T_c.at(0).at( local_ai ).inverse() * a0_T_b0.at( make_pair(0,1) ) * x0_T_c.at(1).at( local_bj );
+    #endif
+
+
+    // plot( im_bj, uv_b ), plotting the observed points
+    cv::Mat dst_im_bj;
+    MiscUtils::plot_point_sets( im_bj, uv_b_observed, dst_im_bj, cv::Scalar(0,255,255) , false, "plot( im_bj, uv_b )" );
+
+    // plot( im_ai, uv_a ), plotting the observed points
+    cv::Mat dst_im_ai;
+    MiscUtils::plot_point_sets( im_ai, uv_a_observed, dst_im_ai, cv::Scalar(0,255,255) , false, "plot( im_ai, uv_a )" );
+
+
+
+    // plot( im_bj, PI( bj_T_ai * ai_3d ) )
+    //      and
+    // plot( im_ai, PI( ai_T_bj * bj_3d) )
+    int n_good_depths = 0;
+    MatrixXd reproj_of__a_3d__in_frame_of_ref_of_bj = MatrixXd::Zero( 2, uv_a_observed.cols() );
+    MatrixXd reproj_of__b_3d__in_frame_of_ref_of_ai = MatrixXd::Zero( 2, uv_b_observed.cols() );
+
+    for( int k=0 ; k<normed_uv_a.at(pyp).at(im_pair_idx).cols() ; k++ )
+    {
+        Vector4d a_3d, b_3d;
+        double ___d_a = d_a.at(pyp).at(im_pair_idx)(k);
+        double ___d_b = d_b.at(pyp).at(im_pair_idx)(k);
+        if( ___d_a < 0.5 || ___d_a > 7.0 || ___d_b < 0.5 || ___d_b > 7.0 )
+            continue;
+        // these 2 3d points are in the co-ordinates system of their own cameras.
+        a_3d << ___d_a * normed_uv_a.at(pyp).at(im_pair_idx).col(k).topRows(3), 1.0;
+        b_3d << ___d_b * normed_uv_b.at(pyp).at(im_pair_idx).col(k).topRows(3), 1.0;
+
+
+        // 3d points from a, 2d observed points from b; plot on im_bj
+        Vector4d k__a_3d__in_frame_of_ref_of_bj = optz__ai_T_bj.inverse() * a_3d;
+        Vector2d k__repro_of_a_3d_in_bj;
+        camera->spaceToPlane( k__a_3d__in_frame_of_ref_of_bj.topRows(3), k__repro_of_a_3d_in_bj );
+        reproj_of__a_3d__in_frame_of_ref_of_bj.col( n_good_depths ) = k__repro_of_a_3d_in_bj;
+
+
+        // 3d point from b, 2d observed point from a, plot on im_ai
+        Vector4d k__b_3d__in_frame_of_ref_of_ai = optz__ai_T_bj * b_3d;
+        Vector2d k__repro_of_b_3d_in_ai;
+        camera->spaceToPlane( k__b_3d__in_frame_of_ref_of_ai.topRows(3), k__repro_of_b_3d_in_ai );
+        reproj_of__b_3d__in_frame_of_ref_of_ai.col( n_good_depths ) = k__repro_of_b_3d_in_ai;
+
+
+
+        n_good_depths++;
+
+    }
+    MiscUtils::plot_point_sets( dst_im_bj, reproj_of__a_3d__in_frame_of_ref_of_bj.leftCols(n_good_depths),
+            cv::Scalar(0,0,255) , false, ";;plot( im_bj, PI( bj_T_ai * ai_3d ) )" );
+
+    MiscUtils::plot_point_sets( dst_im_ai, reproj_of__b_3d__in_frame_of_ref_of_ai.leftCols(n_good_depths),
+            cv::Scalar(0,0,255) , false, ";;plot( im_ai, PI( ai_T_bj * bj_3d) )" );
+    // cout << "n_good_depths=" << n_good_depths << endl;
+
+    MiscUtils::append_status_image( dst_im_ai,  ";ai="+to_string(ai)+", local_ai="+to_string(local_ai)+";;n_good_depths="+to_string(n_good_depths)   , 1.0 );
+    MiscUtils::append_status_image( dst_im_bj,  ";bj="+to_string(bj)+", local_bj="+to_string(local_bj)+";;n_good_depths="+to_string(n_good_depths)  ,1.0  );
+
+
+    MiscUtils::imshow( "plot( im_bj, uv_b )", dst_im_bj, 0.5 );
+    MiscUtils::imshow( "plot( im_ai, uv_a )", dst_im_ai, 0.5 );
+
+    cout << "Showing:\n";
+    cout << "\t1. Observed Point feature matching\n";
+    cout << "\t2. observed feats of im_ai and reprojections of b_3d on camera-ai\n";
+    cout << "\t3. observed feats of im_bj and reprojections of a_3d on camera-bj\n";
+
+
+    cout << TermColor::iCYAN() << "=====END LocalBundle::reprojection_test_for_this_image_pair=====" << TermColor::RESET() << endl;
+
+}
+
+
+
+
+void LocalBundle::reprojection_error( const camodocal::CameraPtr camera )
+{
+    int seq_a = 0;
+    int seq_b = 1;
+    // int im_pair_idx = 3;
+    auto pyp = std::make_pair( seq_a, seq_b );
+
+    int n_im_pairs = (int) all_pair_idx.at( pyp ).size();
+    cout << "# of image pairs = " << n_im_pairs << endl;
+
+    for( int h=0 ; h<n_im_pairs ; h++ ) {
+        reprojection_error_for_this_image_pair( camera, h );
+    }
+}
+
+void LocalBundle::reprojection_error_for_this_image_pair( const camodocal::CameraPtr camera, int im_pair_idx )
+{
+    // cout << TermColor::iCYAN() << "=====LocalBundle::reprojection_error=====" << im_pair_idx << TermColor::RESET() << endl;
+    int seq_a = 0;
+    int seq_b = 1;
+    // int im_pair_idx = 3;
+    auto pyp = std::make_pair( seq_a, seq_b );
+    int n_im_pairs = (int) all_pair_idx.at( pyp ).size();
+    if( im_pair_idx < 0 || im_pair_idx >= n_im_pairs ) {
+        cout << __FILE__ << ":" << __LINE__ << "[LocalBundle::reprojection_error_for_this_image_pair]invalid im_pair_idx=" << im_pair_idx << " has to be between 0 and " <<   n_im_pairs << endl;
+        exit(2);
+    }
+
+
+    // randomly picking the 3rd image pair `im_pair_idx`
+    int ai = all_pair_idx.at( pyp ).at( im_pair_idx ).first;
+    int bj = all_pair_idx.at( pyp ).at( im_pair_idx ).second;
+    cout << "im_pair_idx=" << im_pair_idx << "\t";
+    cout << "ai="<< ai << "\tbj=" << bj << "\t";
+
+    int local_ai = std::distance( seq_x_idx.at( seq_a ).begin(),     std::find( seq_x_idx.at( seq_a).begin(), seq_x_idx.at( seq_a).end(), ai ) );
+    int local_bj = std::distance( seq_x_idx.at( seq_b ).begin(),     std::find( seq_x_idx.at( seq_b).begin(), seq_x_idx.at( seq_b).end(), bj ) );
+    cout << "local_ai=" << local_ai << "\tlocal_bj=" << local_bj << "\t";
+
+    // cv::Mat im_ai, im_bj;
+    MatrixXd uv_a_observed, uv_b_observed;
+    uv_a_observed = StaticPointFeatureMatching::normalized_image_cordinates_to_image_coordinates( camera, normed_uv_a.at(pyp).at(im_pair_idx) );
+    uv_b_observed = StaticPointFeatureMatching::normalized_image_cordinates_to_image_coordinates( camera, normed_uv_b.at(pyp).at(im_pair_idx) );
+
+
+    //---POSE---//
+    #if 1
+    //  optimized pose
+    // cout << TermColor::iYELLOW() << " Using optz__ai_T_bj <--- this->retrive_optimized_pose()\n" << TermColor::RESET();
+    Matrix4d optz__ai_T_bj = this->retrive_optimized_pose( seq_a, local_ai, seq_b, local_bj );
+    #endif
+
+    #if 0
+    // retrive_odometry_pose
+    // cout << TermColor::iYELLOW() << " Using optz__ai_T_bj <--- this->retrive_odometry_pose()\n" << TermColor::RESET();
+    Matrix4d optz__ai_T_bj = x0_T_c.at(0).at( local_ai ).inverse() * odom__a0_T_b0.at( make_pair(0,1) ) * x0_T_c.at(1).at( local_bj );
+    #endif
+
+
+    #if 0
+    // TODO retrive_initial_guess_pose
+    Matrix4d optz__ai_T_bj = x0_T_c.at(0).at( local_ai ).inverse() * a0_T_b0.at( make_pair(0,1) ) * x0_T_c.at(1).at( local_bj );
+    #endif
+
+
+    // plot( im_bj, PI( bj_T_ai * ai_3d ) )
+    //      and
+    // plot( im_ai, PI( ai_T_bj * bj_3d) )
+    int n_good_depths = 0;
+    double sum_del_a = 0.0, sum_del_b = 0.0;
+
+    for( int k=0 ; k<normed_uv_a.at(pyp).at(im_pair_idx).cols() ; k++ )
+    {
+        Vector4d a_3d, b_3d;
+        double ___d_a = d_a.at(pyp).at(im_pair_idx)(k);
+        double ___d_b = d_b.at(pyp).at(im_pair_idx)(k);
+        if( ___d_a < 0.5 || ___d_a > 7.0 || ___d_b < 0.5 || ___d_b > 7.0 )
+            continue;
+        // these 2 3d points are in the co-ordinates system of their own cameras.
+        a_3d << ___d_a * normed_uv_a.at(pyp).at(im_pair_idx).col(k).topRows(3), 1.0;
+        b_3d << ___d_b * normed_uv_b.at(pyp).at(im_pair_idx).col(k).topRows(3), 1.0;
+
+
+        // 3d points from a, 2d observed points from b; plot on im_bj
+        Vector4d k__a_3d__in_frame_of_ref_of_bj = optz__ai_T_bj.inverse() * a_3d;
+        Vector2d k__repro_of_a_3d_in_bj;
+        camera->spaceToPlane( k__a_3d__in_frame_of_ref_of_bj.topRows(3), k__repro_of_a_3d_in_bj );
+
+
+
+        // 3d point from b, 2d observed point from a, plot on im_ai
+        Vector4d k__b_3d__in_frame_of_ref_of_ai = optz__ai_T_bj * b_3d;
+        Vector2d k__repro_of_b_3d_in_ai;
+        camera->spaceToPlane( k__b_3d__in_frame_of_ref_of_ai.topRows(3), k__repro_of_b_3d_in_ai );
+
+        double del_a = (uv_a_observed.col(k).topRows(2) - k__repro_of_b_3d_in_ai).norm();
+        double del_b = (uv_b_observed.col(k).topRows(2) - k__repro_of_a_3d_in_bj).norm();
+        sum_del_a += del_a;
+        sum_del_b += del_b;
+
+        #if 0
+        cout << "[k="<< k << "]\tdel_a=" << del_a << "\tdel_b="<< del_b << "\n";
+        cout << "\tuv_a_observed=" << uv_a_observed.col(k).topRows(3).transpose() << "\tk__repro_of_b_3d_in_ai=" << k__repro_of_b_3d_in_ai.transpose() << endl;
+        cout << "\tuv_b_observed=" << uv_b_observed.col(k).topRows(3).transpose() << "\tk__repro_of_a_3d_in_bj=" << k__repro_of_a_3d_in_bj.transpose() << endl;
+        cout << endl;
+        #endif
+
+        n_good_depths++;
+
+    }
+    if( n_good_depths != 0 )  {
+        cout << TermColor::YELLOW();
+        cout << "avg_del_a=" << sum_del_a / n_good_depths << "\t";
+        cout << "avg_del_b=" << sum_del_b / n_good_depths << "\t";
+        cout << TermColor::RESET();
+    }
+    cout << "n_good_depths = " << n_good_depths << endl;
+
+
+    // cout << TermColor::iCYAN() << "=====END LocalBundle::reprojection_error_for_this_image_pair=====" << TermColor::RESET() << endl;
 
 }

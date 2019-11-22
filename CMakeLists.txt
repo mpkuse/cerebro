@@ -24,8 +24,8 @@ find_package(OpenCV 3 REQUIRED)
 
 # Removing the dependence on theia for the production code.
 # If you want to compile unit tests, some of those need theia-sfm as dependence.
-find_package(Theia REQUIRED)
-include_directories(${THEIA_INCLUDE_DIRS})
+#find_package(Theia REQUIRED)
+#include_directories(${THEIA_INCLUDE_DIRS})
 
 find_package(Boost REQUIRED COMPONENTS filesystem program_options system)
 include_directories(${Boost_INCLUDE_DIRS})
@@ -39,8 +39,9 @@ include_directories(${Boost_INCLUDE_DIRS})
 #find_package(Gperftools REQUIRED)
 #message( "----- GPERF")
 #message( "----- "${GPERFTOOLS_LIBRARIES} )
-set (CMAKE_CXX_FLAGS " -Wl,-no-as-needed -O1")
-set(CMAKE_BUILD_TYPE Debug)
+#set (CMAKE_CXX_FLAGS "-Wall -Wl,-no-as-needed -O0  -fsanitize=address -fsanitize=undefined ")
+set (CMAKE_CXX_FLAGS "-Wall -Wl,-no-as-needed -O3 -fsanitize=address  ")
+#set(CMAKE_BUILD_TYPE Debug)
 #set(CMAKE_BUILD_TYPE Release)
 set(CMAKE_BUILD_TYPE RelWithDebInfo)
 
@@ -163,13 +164,13 @@ FILE( GLOB KuseUtilsSources
 add_executable(
     cerebro_node
         src/cerebro_node.cpp
-        src/PinholeCamera.cpp
+        #src/PinholeCamera.cpp
         src/DataManager.cpp
         src/DataNode.cpp
         src/Cerebro.cpp
         src/Visualization.cpp
         src/ProcessedLoopCandidate.cpp
-        src/DlsPnpWithRansac.cpp
+        #src/DlsPnpWithRansac.cpp
         src/PoseComputation.cpp
         src/HypothesisManager.cpp
         src/ImageDataManager.cpp

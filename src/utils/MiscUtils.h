@@ -66,10 +66,13 @@ public:
 
     static vector<bool> filter_near_far( const VectorXd& dd, double near, double far );
     static vector<bool> vector_of_bool_AND( const vector<bool>& A, const vector<bool>& B );
-    
+
 
     //---------------------------- Conversions ---------------------------------//
 
+
+    //-------------------------------- IMSHOW ----------------------------------//
+    static void imshow( const string& win_name, const cv::Mat& m, float scale=1.0 );
 
 
     //--------------------- Plot Keypoints on Image ----------------------------//

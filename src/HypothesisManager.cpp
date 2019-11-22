@@ -6,14 +6,14 @@ HypothesisManager::HypothesisManager()
 }
 
 
-void HypothesisManager::add_node( int i, int j, double dot_product_score, int n_nn )
+bool HypothesisManager::add_node( int i, int j, double dot_product_score, int n_nn )
 {
     // assert( i > j );
     if( n_accum == 0 )
         i_start = i;
 
     i_latest = i;
-    int I = int( i/W );
+    // int I = int( i/W );
     int J = int( j/W );
 
 
@@ -35,13 +35,14 @@ void HypothesisManager::add_node( int i, int j, double dot_product_score, int n_
     n_accum++;
 
 
-    digest();
+    bool new_hyp_added = digest();
+    return new_hyp_added;
 
 }
 
 // #define __HypothesisManager__digest___( msg ) msg;
 #define __HypothesisManager__digest___( msg ) ;
-void HypothesisManager::digest()
+bool HypothesisManager::digest()
 {
     if( n_accum == FLUSH_AFTER_N_ACCUMULATES ) //flush after 50, this is approximately 2.5 second if using 5 nearest neighbours in cerebro.
     {
@@ -62,6 +63,7 @@ void HypothesisManager::digest()
 
         //? any conclusions from this?
         // (i_start,i) <----> ( W * (it->first)  , W * (it->first+1) ) iff it->second > 20.
+        bool new_hyp_added = false;
         for( auto it = M.begin() ; it != M.end() ; it++ ) {
             if( it->second > MANDATE_SCORE_THRESH && n_greater_than_thresh > 5 ) {
                 std::lock_guard<std::mutex> lk(mutex_hyp_q);
@@ -73,6 +75,7 @@ void HypothesisManager::digest()
                 )
                 vector<int> tmp = {i_start,i_latest,     W * (it->first)  , W * (it->first+1) };
                 hyp_q.push_back( tmp );
+                new_hyp_added = true;
             }
         }
 
@@ -81,7 +84,10 @@ void HypothesisManager::digest()
         n_greater_than_thresh = 0;
         n_accum = 0;
         M.clear();
+        return new_hyp_added;
     }
+
+    return false;
 }
 
 
@@ -90,7 +96,7 @@ void HypothesisManager::print_hyp_q_all() const
     std::lock_guard<std::mutex> lk(mutex_hyp_q);
 
     cout << "[HypothesisManager::print_hyp_q_all] hyp_q.size() = " << hyp_q.size() << endl;
-    for( int i=0 ; i<hyp_q.size() ; i++ )
+    for( int i=0 ; i<(int)hyp_q.size() ; i++ )
     {
         cout << "#" << i << " ";
         cout << "(" << hyp_q[i][0] << "," << hyp_q[i][1] << ")";
@@ -115,7 +121,7 @@ bool HypothesisManager::hypothesis_i(int i, int& seq_a_start, int&  seq_a_end, i
     std::lock_guard<std::mutex> lk(mutex_hyp_q);
     assert( i>=0 && i<(int)hyp_q.size() );
 
-    if( i<0 || i>= hyp_q.size() )
+    if( i<0 || i>= (int) hyp_q.size() )
     {
         cout << TermColor::RED() << "[HypothesisManager::hypothesis_i] ERROR, you requested " << i << "th hypothesis however hyp_q.size()="<< hyp_q.size() << endl << TermColor::RESET();
         return false;
@@ -169,7 +175,7 @@ Matrix4d HypothesisManager::get_computed_pose( int i ) const
 
 string HypothesisManager::get_computed_pose_info_string( int i ) const
 {
-    
+
     if( i<0 || i>= (int)hyp_q.size() )
         throw "[HypothesisManager::get_computed_pose_info_string] invalid i";
 

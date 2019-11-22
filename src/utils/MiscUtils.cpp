@@ -131,9 +131,12 @@ void MiscUtils::dmatch_2_eigen( const std::vector<cv::KeyPoint>& kp1, const std:
     assert( matches.size() > 0 && "MiscUtils::dmatch_2_eigen DMatch cannot be empty" );
     assert( kp1.size() > 0 && kp2.size() > 0 && "MiscUtils::dmatch_2_eigen keypoints cannot be empty" );
 
+    if( matches.size() == 0 )
+        return;
+
     M1 = MatrixXd::Constant( (make_homogeneous?3:2), matches.size(), 1.0 );
     M2 = MatrixXd::Constant( (make_homogeneous?3:2), matches.size(), 1.0 );
-    for( int i=0 ; i<matches.size() ; i++ ) {
+    for( int i=0 ; i<(int)matches.size() ; i++ ) {
         int queryIdx = matches[i].queryIdx; //kp1
         int trainIdx = matches[i].trainIdx; //kp2
         assert( queryIdx >=0 && queryIdx < kp1.size() );
@@ -232,7 +235,7 @@ void MiscUtils::gather( const vector<VectorXd>& mats, VectorXd& dst )
 {
     assert( mats.size() > 0 );
     int total = 0;
-    for( int i=0 ; i<mats.size() ; i++ )
+    for( int i=0 ; i<(int)mats.size() ; i++ )
         total += mats[i].size();
 
     dst = VectorXd::Zero( total );
@@ -278,6 +281,21 @@ vector<bool> MiscUtils::vector_of_bool_AND( const vector<bool>& A, const vector<
             valids.push_back( false );
     }
     return valids;
+}
+
+
+void MiscUtils::imshow( const string& win_name, const cv::Mat& im, float scale )
+{
+    if( scale == 1.0 ) {
+        cv::imshow( win_name, im );
+        return;
+    }
+
+    assert( scale > 0.1 && scale < 10.0 );
+    cv::Mat outImg;
+    cv::resize(im, outImg, cv::Size(), scale, scale );
+    cv::imshow( win_name, outImg );
+
 }
 
 void MiscUtils::plot_point_sets( const cv::Mat& im, const MatrixXd& pts_set, cv::Mat& dst,
@@ -327,7 +345,7 @@ void MiscUtils::plot_point_sets( const cv::Mat& im, const cv::Mat& pts_set, cv::
   if( msg.length() > 0 ) {
     vector<std::string> msg_split;
     msg_split = MiscUtils::split( msg, ';' );
-    for( int q=0 ; q<msg_split.size() ; q++ )
+    for( int q=0 ; q<(int)msg_split.size() ; q++ )
       cv::putText( dst, msg_split[q], cv::Point(5,20+20*q), cv::FONT_HERSHEY_COMPLEX_SMALL, .95, cv::Scalar(0,255,255) );
   }
 
@@ -384,7 +402,7 @@ void MiscUtils::plot_point_sets( cv::Mat& im, const MatrixXd& pts_set, cv::Mat& 
   if( msg.length() > 0 ) {
     vector<std::string> msg_split;
     msg_split = MiscUtils::split( msg, ';' );
-    for( int q=0 ; q<msg_split.size() ; q++ )
+    for( int q=0 ; q<(int)msg_split.size() ; q++ )
       cv::putText( dst, msg_split[q], cv::Point(5,20+20*q), cv::FONT_HERSHEY_COMPLEX_SMALL, .95, cv::Scalar(0,255,255) );
   }
 
@@ -429,7 +447,7 @@ void MiscUtils::plot_point_sets( const cv::Mat& im, const MatrixXd& pts_set, cv:
       if( msg.length() > 0 ) {
         vector<std::string> msg_split;
         msg_split = MiscUtils::split( msg, ';' );
-        for( int q=0 ; q<msg_split.size() ; q++ )
+        for( int q=0 ; q<(int)msg_split.size() ; q++ )
           cv::putText( dst, msg_split[q], cv::Point(5,20+20*q), cv::FONT_HERSHEY_COMPLEX_SMALL, .95, cv::Scalar(0,255,255) );
       }
 
@@ -524,7 +542,7 @@ void MiscUtils::plot_point_pair( const cv::Mat& imA, const MatrixXd& ptsA, int i
   // put msg in status image
   if( msg.length() > 0 ) { // ':' separated. Each will go in new line
       std::vector<std::string> msg_tokens = split(msg, ';');
-      for( int h=0 ; h<msg_tokens.size() ; h++ )
+      for( int h=0 ; h<(int)msg_tokens.size() ; h++ )
           cv::putText( status, msg_tokens[h].c_str(), cv::Point(10,80+20*h), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(255,255,255), 1.5 );
   }
 
@@ -603,7 +621,7 @@ void MiscUtils::plot_point_pair( const cv::Mat& imA, const MatrixXd& ptsA, int i
     cv::Point2d A( ptsA(0,kl), ptsA(1,kl) );
     cv::Point2d B( ptsB(0,kl), ptsB(1,kl) );
 
-    int coloridx;
+    int coloridx=-1;
     if( color_map_direction==0 ) coloridx = (int) (ptsA(0,kl)/imA.cols*256.); // horizontal-gradiant
     if( color_map_direction==1 ) coloridx = (int) (ptsA(1,kl)/imA.rows*256.); // vertical-gradiant
     if( color_map_direction==2 ) coloridx = (int) (   ( ptsA(0,kl) + ptsA(1,kl) ) / (imA.rows + imA.cols )*256.  ); // manhattan-gradiant
@@ -637,7 +655,7 @@ void MiscUtils::plot_point_pair( const cv::Mat& imA, const MatrixXd& ptsA, int i
   // put msg in status image
   if( msg.length() > 0 ) { // ':' separated. Each will go in new line
       std::vector<std::string> msg_tokens = split(msg, ';');
-      for( int h=0 ; h<msg_tokens.size() ; h++ )
+      for( int h=0 ; h<(int)msg_tokens.size() ; h++ )
           cv::putText( status, msg_tokens[h].c_str(), cv::Point(10,80+20*h), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(255,255,255), 1.5 );
   }
 
@@ -663,7 +681,7 @@ void MiscUtils::append_status_image( cv::Mat& im, const string& msg, float txt_s
         status = cv::Mat(status_im_height, im.cols, CV_8UC3, bg_color );
 
 
-    for( int h=0 ; h<msg_tokens.size() ; h++ )
+    for( int h=0 ; h<(int)msg_tokens.size() ; h++ )
         cv::putText( status, msg_tokens[h].c_str(), cv::Point(10,20+20*h),
                 cv::FONT_HERSHEY_SIMPLEX,
                 txt_size, txt_color, line_thinkness );

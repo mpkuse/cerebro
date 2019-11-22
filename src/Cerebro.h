@@ -16,7 +16,7 @@
 #include <iostream>
 #include <vector>
 
-#include "PinholeCamera.h" //removal as we shifted to camodocal for camera model.
+// #include "PinholeCamera.h" //removal as we shifted to camodocal for camera model.
 
 #include "DataManager.h"
 #include "ProcessedLoopCandidate.h"
@@ -26,7 +26,7 @@
 #include "utils/CameraGeometry.h"
 #include "utils/PointFeatureMatching.h"
 
-#include "DlsPnpWithRansac.h"
+// #include "DlsPnpWithRansac.h"
 #include "PoseComputation.h"
 #include "LocalBundle.h"
 
@@ -227,6 +227,9 @@ private:
         vector<ros::Time>& seq_T, vector<int>& seq_idx,
         vector<Matrix4d>& seq_odom_pose, vector<Matrix4d>& seq_odom_a0_T_a
     );
+
+    bool save_loop_hypothesis_representative_image_pair_to_disk( const string SAVE_DIR ,int i );
+    bool make_loop_hypothesis_representative_image_pair( int i, cv::Mat& out_image );
 
     void publish_pose_from_seq(
         const vector<ros::Time>& seq_a_T, const vector<int>& seq_a_idx, const vector<Matrix4d>& seq_a_odom_pose,

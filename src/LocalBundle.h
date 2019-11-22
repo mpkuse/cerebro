@@ -23,6 +23,9 @@ using namespace std;
 #include "utils/PoseManipUtils.h"
 #include "utils/RawFileIO.h"
 
+#include "utils/MiscUtils.h"
+#include "utils/PointFeatureMatching.h"
+
 // JSON
 #include "utils/nlohmann/json.hpp"
 using json = nlohmann::json;
@@ -38,6 +41,10 @@ using namespace Eigen;
 #include <ceres/ceres.h>
 using namespace ceres;
 
+
+// Camodocal
+#include "camodocal/camera_models/Camera.h"
+#include "camodocal/camera_models/CameraFactory.h"
 
 
 
@@ -61,6 +68,9 @@ public:
     // The initial guess between the sequences
     void inputInitialGuess( int seqa, int seqb, Matrix4d a0_T_b0 );
 
+    // the relatuve pose between the sequences from using osometry
+    void inputOdometry_a0_T_b0( int seqa, int seqb, Matrix4d odom_a0_T_b0 );
+
 
     void inputFeatureMatches( int seq_a, int seq_b,
         const vector<MatrixXd> all_normed_uv_a, const vector<MatrixXd> all_normed_uv_b );
@@ -73,6 +83,7 @@ public:
     // only for debug
     void inputFeatureMatchesImIdx( int seq_a, int seq_b, vector< std::pair<int,int> > all_pair_idx );
     void inputOdometryImIdx( int seqJ, vector<int> odom_seqJ_idx );
+    void inputSequenceImages( int seqJ, vector<cv::Mat> images_seq_j );
 
     void print_inputs_info() const;
 
@@ -107,7 +118,10 @@ private:
     void set_params_constant_for_seq( int seqID, ceres::Problem& problem );
     void add_odometry_residues( ceres::Problem& problem );
     void add_correspondence_residues( ceres::Problem& problem );
+
+    #if 0 //TODO removal, donest work as expected,
     void add_batched_correspondence_residues( ceres::Problem& problem );
+    #endif
 
 
     //--------------------//
@@ -123,11 +137,22 @@ public:
     Matrix4d retrive_optimized_pose( int seqID_0, int frame_0, int seqID_1, int frame_1 ) const;
 
 
+public:
+    //------------------------//
+    //----- Verification -----//
+    //------------------------//
+    void reprojection_test_for_this_image_pair( const camodocal::CameraPtr camera, int im_pair_idx );
+    void reprojection_test( const camodocal::CameraPtr camera );
+
+
+    void reprojection_error_for_this_image_pair( const camodocal::CameraPtr camera, int im_pair_idx );
+    void reprojection_error( const camodocal::CameraPtr camera );
 
 private:
     map< int , vector<Matrix4d> > x0_T_c; //pose of camera wrt its 1st frame (ie. 0th frame)
 
     map< std::pair<int,int> ,  Matrix4d > a0_T_b0; //initial guess of the relative pose between frame-0 of 2 sequences.
+    map< std::pair<int,int> ,  Matrix4d > odom__a0_T_b0;
 
     map< std::pair<int,int>,  vector<MatrixXd>   > normed_uv_a;
     map< std::pair<int,int>,  vector<VectorXd>   > d_a;
@@ -140,6 +165,7 @@ private:
     // debug
     map< int, vector<int> > seq_x_idx;
     map< std::pair<int,int> , vector< std::pair<int,int> >  >all_pair_idx;
+    map< int, vector<cv::Mat> > seq_x_images;
 
 };
 
@@ -261,9 +287,19 @@ public:
         residue_ptr[0] = T(m_2d(0)) - m_3d(0)/m_3d(2);
         residue_ptr[1] = T(m_2d(1)) - m_3d(1)/m_3d(2);
 
+        #if 0
         // scale the loss to make it more important relative to odometry loss.
-        residue_ptr[0] *= T(2.);
-        residue_ptr[1] *= T(2.);
+        if( m_3d(2) > T(0.2)  && m_3d(2) < T(3) ) {
+            residue_ptr[0] *= T(4.);
+            residue_ptr[1] *= T(4.);
+        }
+
+        if( m_3d(2) > T(3) && m_3d(2) < T(5) ) {
+            residue_ptr[0] *= T(2.);
+            residue_ptr[1] *= T(2.);
+        }
+        #endif
+
 
         return true;
 
@@ -287,6 +323,9 @@ private:
 
 };
 
+
+// TODO removal
+#if 0
 class BatchProjectionError
 {
 public:
@@ -364,3 +403,4 @@ private:
     double lambda;
 
 };
+#endif

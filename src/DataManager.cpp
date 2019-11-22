@@ -18,7 +18,18 @@ DataManager::DataManager(const DataManager &obj)
    cout << "Copy constructor allocating ptr." << endl;
 }
 
+DataManager::~DataManager()
+{
+    // deallocate node*
+    //      ie.             DataNode * n = new DataNode( img_msg->header.stamp );, which are inserted into data_map
+    for( auto it=data_map->begin() ; it!=data_map->end() ; it++ )
+    {
+        delete it->second;
+    }
+    data_map->clear();
 
+
+}
 
 //////////////////////////////////////////////////////////////////////////////
 //////////////////// Setters and Getters for global info /////////////////////
@@ -770,7 +781,7 @@ void DataManager::clean_up_useless_images_thread()
         auto S = data_map->upper_bound( data_map->rbegin()->first - ros::Duration( keep_last_n_sec_in_ram+5 ) );
         // auto S = data_map->begin();
         auto E = data_map->upper_bound( data_map->rbegin()->first - ros::Duration( keep_last_n_sec_in_ram ) );
-        int q=0;
+        // int q=0;
         ___clean_up_cout( cout << "[DataManager::clean_up_useless_images_thread] "  <<  S->first << " to " << E->first << "\t"; )
         ___clean_up_cout( cout << S->first-getPose0Stamp() << " to " << E->first - getPose0Stamp() << endl; )
 
@@ -817,10 +828,20 @@ void DataManager::clean_up_useless_images_thread()
             if( it->second->isKeyFrame() ) {
                 ___clean_up_cout( cout << "\t\timg_data_mgr->stashImage( t=" << it->first << ")\n"; )
                 bool stash_status = img_data_mgr->stashImage( vec, it->first );
+                assert( stash_status );
+                if( stash_status == false ) {
+                    cout << __FILE__ << ":" << __LINE__ << " img_data_mgr->stashImage failed\n";
+                    exit(3);
+                }
             }
             else {
                 ___clean_up_cout( cout << "\t\timg_data_mgr->rmImage( t=" << it->first << ")\n"; )
                 bool rm_status = img_data_mgr->rmImage( vec, it->first );
+                assert( rm_status );
+                if( rm_status == false ) {
+                    cout << __FILE__ << ":" << __LINE__ << " img_data_mgr->rm_status failed\n";
+                    exit(3);
+                }
             }
 
         }
@@ -1429,5 +1450,5 @@ bool DataManager::loadStateFromDisk( const string save_folder_name )
 
 
 
-
+    return true;
 }

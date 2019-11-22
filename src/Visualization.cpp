@@ -64,8 +64,10 @@ void Visualization::run( const int looprate    )
             this->publish_loopcandidates(); //< this publishes marker
         // this->publish_test_string();
 
+        #if 0
         if( bpub_processed_loopcandidates )
             this->publish_processed_loopcandidates(); //< this publoshes the image-pair as image.
+        #endif
 
         if( bpub_loop_hypothesis_candidates ) {
             this->publish_loop_hypothesis_lines(); //< cerebro->loop_hypothesis_i \forall i
@@ -76,7 +78,7 @@ void Visualization::run( const int looprate    )
     }
 }
 
-
+#if 0
 // #define __Visualization___publish_processed_loopcandidates(msg) msg;
 #define __Visualization___publish_processed_loopcandidates(msg) ;
 void Visualization::publish_processed_loopcandidates()
@@ -230,7 +232,7 @@ void Visualization::publish_processed_loopcandidates()
     }
     prev_count = new_count;
 }
-
+#endif
 
 // #define __Visualization__publish_loopcandidates(msg) msg
 #define __Visualization__publish_loopcandidates(msg) ;
@@ -640,6 +642,7 @@ void Visualization::publish_loop_hypothesis_image_pair()
             MiscUtils::side_by_side( seq_a_end_im, seq_b_end_im , dst_org );
 
             std::stringstream buffer;
+            buffer << ";Hypothesis#" << i ;
             buffer << ";this: " << seq_a_end << "(ie. " << seq_a_end_T << ")";
             buffer << "  ... ";
             buffer << seq_b_end << "(ie. " << seq_b_end_T << ")   resized(0.5);;";

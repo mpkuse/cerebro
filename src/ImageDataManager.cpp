@@ -1,6 +1,6 @@
 #include "ImageDataManager.h"
 
-#define acq_lock( msg ) msg;
+// #define acq_lock( msg ) msg;
 #define acq_lock( msg ) ;
 
 
@@ -54,6 +54,7 @@ bool ImageDataManager::initStashDir( bool clear_dir, const string __dir )
     }
 
     m_STASH_DIR = true;
+    return true;
 }
 
 ImageDataManager::~ImageDataManager()
@@ -464,6 +465,7 @@ bool ImageDataManager::stashImage( const vector<string> ns, const ros::Time t )
     {
         stashImage_nolock( *it, t );
     }
+    return true;
 }
 
 bool ImageDataManager::rmImage( const vector<string> ns, const ros::Time t )
@@ -475,6 +477,7 @@ bool ImageDataManager::rmImage( const vector<string> ns, const ros::Time t )
     {
         rmImage_nolock( *it, t );
     }
+    return true;
 }
 
 

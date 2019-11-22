@@ -314,7 +314,7 @@ const VectorXi& DataNode::getFeatIds() const  {
      assert( m_unvn && "[DataNode::getFeatIds] you requested UnVn before setting it.\n" );
      return tracked_feat_ids;
  }
-
+#if 0
  int DataNode::nPts() const {
      std::lock_guard<std::mutex> lk(m);
      #if 0
@@ -324,6 +324,7 @@ const VectorXi& DataNode::getFeatIds() const  {
      #endif
 
  }
+ #endif 
 
  const ros::Time DataNode::getT() const {
      std::lock_guard<std::mutex> lk(m);
