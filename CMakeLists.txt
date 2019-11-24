@@ -41,6 +41,7 @@ include_directories(${Boost_INCLUDE_DIRS})
 #message( "----- "${GPERFTOOLS_LIBRARIES} )
 #set (CMAKE_CXX_FLAGS "-Wall -Wl,-no-as-needed -O0  -fsanitize=address -fsanitize=undefined ")
 set (CMAKE_CXX_FLAGS "-Wall -Wl,-no-as-needed -O3 -fsanitize=address  ")
+        ## ^^^ If I remove the -fsanitize=adress. the cerebro node misteriously crashes. Don't really know y :(
 #set(CMAKE_BUILD_TYPE Debug)
 #set(CMAKE_BUILD_TYPE Release)
 set(CMAKE_BUILD_TYPE RelWithDebInfo)

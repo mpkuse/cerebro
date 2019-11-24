@@ -883,12 +883,16 @@ void Cerebro::faiss_multihypothesis_tracking()
                 )
 
                 // add the edge
-                bool is_new_hypothesis_added = hyp_manager->add_node( l_i, labels[g], distances[g], g );
+                int is_new_hypothesis_added = hyp_manager->add_node( l_i, labels[g], distances[g], g );
 
                 #if 1
-                if( is_new_hypothesis_added && SAVE_REPRESENTATIVE_IMAGE_PAIR_TO_DISK ) {
+                if( is_new_hypothesis_added > 0 && SAVE_REPRESENTATIVE_IMAGE_PAIR_TO_DISK ) {
+                    ___faiss_multihypothesis_tracking___search(
+                    cout << "number of new hypothesis = " << is_new_hypothesis_added << endl; )
                     // save for debugging,
-                    save_loop_hypothesis_representative_image_pair_to_disk( SAVE_DIR, hyp_manager->n_hypothesis()-1 );
+                    for( int s=0 ; s<is_new_hypothesis_added ; s++ ) {
+                        save_loop_hypothesis_representative_image_pair_to_disk( SAVE_DIR, hyp_manager->n_hypothesis()-1-s );
+                    }
                 }
                 #endif
 
@@ -1388,7 +1392,6 @@ void Cerebro::loop_hypothesis_consumer_thread()
             {
                 __Cerebro__loop_hypothesis_consumer_thread(
                 cout << TermColor::iCYAN() << "[Cerebro::loop_hypothesis_consumer_thread] Process Loop Hypothesis#" << d << TermColor::RESET() << endl; )
-                ElapsedTime geom_t;
                 dataManager->clean_up_pause();
                 __Cerebro__loop_hypothesis_consumer_thread( cout << "[Cerebro::loop_hypothesis_consumer_thread]dataManager->clean_up_running_status()=" << dataManager->clean_up_running_status() << endl; )
                 while( dataManager->clean_up_running_status() ) {
@@ -1397,8 +1400,10 @@ void Cerebro::loop_hypothesis_consumer_thread()
                     rate_2.sleep();
                 }
 
-
+                ElapsedTime geom_t("Bundled Pose computation hypothesis#"+to_string(d));
                 compute_geometry_for_loop_hypothesis_i( d );
+                __Cerebro__loop_hypothesis_consumer_thread(
+                cout << TermColor::uGREEN() << geom_t.toc() << TermColor::RESET() << endl; )
 
 
                 dataManager->clean_up_play();
@@ -1423,15 +1428,15 @@ void Cerebro::loop_hypothesis_consumer_thread()
 // #define __Cerebro__compute_geometry_for_loop_hypothesis_i( msg );
 
 // This will print info on each of the randomly drawn image pairs
-#define __Cerebro__compute_geometry_for_loop_hypothesis_i_randompairs( msg ) msg;
-// #define __Cerebro__compute_geometry_for_loop_hypothesis_i_randompairs( msg );
+// #define __Cerebro__compute_geometry_for_loop_hypothesis_i_randompairs( msg ) msg;
+#define __Cerebro__compute_geometry_for_loop_hypothesis_i_randompairs( msg );
 bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
 {
     __Cerebro__compute_geometry_for_loop_hypothesis_i(
-    cout << TermColor::CYAN() << "\t\t[Cerebro::compute_geometry_for_loop_hypothesis_i] Process Loop Hypothesis#" << i << TermColor::RESET() << endl;)
+    cout << TermColor::bCYAN() << "\t\t[Cerebro::compute_geometry_for_loop_hypothesis_i] Process Loop Hypothesis#" << i << TermColor::RESET() << endl;)
 
     //--- params
-    const int N_RANDOM_PAIRS = 5;
+    const int N_RANDOM_PAIRS = 6;
     const bool PLOT_IMAGE_PAIR = true;
     const string PLOT_IMAGE_PAIR__SAVE_DIR = "/app/tmp/cerebro/live_system/";
 
@@ -1479,9 +1484,9 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
 
     vector< std::pair<int,int> > all_pair_idx;
 
+    ElapsedTime t_draw_random_pairs( "Draw Random Image-pairs");
     __Cerebro__compute_geometry_for_loop_hypothesis_i(
     cout << "\t\tDraw random pairs N_RANDOM_PAIRS=" << N_RANDOM_PAIRS << endl;
-    ElapsedTime t_draw_random_pairs( "Draw Random Image-pairs");
     )
     int count_zero_feature_matches = 0;
     bool flag_false_positive = false;
@@ -1564,7 +1569,8 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
 
         // if in first 3 iterations, i see no matches, this means the hypothesis is a false-positive
         if( count_zero_feature_matches > 2 && itr == 3 ) {
-            cout << TermColor::iCYAN() <<  "\t\t\tThis hypothesis looks like a false-positive. In 3 consecutive draws I get 2 draws with 0 feature correspondences\n" << TermColor::RESET();
+            __Cerebro__compute_geometry_for_loop_hypothesis_i_randompairs(
+            cout << TermColor::iCYAN() <<  "\t\t\tThis hypothesis looks like a false-positive. In 3 consecutive draws I get 2 draws with 0 feature correspondences\n" << TermColor::RESET(); )
             flag_false_positive = true;
             break;
         }
@@ -1573,6 +1579,16 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
             __Cerebro__compute_geometry_for_loop_hypothesis_i_randompairs(
             cout << TermColor::CYAN() << "\t\t\t\tuv_a.cols() is less than N_TOO_FEW_POINT_MATCHES="<< N_TOO_FEW_POINT_MATCHES << " (#matches=" << uv_a.cols() << "), don't proceed to get 3d points at these correspondences\n" << TermColor::RESET();
             )
+
+
+            __Cerebro__compute_geometry_for_loop_hypothesis_i(
+            cout << "\t\t\t";
+            cout << "hyp#" << i << " itr#" << itr << "\t";
+            cout << "ra=" << ra << " <--> rb=" << rb << "\t";
+            cout << TermColor::YELLOW() << "feat_matches(low res)=" << uv_a.cols()  << TermColor::RESET();
+            cout << " less than N_TOO_FEW_POINT_MATCHES="<< N_TOO_FEW_POINT_MATCHES << " so skip this pair";
+            cout << endl;
+            )
             continue;
         }
         // END Too few point correspondence?
@@ -1580,7 +1596,9 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
         __Cerebro__compute_geometry_for_loop_hypothesis_i_randompairs(
         cout << "\t\t\t\tgms matches on full resolution\n"; )
         ElapsedTime t_fullres( "GMS Matcher Full resolution");
-        StaticPointFeatureMatching::gms_point_feature_matches( left_image_a, left_image_b, uv_a, uv_b ); //cv::findFundamentalMat strangely fails :()
+        MatrixXd gms_uv_a, gms_uv_b;
+        StaticPointFeatureMatching::gms_point_feature_matches( left_image_a, left_image_b, gms_uv_a, gms_uv_b ); //cv::findFundamentalMat strangely fails :()
+        StaticPointFeatureMatching::refine_and_sparsify_matches( left_image_a, left_image_b, gms_uv_a, gms_uv_b, uv_a, uv_b  )
         __Cerebro__compute_geometry_for_loop_hypothesis_i_randompairs( cout << t_fullres.toc(); )
         auto im_correspondence_elapsed_time_fullres = t_fullres.toc_milli();
 
@@ -1623,9 +1641,9 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
             cv::Mat dst_matcher;
             string msg_str = "plot (resize 0.5), took ms="+to_string(im_correspondence_elapsed_time_ms);
             msg_str += ";#valid depths="+to_string( nvalids);
-            MiscUtils::plot_point_pair( left_image_a, uv_a, ra,
-                                        left_image_b, uv_b, rb, dst_matcher,
-                                        #if 1 // make this to 1 to mark matches by spatial color codes (gms style). set this to 0 to mark the matches with lines
+            MiscUtils::plot_point_pair( left_image_a, uv_a, seq_a_idx.at(ra),
+                                        left_image_b, uv_b, seq_b_idx.at(rb), dst_matcher,
+                                        #if 0 // make this to 1 to mark matches by spatial color codes (gms style). set this to 0 to mark the matches with lines
                                         3, msg_str
                                         #else
                                         cv::Scalar( 0,0,255 ), cv::Scalar( 0,255,0 ), false, msg_str
@@ -1647,7 +1665,7 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
             cout << TermColor::YELLOW() << "feat_matches=" << uv_a.cols() << "\t" << TermColor::RESET();
             // cout << "nvalids_depths=" <<nvalids << "\t" ;
             cout << "valids(a,b,AND)=" << nvalids_a << ","<< nvalids_b << "," << nvalids << "\t";
-            cout << "elapsed_ms(lowres,full)=" << im_correspondence_elapsed_time_ms << " " << im_correspondence_elapsed_time_fullres<< "\t";
+            cout << "elapsed_ms(lowres,full)=" << im_correspondence_elapsed_time_ms << "," << im_correspondence_elapsed_time_fullres<< "\t";
             cout << TermColor::YELLOW() << "gms_lowres=" << n_gms_matches << "\t" << TermColor::RESET();
             cout << endl;
             )
@@ -1657,7 +1675,7 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
 
         // ---- Accumulate
         // -- Matched pts
-        cout << "\t\t\tAccumulate matched pts\n";
+        __Cerebro__compute_geometry_for_loop_hypothesis_i_randompairs( cout << "\t\t\tAccumulate matched pts\n"; )
         all_uv_a.push_back( uv_a );
         all_uv_b.push_back( uv_b );
         all_normed_uv_a.push_back(normed_uv_a);
@@ -1665,14 +1683,14 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
         all_valids.push_back( valids );
 
         // -- Poses
-        cout << "\t\t\tAccumulate poses\n";
+        __Cerebro__compute_geometry_for_loop_hypothesis_i_randompairs( cout << "\t\t\tAccumulate poses\n"; )
         Matrix4d a0_T_a = seq_a_odom_pose[0].inverse() * seq_a_odom_pose[ra];
         Matrix4d b0_T_b = seq_b_odom_pose[0].inverse() * seq_b_odom_pose[rb];
         all_poses_a0_T_a.push_back( a0_T_a );
         all_poses_b0_T_b.push_back( b0_T_b );
 
         // -- 3d points
-        cout << "\t\t\tAccumulate 3d points\n";
+        __Cerebro__compute_geometry_for_loop_hypothesis_i_randompairs( cout << "\t\t\tAccumulate 3d points\n"; )
         MatrixXd a0_X = a0_T_a * aX;
         MatrixXd b0_X = b0_T_b * bX;
         all_a0_X.push_back( a0_X );
@@ -1681,17 +1699,19 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
         all_d_a.push_back( d_a );
         all_d_b.push_back( d_b );
 
-        cout << "\t\t\tAccumulate seq_A_idx and seq_B_idx\n";
+        __Cerebro__compute_geometry_for_loop_hypothesis_i_randompairs( cout << "\t\t\tAccumulate seq_A_idx and seq_B_idx\n"; )
         all_pair_idx.push_back( std::make_pair( seq_a_idx.at(ra), seq_b_idx.at(rb) ) );
 
-        cout << "\t\t\tDone itr=" << itr << endl;
+        __Cerebro__compute_geometry_for_loop_hypothesis_i_randompairs( cout << "\t\t\tDone itr=" << itr << endl; )
 
 
     } // END     for( int itr=0 ; itr<N_RANDOM_PAIRS ; itr++ )
 
-    cout << t_draw_random_pairs.toc() << endl;
+    __Cerebro__compute_geometry_for_loop_hypothesis_i(
+    cout << "\t\t" << t_draw_random_pairs.toc() << endl; )
     if( flag_false_positive) {
-        cout << "\t\t\tThis was marked as false positive, return false\n";
+        __Cerebro__compute_geometry_for_loop_hypothesis_i(
+        cout << TermColor::YELLOW() << "\t\tThis was marked as false positive, return false\n" << TermColor::RESET() ; )
         return false ;
     }
 
@@ -1699,7 +1719,8 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
     cout << "\t\t\tgather from n_pairs=" << all_a0_X.size() << "\n";
     if( all_a0_X.size() < 3 )
     {
-        cout << "\t\t\ttoo few valid pairs, need atleast 3 valid pairs, ie. 3 pairs which each contain atleast " << N_TOO_FEW_POINT_MATCHES << " valid points\n";
+        __Cerebro__compute_geometry_for_loop_hypothesis_i(
+        cout << "\t\t\ttoo few valid pairs, need atleast 3 valid pairs, ie. 3 pairs which each contain atleast " << N_TOO_FEW_POINT_MATCHES << " valid points\n"; )
         return false;
     }
 
@@ -1707,9 +1728,10 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
     MiscUtils::gather( all_a0_X, all_valids, dst0 );
     MiscUtils::gather( all_b0_X, all_valids, dst1 );
 
+    __Cerebro__compute_geometry_for_loop_hypothesis_i(
     cout << "\t\t";
     cout << "gathered --> dst0: " << dst0.rows() << "x" << dst0.cols() << "\t";
-    cout << "dst1: " << dst1.rows() << "x" << dst1.cols() << endl;
+    cout << "dst1: " << dst1.rows() << "x" << dst1.cols() << endl; )
     if( dst0.cols() < 50 ) {
         __Cerebro__compute_geometry_for_loop_hypothesis_i(
         cout  << "\t\t\tgathered only " << dst0.cols() << ", too few points, skip this hypothesis\n"; )
@@ -1766,6 +1788,7 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
 
 }
 
+#if 0 //removal
 bool Cerebro::compute_geometry_for_loop_hypothesis_i_old( int i )
 {
     __Cerebro__compute_geometry_for_loop_hypothesis_i(
@@ -2157,7 +2180,7 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i_old( int i )
     return true;
 
 }
-
+#endif
 
 bool Cerebro::retrive_full_sequence_info(
     const ros::Time seq_start_T, const ros::Time seq_end_T,
@@ -2260,9 +2283,9 @@ bool Cerebro::make_loop_hypothesis_representative_image_pair( int i, cv::Mat& ds
 
         std::stringstream buffer;
         buffer << ";Hypothesis#" << i ;
-        buffer << ";this: " << seq_a_start << "(ie. " << seq_a_start_T << ")";
+        buffer << ";this: " << idx_a_start << "(ie. " << seq_a_start_T << ")";
         buffer << "  ... ";
-        buffer << seq_b_start << "(ie. " << seq_b_start_T << ");";
+        buffer << idx_b_start << "(ie. " << seq_b_start_T << ");";
 
         buffer << "timestamps #" << i << " ";
         buffer << "(" << seq_a_start_T << "," << seq_a_end_T << ")";

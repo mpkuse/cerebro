@@ -6,7 +6,7 @@ HypothesisManager::HypothesisManager()
 }
 
 
-bool HypothesisManager::add_node( int i, int j, double dot_product_score, int n_nn )
+int HypothesisManager::add_node( int i, int j, double dot_product_score, int n_nn )
 {
     // assert( i > j );
     if( n_accum == 0 )
@@ -35,14 +35,14 @@ bool HypothesisManager::add_node( int i, int j, double dot_product_score, int n_
     n_accum++;
 
 
-    bool new_hyp_added = digest();
+    int new_hyp_added = digest();
     return new_hyp_added;
 
 }
 
 // #define __HypothesisManager__digest___( msg ) msg;
 #define __HypothesisManager__digest___( msg ) ;
-bool HypothesisManager::digest()
+int HypothesisManager::digest()
 {
     if( n_accum == FLUSH_AFTER_N_ACCUMULATES ) //flush after 50, this is approximately 2.5 second if using 5 nearest neighbours in cerebro.
     {
@@ -63,7 +63,7 @@ bool HypothesisManager::digest()
 
         //? any conclusions from this?
         // (i_start,i) <----> ( W * (it->first)  , W * (it->first+1) ) iff it->second > 20.
-        bool new_hyp_added = false;
+        int new_hyp_added = 0;
         for( auto it = M.begin() ; it != M.end() ; it++ ) {
             if( it->second > MANDATE_SCORE_THRESH && n_greater_than_thresh > 5 ) {
                 std::lock_guard<std::mutex> lk(mutex_hyp_q);
@@ -75,7 +75,7 @@ bool HypothesisManager::digest()
                 )
                 vector<int> tmp = {i_start,i_latest,     W * (it->first)  , W * (it->first+1) };
                 hyp_q.push_back( tmp );
-                new_hyp_added = true;
+                new_hyp_added++;
             }
         }
 
@@ -87,7 +87,7 @@ bool HypothesisManager::digest()
         return new_hyp_added;
     }
 
-    return false;
+    return 0;
 }
 
 

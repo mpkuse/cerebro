@@ -83,7 +83,13 @@ public:
     // correspondences and return these.
     static void gms_point_feature_matches_scaled( const cv::Mat& imleft_undistorted, const cv::Mat& imright_undistorted,
                                 MatrixXd& u, MatrixXd& ud,
-                                float scale, int n_orb_feat=2000 );
+                                float scale, int n_orb_feat=4000 );
+
+    static void refine_and_sparsify_matches(
+        const cv::Mat im_a, const cv::Mat im_b,
+        const MatrixXd& uv_a, const MatrixXd& uv_b,
+        MatrixXd& refined_uv_a, MatrixXd& refined_uv_b
+    );
 
     // u : 3xN. (x,y) or (colID,rowID)
     static void point_feature_matches( const cv::Mat& imleft_undistorted, const cv::Mat& imright_undistorted,

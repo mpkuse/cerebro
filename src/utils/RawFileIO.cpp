@@ -450,7 +450,7 @@ bool RawFileIO::read_eigen_vector_fromjson( const json str, VectorXd&  output )
         return false;
     }
 
-    for( int r=0 ; r<all_rows.size() ; r++ )
+    for( int r=0 ; r< (int)all_rows.size() ; r++ )
     {
         vector<string> all_cols_for_this_row = MiscUtils::split( all_rows[r], ',' );
         if( all_cols_for_this_row.size() != 1 )

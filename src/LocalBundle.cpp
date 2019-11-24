@@ -93,7 +93,8 @@ void LocalBundle::inputFeatureMatchesDepths( int seq_a, int seq_b,
     for( int i=0 ; i<(int)all_d_a.size() ; i++ )
     {
         assert( all_d_a[i].size() == all_d_b[i].size() && all_d_a[i].size() > 0 );
-        cout << "[LocalBundle::inputFeatureMatchesDepths]image-pair#" << i << " has " << all_d_a[i].size() << " depth values\n";
+        __LocalBundle__input(
+        cout << "[LocalBundle::inputFeatureMatchesDepths]image-pair#" << i << " has " << all_d_a[i].size() << " depth values\n"; )
     }
 
     auto p = std::make_pair( seq_a, seq_b );
@@ -107,7 +108,8 @@ void LocalBundle::inputFeatureMatchesDepths( int seq_a, int seq_b,
     cout << "[LocalBundle::inputFeatureMatchesDepths] Set depths for " << all_d_a.size() << " image-pairs in seqa=" << seq_a << ", seqb=" << seq_b << endl;
     for( int i=0 ; i<(int)all_d_a.size() ; i++ )
     {
-        cout << ">>>> [LocalBundle::inputFeatureMatchesDepths]image-pair#" << i << " has " << all_d_a[i].size() << " depth values\n";
+        __LocalBundle__input(
+        cout << ">>>> [LocalBundle::inputFeatureMatchesDepths]image-pair#" << i << " has " << all_d_a[i].size() << " depth values\n"; )
     }
     )
 
@@ -138,7 +140,8 @@ void LocalBundle::inputFeatureMatchesPoses( int seq_a, int seq_b,
 
 void LocalBundle::inputFeatureMatchesImIdx( int seq_a, int seq_b, vector< std::pair<int,int> > all_pair_idx )
 {
-    cout << "[LocalBundle::inputFeatureMatchesImIdx] setting feature matches image index between seq_a=" << seq_a << " and seq_b=" << seq_b << "\tall_pair_idx.size()=" << all_pair_idx.size() << endl;
+    __LocalBundle__input(
+    cout << "[LocalBundle::inputFeatureMatchesImIdx] setting feature matches image index between seq_a=" << seq_a << " and seq_b=" << seq_b << "\tall_pair_idx.size()=" << all_pair_idx.size() << endl; )
     auto p = std::make_pair( seq_a, seq_b );
     this->all_pair_idx[ p ] = all_pair_idx;
 }

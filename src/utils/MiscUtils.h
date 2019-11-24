@@ -52,6 +52,12 @@ public:
                                 bool make_homogeneous=true
                             );
 
+        // given a vector of Point2f will return a 2xN or 3xN matrix (if make_homogeneous=true).
+    static void point2f_2_eigen( const std::vector<cv::Point2f>& p, MatrixXd& dst, bool make_homogeneous=true );
+
+    // given an input eigen matrix of eithen 2xN or 3xN make this into vector<Point2f>.
+    static void eigen_2_point2f( const MatrixXd& inp, std::vector<cv::Point2f>& p );
+
     // Given multiple point sets `mats` each of sizes 3xN1, 3xN2, .... 3xNn and corresponding valids gather everything into dst
     // eg. say the valids look  like [ [11101], [000101111], [11111111100] ] will return only 3d points with valids as 1
     static void gather( const vector<MatrixXd>& mats, const vector<  vector<bool> >& valids, MatrixXd& dst );
@@ -66,6 +72,11 @@ public:
 
     static vector<bool> filter_near_far( const VectorXd& dd, double near, double far );
     static vector<bool> vector_of_bool_AND( const vector<bool>& A, const vector<bool>& B );
+    static vector<uchar> vector_of_uchar_AND( const vector<uchar>& A, const vector<uchar>& B );
+
+
+    static void reduce_vector(vector<cv::Point2f> &v, const vector<uchar> status); //inplace
+    static void reduce_vector(const vector<cv::Point2f> &v, const vector<uchar> status, vector<cv::Point2f>& out );
 
 
     //---------------------------- Conversions ---------------------------------//

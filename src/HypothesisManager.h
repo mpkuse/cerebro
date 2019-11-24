@@ -27,7 +27,7 @@ public:
 
     // i<--->j with dot product score and n_nn indicates which nearest neighbour this was the nearest-neighbour, 2nd nearest, 3rd nearest and so on.
     //     Will return true if new hypothesis was added. If no new hypothesis was added will return false
-    bool add_node( int i, int j, double dot_product_score, int n_nn );
+    int add_node( int i, int j, double dot_product_score, int n_nn );
 
 
 
@@ -59,7 +59,7 @@ private:
 private:
     mutable std::mutex mutex_hyp_q;
     std::vector< std::vector<int> > hyp_q; //vector[][4] 4 numbers in each
-    bool digest(); // the processing at FLUSH_AFTER_N_ACCUMULATES. Will return true if new hypothesis was added. If no new hypothesis was added will return false
+    int digest(); // the processing at FLUSH_AFTER_N_ACCUMULATES. Will return true if new hypothesis was added. If no new hypothesis was added will return false
 
 
 public:

@@ -722,13 +722,13 @@ void DataManager::trial_thread( )
 
 void DataManager::clean_up_pause()
 {
-    cout << TermColor::iBLUE() << "[DataManager::clean_up_pause] commanded to pause cleanup\n" << TermColor::RESET() << endl;
+    // cout << TermColor::iBLUE() << "[DataManager::clean_up_pause] commanded to pause cleanup\n" << TermColor::RESET() << endl;
     b_playpause_switch = false;
 }
 
 void DataManager::clean_up_play()
 {
-    cout << TermColor::iBLUE() << "[DataManager::clean_up_play] commanded to play/resume cleanup\n" << TermColor::RESET() << endl;
+    // cout << TermColor::iBLUE() << "[DataManager::clean_up_play] commanded to play/resume cleanup\n" << TermColor::RESET() << endl;
     b_playpause_switch = true;
 }
 
@@ -770,7 +770,7 @@ void DataManager::clean_up_useless_images_thread()
 
         if(  clean_up_playpause_switch_status() == false )
         {
-            cout << TermColor::CYAN() << "[clean_up_useless_images_thread] paused\n" << TermColor::RESET();
+            ___clean_up_cout( cout << TermColor::CYAN() << "[clean_up_useless_images_thread] paused\n" << TermColor::RESET(); )
             continue;
         }
 

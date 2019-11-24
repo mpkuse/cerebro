@@ -51,6 +51,24 @@ public:
     static std::string iCYAN() { return compose( TermColor::BG_CYAN, true );  }
     static std::string iWHITE() { return compose( TermColor::BG_WHITE, true );  }
 
+    static std::string bRED() { return compose_b( TermColor::BG_RED, true );  }
+    static std::string bGREEN() { return compose_b( TermColor::BG_GREEN, true );  }
+    static std::string bYELLOW() { return compose_b( TermColor::BG_YELLOW, true );  }
+    static std::string bBLUE() { return compose_b( TermColor::BG_BLUE, true );  }
+    static std::string bMAGENTA() { return compose_b( TermColor::BG_MAGENTA, true );  }
+    static std::string bCYAN() { return compose_b( TermColor::BG_CYAN, true );  }
+    static std::string bWHITE() { return compose_b( TermColor::BG_WHITE, true );  }
+
+
+    static std::string uRED() { return compose_u( TermColor::BG_RED, true );  }
+    static std::string uGREEN() { return compose_u( TermColor::BG_GREEN, true );  }
+    static std::string uYELLOW() { return compose_u( TermColor::BG_YELLOW, true );  }
+    static std::string uBLUE() { return compose_u( TermColor::BG_BLUE, true );  }
+    static std::string uMAGENTA() { return compose_u( TermColor::BG_MAGENTA, true );  }
+    static std::string uCYAN() { return compose_u( TermColor::BG_CYAN, true );  }
+    static std::string uWHITE() { return compose_u( TermColor::BG_WHITE, true );  }
+
+
     static std::string RESET()
     {
         std::stringstream buffer;
@@ -78,6 +96,27 @@ public:
             buffer << "\033[" << color << "m";
         else
             buffer << "\033[" << CTRL_INVERSE << ";" << color << "m";
+        return buffer.str();
+    }
+
+
+    static std::string compose_b( const int color, bool boldface=false )
+    {
+        std::stringstream buffer;
+        if( !boldface )
+            buffer << "\033[" << color << "m";
+        else
+            buffer << "\033[" << CTRL_BOLD << ";" << color << "m";
+        return buffer.str();
+    }
+
+    static std::string compose_u( const int color, bool underline=false )
+    {
+        std::stringstream buffer;
+        if( !underline )
+            buffer << "\033[" << color << "m";
+        else
+            buffer << "\033[" << CTRL_UNDERLINE << ";" << color << "m";
         return buffer.str();
     }
 

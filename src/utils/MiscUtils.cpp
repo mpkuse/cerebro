@@ -150,6 +150,47 @@ void MiscUtils::dmatch_2_eigen( const std::vector<cv::KeyPoint>& kp1, const std:
 }
 
 
+void MiscUtils::point2f_2_eigen( const std::vector<cv::Point2f>& p, MatrixXd& dst, bool make_homogeneous )
+{
+    assert( p.size() > 0 && "[MiscUtils::point2f_2_eigen] input point vector looks empty\n");
+    // cout << "p.size=" << p.size() << endl;
+    dst = MatrixXd::Constant( (make_homogeneous?3:2), p.size(), 1.0 );
+
+    for( int i=0 ;i<p.size() ; i++ )
+    {
+        dst( 0, i ) = p[i].x;
+        dst( 1, i ) = p[i].y;
+    }
+
+}
+
+void MiscUtils::eigen_2_point2f( const MatrixXd& inp, std::vector<cv::Point2f>& p )
+{
+    assert( inp.rows() == 2 || inp.rows() == 3 );
+    assert( inp.cols() > 0 );
+    p.clear();
+
+    bool homogeneous = false;
+    if( inp.rows() == 3 )
+    {
+        homogeneous = true;
+    }
+
+    for( int i=0 ; i<inp.cols() ; i++ )
+    {
+        cv::Point2f pt;
+        pt.x = (float) inp(0,i);
+        pt.y = (float) inp(1,i);
+        if( homogeneous == true ) {
+            assert( abs(inp(2,i))>1e-7 ); //z cannot be zero
+            pt.x /= (float) inp(2,i);
+            pt.y /= (float) inp(2,i);
+        }
+        p.push_back(pt);
+    }
+
+}
+
 int MiscUtils::total_true( const vector<bool>& V )
 {
     int s=0;
@@ -282,6 +323,44 @@ vector<bool> MiscUtils::vector_of_bool_AND( const vector<bool>& A, const vector<
     }
     return valids;
 }
+
+
+vector<uchar> MiscUtils::vector_of_uchar_AND( const vector<uchar>& A, const vector<uchar>& B )
+{
+    assert( A.size() == B.size() );
+    int n = (int) A.size();
+    vector<uchar> valids;
+    valids.clear();
+    for( int i=0 ; i<n ; i++ )
+    {
+        if( A[i] > 0 && B[i] > 0  )
+            valids.push_back( A[i] );
+        else
+            valids.push_back( (uchar)0 );
+    }
+    return valids;
+}
+
+
+
+void MiscUtils::reduce_vector(vector<cv::Point2f> &v, const vector<uchar> status) //inplace
+{
+    int j = 0;
+    for (int i = 0; i < int(v.size()); i++)
+       if (status[i])
+           v[j++] = v[i];
+   v.resize(j);
+}
+
+void MiscUtils::reduce_vector(const vector<cv::Point2f> &v, const vector<uchar> status, vector<cv::Point2f>& out )
+{
+    out.clear();
+    for (int i = 0; i < int(v.size()); i++)
+       if (status[i])
+           out.push_back( v[i] );
+
+}
+
 
 
 void MiscUtils::imshow( const string& win_name, const cv::Mat& im, float scale )
@@ -665,6 +744,7 @@ void MiscUtils::plot_point_pair( const cv::Mat& imA, const MatrixXd& ptsA, int i
 }
 
 
+#if 0 //TODO removal old implementation
 // append a status image . ';' separated
 void MiscUtils::append_status_image( cv::Mat& im, const string& msg, float txt_size, cv::Scalar bg_color, cv::Scalar txt_color, float line_thinkness )
 {
@@ -672,7 +752,9 @@ void MiscUtils::append_status_image( cv::Mat& im, const string& msg, float txt_s
     txt_size = (txt_size<0.1 || txt_size>2)?0.4:txt_size;
 
     std::vector<std::string> msg_tokens = split(msg, ';');
-    int status_im_height = 50+20*msg_tokens.size();
+    const int height_per_line = 30 * txt_size;
+    const int top_padding = height_per_line;
+    int status_im_height = top_padding+height_per_line*(int)msg_tokens.size();
 
     cv::Mat status;
     if( is_single_channel )
@@ -681,8 +763,38 @@ void MiscUtils::append_status_image( cv::Mat& im, const string& msg, float txt_s
         status = cv::Mat(status_im_height, im.cols, CV_8UC3, bg_color );
 
 
-    for( int h=0 ; h<(int)msg_tokens.size() ; h++ )
-        cv::putText( status, msg_tokens[h].c_str(), cv::Point(10,20+20*h),
+    for( int h=0 ; h<msg_tokens.size() ; h++ )
+        cv::putText( status, msg_tokens[h].c_str(), cv::Point(10,height_per_line*h+height_per_line),
+                cv::FONT_HERSHEY_SIMPLEX,
+                txt_size, txt_color, line_thinkness );
+
+
+    cv::vconcat( im, status, im );
+
+
+}
+#endif
+
+// append a status image . ';' separated
+void MiscUtils::append_status_image( cv::Mat& im, const string& msg, float txt_size, cv::Scalar bg_color, cv::Scalar txt_color, float line_thinkness )
+{
+    bool is_single_channel = (im.channels()==1)?true:false;
+    txt_size = (txt_size<0.1 || txt_size>2)?0.4:txt_size;
+
+    std::vector<std::string> msg_tokens = split(msg, ';');
+    const int height_per_line = 30 * txt_size;
+    const int top_padding = height_per_line;
+    int status_im_height = top_padding+height_per_line*(int)msg_tokens.size();
+
+    cv::Mat status;
+    if( is_single_channel )
+        status = cv::Mat(status_im_height, im.cols, CV_8UC1, cv::Scalar(0,0,0) );
+    else
+        status = cv::Mat(status_im_height, im.cols, CV_8UC3, bg_color );
+
+
+    for( int h=0 ; h<msg_tokens.size() ; h++ )
+        cv::putText( status, msg_tokens[h].c_str(), cv::Point(10,height_per_line*h+height_per_line),
                 cv::FONT_HERSHEY_SIMPLEX,
                 txt_size, txt_color, line_thinkness );
 
