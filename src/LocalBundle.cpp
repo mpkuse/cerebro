@@ -1226,6 +1226,7 @@ void LocalBundle::reprojection_test_for_this_image_pair( const camodocal::Camera
 
 void LocalBundle::reprojection_error( const camodocal::CameraPtr camera )
 {
+    cout << TermColor::bWHITE() << "[LocalBundle::reprojection_error]\n" << TermColor::RESET();
     int seq_a = 0;
     int seq_b = 1;
     // int im_pair_idx = 3;
@@ -1237,6 +1238,7 @@ void LocalBundle::reprojection_error( const camodocal::CameraPtr camera )
     for( int h=0 ; h<n_im_pairs ; h++ ) {
         reprojection_error_for_this_image_pair( camera, h );
     }
+    cout << TermColor::bWHITE() << "[LocalBundle::reprojection_error] END\n" << TermColor::RESET();
 }
 
 void LocalBundle::reprojection_error_for_this_image_pair( const camodocal::CameraPtr camera, int im_pair_idx )

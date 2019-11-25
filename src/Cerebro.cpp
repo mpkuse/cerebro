@@ -909,7 +909,7 @@ void Cerebro::faiss_multihypothesis_tracking()
     #if 1
     // debug look inside hyp_manager, when ESC was pressed....this causes threading issues, better for do image related stuff here, printing is still ok
     cout << TermColor::RED() << "[Cerebro::faiss_multihypothesis_tracking] =====Print debug data for the hyp_manager just before I quit the thread\n" << TermColor::RESET();
-    hyp_manager->print_hyp_q_all();
+    // hyp_manager->print_hyp_q_all();
 
 
     // make image pairs
@@ -921,6 +921,7 @@ void Cerebro::faiss_multihypothesis_tracking()
     // auto data_map = dataManager->getDataMapRef();
 
     json all_loop_hyp;
+    cout << "~~~~ Printing Info on All Loop Hypothesis, n_hyp=" << n_hyp << "~~~~~" << endl;
 
     for( int i=0 ; i<n_hyp; i++ )
     {
@@ -980,6 +981,8 @@ void Cerebro::faiss_multihypothesis_tracking()
 
 
     }
+
+    cout << "~~~~ ~~~~~" << endl;
 
     if( SAVE_REPRESENTATIVE_IMAGE_PAIR_TO_DISK ) {
         string fname_loop_hyp_json = SAVE_DIR + "/loop_hypothesis.json";
@@ -1766,6 +1769,7 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
     // bundle.toJSON("/app/catkin_ws/src/gmm_pointcloud_align/resources/local_bundle/");
     bundle.solve();
     a_T_b = bundle.retrive_optimized_pose( 0, 0, 1, 0 );
+    bundle.reprojection_error( dataManager->getAbstractCameraRef() );
 
 
 
