@@ -424,8 +424,10 @@ void MiscUtils::plot_point_sets( const cv::Mat& im, const cv::Mat& pts_set, cv::
   if( msg.length() > 0 ) {
     vector<std::string> msg_split;
     msg_split = MiscUtils::split( msg, ';' );
-    for( int q=0 ; q<(int)msg_split.size() ; q++ )
-      cv::putText( dst, msg_split[q], cv::Point(5,20+20*q), cv::FONT_HERSHEY_COMPLEX_SMALL, .95, cv::Scalar(0,255,255) );
+    for( int q=0 ; q<(int)msg_split.size() ; q++ ) {
+        auto txt_color = color;
+        cv::putText( dst, msg_split[q], cv::Point(5,20+20*q), cv::FONT_HERSHEY_COMPLEX_SMALL, .95, txt_color );
+    }
   }
 
 
@@ -481,8 +483,10 @@ void MiscUtils::plot_point_sets( cv::Mat& im, const MatrixXd& pts_set, cv::Mat& 
   if( msg.length() > 0 ) {
     vector<std::string> msg_split;
     msg_split = MiscUtils::split( msg, ';' );
-    for( int q=0 ; q<(int)msg_split.size() ; q++ )
-      cv::putText( dst, msg_split[q], cv::Point(5,20+20*q), cv::FONT_HERSHEY_COMPLEX_SMALL, .95, cv::Scalar(0,255,255) );
+    for( int q=0 ; q<(int)msg_split.size() ; q++ ) {
+        auto txt_color = color;
+        cv::putText( dst, msg_split[q], cv::Point(5,20+20*q), cv::FONT_HERSHEY_COMPLEX_SMALL, .95, txt_color );
+    }
   }
 
 

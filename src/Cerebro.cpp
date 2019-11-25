@@ -1446,6 +1446,11 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
     int N_TOO_FEW_POINT_MATCHES = 30; // use 50 for GMS matches, 7 for ORB
 
 
+    //
+    bool SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES = true;
+    const string SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES_PREFIX = "/app/tmp/cerebro/reprojections/hyp_";
+
+
     auto img_data_mgr = dataManager->getImageManagerRef();
     auto data_map = dataManager->getDataMapRef();
 
@@ -1771,7 +1776,23 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
     a_T_b = bundle.retrive_optimized_pose( 0, 0, 1, 0 );
     bundle.reprojection_error( dataManager->getAbstractCameraRef() );
 
+    if( SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES ) {
+    #if 1 //debug....reprojection images
+        vector<cv::Mat> seq_a_image_list, seq_b_image_list;
+        retrive_full_sequence_image_info( seq_a_start_T, seq_a_end_T, seq_a_image_list );
+        retrive_full_sequence_image_info( seq_b_start_T, seq_b_end_T, seq_b_image_list );
 
+        if( seq_odom_a0_T_a.size() != seq_a_image_list.size() || seq_odom_b0_T_b.size() != seq_b_image_list.size() ) {
+            cout << "[Cerebro::compute_geometry_for_loop_hypothesis_i] In debugging reprojection errors, error_code=hydlnk\n";
+            exit(4);
+        }
+        bundle.inputSequenceImages( 0, seq_a_image_list );
+        bundle.inputSequenceImages( 1, seq_b_image_list );
+
+        //bundle.reprojection_debug_images_to_disk( dataManager->getAbstractCameraRef(), "/app/tmp/cerebro/reprojections/hyp_"+to_string(i)+"_" );
+        bundle.reprojection_debug_images_to_disk( dataManager->getAbstractCameraRef(), SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES_PREFIX+to_string(i)+"_" );
+    #endif
+    }
 
     // publish
     #if 0 //make this to 1 to get pose info from the bundle object, 0 to set the pose
@@ -1786,405 +1807,13 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
     #endif
 
 
+    // simply note the pose info in HypothesisManager.
     loop_hypothesis_i__set_computed_pose( i, a_T_b, "successful" );
 
     return false;
 
 }
 
-#if 0 //removal
-bool Cerebro::compute_geometry_for_loop_hypothesis_i_old( int i )
-{
-    __Cerebro__compute_geometry_for_loop_hypothesis_i(
-    cout << TermColor::CYAN() << "\t\t[Cerebro::compute_geometry_for_loop_hypothesis_i] Process Loop Hypothesis#" << i << TermColor::RESET() << endl;)
-    //      a. seq_a_start--->seq_a_end also for seq_b
-    //      b. retrive needed data (include image and pose)
-    //      c. for i in range(10):
-    //          1. draw random pair 1 image from seq_a, 1 from seq_b
-    //          2. point feature matches
-    //          3. 3d points at the feature matches
-    //          4. change cord-ref from current cam frame to 1st cam in sequence.
-    //          5. accumulate the 3d-3d points.
-    //      d. pose from 3d-3d correspondences
-    //      e. verify pose based on pairwise invariance for rotation and translation
-    //      f. report
-
-
-    //--- Params
-    const int N_RANDOM_PAIRS = 15;
-    const bool PLOT_IMAGE_PAIR = false;
-    const string PLOT_IMAGE_PAIR__SAVE_DIR = "/app/tmp/cerebro/live_system/";
-
-
-    int seq_a_start, seq_a_end, seq_b_start, seq_b_end ; //< note these idx are in wholeImageComputedList and realisitically useless, u need to use the function `loop_hypothesis_i_T()`
-    ros::Time seq_a_start_T, seq_a_end_T, seq_b_start_T, seq_b_end_T;
-
-    loop_hypothesis_i_idx( i, seq_a_start, seq_a_end, seq_b_start, seq_b_end );
-    loop_hypothesis_i_T( i, seq_a_start_T, seq_a_end_T, seq_b_start_T, seq_b_end_T );
-
-    int datamap_seq_a_start, datamap_seq_a_end, datamap_seq_b_start, datamap_seq_b_end;
-    loop_hypothesis_i_datamap_idx( i, datamap_seq_a_start, datamap_seq_a_end, datamap_seq_b_start, datamap_seq_b_end );
-    __Cerebro__compute_geometry_for_loop_hypothesis_i(
-    cout << "\t\tidx          " << seq_a_start << "," << seq_a_end << "<---->" << seq_b_start << "," << seq_b_end << endl;
-    cout << "\t\ttimestamps   " << seq_a_start_T << "," << seq_a_end_T << "<---->" << seq_b_start_T << "," << seq_b_end_T << endl;
-    cout << "\t\tidx data_map " << datamap_seq_a_start << "," << datamap_seq_a_end << "<---->" << datamap_seq_b_start << "," << datamap_seq_b_end << endl;
-    )
-
-
-
-
-    auto img_data_mgr = dataManager->getImageManagerRef();
-    auto data_map = dataManager->getDataMapRef();
-
-
-    //--- get w_T_a0 and w_T_b0
-    Matrix4d w_T_a0, w_T_b0;
-    if( data_map->count( seq_a_start_T ) > 0 && data_map->count( seq_b_end_T) > 0 )
-    {
-        bool is_a = data_map->at( seq_a_start_T )->isPoseAvailable();
-        bool is_b = data_map->at( seq_b_start_T )->isPoseAvailable();
-        if( is_a && is_b ) {
-            w_T_a0 = data_map->at( seq_a_start_T )->getPose();
-            w_T_b0 = data_map->at( seq_b_start_T )->getPose();
-        }
-        else
-        {
-            cout << TermColor::YELLOW();
-            cout << "[Cerebro::compute_geometry_for_loop_hypothesis_i] WARN. Although the datamap had the timestamps,";
-            cout << seq_a_start_T << ", " << seq_b_start_T << ",";
-            cout << " one of them didnt have a valid pose. is_a=" << is_a << ", " << "is_b=" << is_b;
-            cout << " ignore this loop candidate...if this happens very regularly, then there is something wrong\n";
-            cout << TermColor::RESET() << endl;
-
-            return false;
-        }
-    } else {
-        cout << TermColor::RED() << "[Cerebro::compute_geometry_for_loop_hypothesis_i] FATAL-ERROR. The timestamps" << seq_a_start_T << " and " << seq_b_start_T << " were not found on the data_map.\n" << TermColor::RESET();
-        exit(1);
-    }
-
-
-
-
-
-    //--- Randomly draw image pair in the range
-    std::default_random_engine generator;
-    std::uniform_int_distribution<int> rand_a(seq_a_start, seq_a_end);
-    std::uniform_int_distribution<int> rand_b(seq_b_start, seq_b_end);
-
-    vector<MatrixXd> all_a0_X, all_b0_X;
-    vector<MatrixXd> all_uv_a, all_uv_b;
-    vector< vector<bool> > all_valids;
-    vector< Matrix4d > all_poses_a0_T_a;
-    vector< Matrix4d > all_poses_b0_T_b;
-
-    __Cerebro__compute_geometry_for_loop_hypothesis_i(
-    cout << "\t\tDraw random pairs N_RANDOM_PAIRS=" << N_RANDOM_PAIRS << endl; )
-    int count_zero_feature_matches = 0;
-    for( int itr=0 ; itr<N_RANDOM_PAIRS ; itr++ )
-    {
-        //--- pick random pair
-        int ra = rand_a(generator);
-        int rb = rand_b(generator);
-        __Cerebro__compute_geometry_for_loop_hypothesis_i_randompairs(
-        cout << TermColor::iWHITE() << "\t\t\titr=" << itr << " of " << N_RANDOM_PAIRS << "  " << ra << "<-->" << rb << TermColor::RESET() << endl;
-        cout << "\t\t\twholeImageComputedList_size=" << wholeImageComputedList_size() << endl;
-        )
-
-        ros::Time t_a = wholeImageComputedList_at( ra );
-        ros::Time t_b = wholeImageComputedList_at( rb );
-        __Cerebro__compute_geometry_for_loop_hypothesis_i_randompairs( cout << "\t\t\tt_a=" << t_a<< "\tt_b=" << t_b << endl; )
-
-        cv::Mat left_image_a, left_image_b;
-        cv::Mat depth_a, depth_b;
-        Matrix4d w_T_a, w_T_b;
-
-        //--- retrive data
-        #if 1 // if depth image available
-        bool status_a = retrive_image_data( t_a, left_image_a, depth_a, w_T_a );
-        bool status_b = retrive_image_data( t_b, left_image_b, depth_b, w_T_b );
-
-        if( status_a == false || status_b == false ) {
-            cout << "[Cerebro::compute_geometry_for_loop_hypothesis_i] retrive_image_data failed, so skip this pair\n" ;
-            continue;
-        }
-        assert( status_a && status_b );
-        #endif
-
-
-        #if 0
-        {
-        // TODO stereo-geometry, aka sgbm using left and right image
-        DataNode * node_1 = data_map->find( t_curr )->second;
-        DataNode * node_2 = data_map->find( t_prev )->second;
-
-        cv::Mat a_imleft_raw, a_imright_raw;
-        bool ret_status_a = retrive_stereo_pair( node_1, a_imleft_raw, a_imright_raw );
-        if( !ret_status_a )
-            return false;
-
-        cv::Mat b_imleft_raw, b_imright_raw;
-        bool ret_status_b = retrive_stereo_pair( node_2, b_imleft_raw, b_imright_raw );
-        if( !ret_status_b )
-            return false;
-
-        // disparity computation with SGBM
-
-        // disparity to depth
-
-
-        }
-        #endif
-
-
-        #if 0
-        // TODO Monocular case. no depth map,
-        #endif
-
-
-        //--- image correspondences
-        MatrixXd uv_a, uv_b, aX, bX;
-        vector<bool> valids;
-
-        ElapsedTime elp;
-        elp.tic();
-
-        #if 1 //set this to 1 to use the GMS matcher for point feat correspondence (slow), set this to 0 to use simple orb based matcher (fast)
-        __Cerebro__compute_geometry_for_loop_hypothesis_i_randompairs(
-        cout << "\t\t\t\timage correspondence: GMS ";)
-
-        // StaticPointFeatureMatching::gms_point_feature_matches( left_image_a, left_image_b, uv_a, uv_b );
-        StaticPointFeatureMatching::gms_point_feature_matches_scaled( left_image_a, left_image_b, uv_a, uv_b, 0.5 );
-        #else
-        __Cerebro__compute_geometry_for_loop_hypothesis_i_randompairs(
-        cout << "\t\t\t\timage correspondence: Simple ";)
-
-        StaticPointFeatureMatching::point_feature_matches( left_image_a, left_image_b, uv_a, uv_b ); //cv::findFundamentalMat strangely fails :()
-        #endif
-
-        auto im_correspondence_elapsed_time_ms = elp.toc_milli();
-
-        __Cerebro__compute_geometry_for_loop_hypothesis_i_randompairs(
-        cout << "uv_a: " << uv_a.rows() << "x" << uv_a.cols() << "\t";
-        cout << "uv_b: " << uv_b.rows() << "x" << uv_b.cols() << "\t";
-        cout << "ElapsedTime ms = " << im_correspondence_elapsed_time_ms;
-        cout << endl;
-        )
-
-
-        if( uv_a.cols() < 10 )
-            count_zero_feature_matches++;
-
-        // if in first 3 iterations, i see no matches, this means the hypothesis is a false-positive
-        if( count_zero_feature_matches > 2 && itr == 3 ) {
-            cout << "\t\t\t\tThis hypothesis looks like a false-positive. In 3 consecutive draws I get 2 draws with 0 feature correspondences\n";
-            break;
-        }
-
-
-        if( uv_a.cols() < 10 ) {
-            __Cerebro__compute_geometry_for_loop_hypothesis_i_randompairs(
-            cout << "\t\t\t\tuv_a.cols() is less than 10, don't proceed to get 3d points at these correspondences\n"
-            )
-            continue;
-        }
-
-        //--- 3d points at image correspondences
-        valids.clear();
-        StaticPointFeatureMatching::make_3d_3d_collection__using__pfmatches_and_depthimage(
-            dataManager->getAbstractCameraRef(),
-            uv_a, depth_a, uv_b, depth_b,
-            aX, bX, valids
-        );
-        int nvalids = MiscUtils::total_true( valids );
-        // for( int i=0 ; i<valids.size() ; i++ )
-            // if( valids[i]  == true )
-                // nvalids++;
-        __Cerebro__compute_geometry_for_loop_hypothesis_i_randompairs(
-        cout << "\t\t\t\t" << TermColor::YELLOW() <<  "nvalids_depths=" << nvalids << " of total=" << valids.size() << TermColor::RESET() << "\t";
-        cout << "aX: " << aX.rows() << "x" << aX.cols() << "\t";
-        cout << "bX: " << bX.rows() << "x" << bX.cols() << endl;
-        )
-
-        //--- plot image correspondence
-        #if 1
-        if( PLOT_IMAGE_PAIR )
-        {
-            cv::Mat dst_matcher;
-            string msg_str = "plot (resize 0.5), took ms="+to_string(im_correspondence_elapsed_time_ms);
-            msg_str += ";#valid depths="+to_string( nvalids);
-            MiscUtils::plot_point_pair( left_image_a, uv_a, ra,
-                                        left_image_b, uv_b, rb, dst_matcher,
-                                        #if 1 // make this to 1 to mark matches by spatial color codes (gms style). set this to 0 to mark the matches with lines
-                                        3, msg_str
-                                        #else
-                                        cv::Scalar( 0,0,255 ), cv::Scalar( 0,255,0 ), false, msg_str
-                                        #endif
-                                    );
-            cv::resize(dst_matcher, dst_matcher, cv::Size(), 0.5, 0.5);
-
-            string fname = PLOT_IMAGE_PAIR__SAVE_DIR+"/hyp_" + to_string(i) + "__itr="+to_string(itr) + ".jpg";
-            cout << "\t\t\t\timwrite(" << fname << ");\n";
-
-            cv::imwrite( fname, dst_matcher );
-        }
-        #endif
-        __Cerebro__compute_geometry_for_loop_hypothesis_i(
-        cout << "\t\t\t\t";
-        cout << "hyp#" << i << " itr#" << itr << "\t";
-        cout << "ra=" << ra << " <--> rb=" << rb << "\t";
-        cout << "feat_matches=" << uv_a.cols() << "\t";
-        cout << "nvalids_depths=" <<nvalids << "\t" ;
-        cout << "elapsed_time_ms=" << im_correspondence_elapsed_time_ms << "\t"<< endl;;
-        )
-
-        if( nvalids < 5 ) {
-            __Cerebro__compute_geometry_for_loop_hypothesis_i_randompairs(
-            cout << "\t\t\t\t" << TermColor::YELLOW() << "Of the total " << valids.size() << " point-matches, only " << nvalids << " had good depths, this is less than the threshold, so skip this pair\n" << TermColor::RESET(); )
-            continue;
-        }
-
-
-        //--- change the co-ordinate ref frame of the 3d points to a0 and b0 respectively
-        Matrix4d a0_T_a = w_T_a0.inverse() * w_T_a;
-        Matrix4d b0_T_b = w_T_b0.inverse() * w_T_b;
-        all_poses_a0_T_a.push_back( a0_T_a );
-        all_poses_b0_T_b.push_back( b0_T_b );
-
-        MatrixXd a0_X = a0_T_a * aX;
-        MatrixXd b0_X = b0_T_b * bX;
-
-
-        // 3d points
-        all_a0_X.push_back( a0_X );
-        all_b0_X.push_back( b0_X );
-        all_valids.push_back( valids );
-
-        // matched points (needed for verification of the compute pose)
-        all_uv_a.push_back( uv_a );
-        all_uv_b.push_back( uv_b );
-
-
-
-    } // END     for( int itr=0 ; itr<N_RANDOM_PAIRS ; itr++ )
-
-
-    #if 1
-    //--- gather data
-    MatrixXd dst0, dst1;
-    __Cerebro__compute_geometry_for_loop_hypothesis_i(
-    cout << "\t\t\tgather from n_pairs=" << all_a0_X.size() << "\n"; )
-    if( all_a0_X.size() < 3 )
-    {
-        __Cerebro__compute_geometry_for_loop_hypothesis_i(
-        cout << "\t\t\ttoo few valid pairs, need atleast 3 valid pairs, ie. 3 pairs which each contain atleast 5 valid points\n"; )
-        return false;
-    }
-
-    MiscUtils::gather( all_a0_X, all_valids, dst0 );
-    MiscUtils::gather( all_b0_X, all_valids, dst1 );
-    __Cerebro__compute_geometry_for_loop_hypothesis_i(
-    cout << "\t\t\t";
-    cout << "gathered --> dst0: " << dst0.rows() << "x" << dst0.cols() << "\t";
-    cout << "dst1: " << dst1.rows() << "x" << dst1.cols() << endl; )
-    if( dst0.cols() < 50 ) {
-        __Cerebro__compute_geometry_for_loop_hypothesis_i(
-        cout  << "\t\t\tgathered only " << dst0.cols() << ", too few points, skip this hypothesis\n"; )
-        return false;
-    }
-
-
-    //--- pose computation
-    Matrix4d a_T_b = Matrix4d::Identity();
-    VectorXd switch_weights = VectorXd::Constant( dst0.cols() , 1.0 );
-
-    ElapsedTime al_tp;
-    float minimization_metric = PoseComputation::alternatingMinimization( dst0, dst1, a_T_b, switch_weights );
-    bool status_refine = PoseComputation::refine_weighted( dst0, dst1, a_T_b, switch_weights );
-    __Cerebro__compute_geometry_for_loop_hypothesis_i(
-    cout << TermColor::BLUE() << "minimization_metric=" << minimization_metric << "; alternatingMinimization took ms=" << al_tp.toc_milli() << endl << TermColor::RESET();
-    cout << "status_refine = " << status_refine << endl;
-    )
-
-    cout << "using a_T_b: " << PoseManipUtils::prettyprintMatrix4d( a_T_b, " " );
-
-    // verify that this pose is reasonable by reprjecting the 3d points
-
-    if( minimization_metric < 0 ) {
-        //minimization had failed
-        return false;
-    }
-    #endif
-
-
-    // if all good, note this result
-
-    // if all good, publish this result with msg/LoopEdge.msg
-    cerebro::LoopEdge loopedge_msg;
-    geometry_msgs::Pose pose;
-
-    // publish start-start
-    Matrix4d sb_T_sa = a_T_b.inverse();
-    loopedge_msg.timestamp0 = seq_a_start_T;
-    loopedge_msg.timestamp1 = seq_b_start_T;
-    PoseManipUtils::eigenmat_to_geometry_msgs_Pose( sb_T_sa, pose );
-    loopedge_msg.pose_1T0 = pose;
-    loopedge_msg.weight = minimization_metric; //1.0;
-    loopedge_msg.description = to_string(seq_a_start)+","+to_string(seq_a_end)+"<=>"+to_string(seq_b_start)+","+to_string(seq_b_end);
-    loopedge_msg.description += "    this pose is: "+to_string(seq_b_start)+"_T_"+to_string(seq_a_start);
-    // __Cerebro__compute_geometry_for_loop_hypothesis_i( cout << loopedge_msg << endl; )
-    pub_loopedge.publish( loopedge_msg );
-
-
-    // publish end-end
-    Matrix4d sa_T_ea = w_T_a0.inverse() * data_map->at( seq_a_end_T )->getPose();
-    Matrix4d sb_T_eb = w_T_b0.inverse() * data_map->at( seq_b_end_T )->getPose();
-    Matrix4d eb_T_ea = (   sa_T_ea.inverse() * a_T_b * sb_T_eb   ).inverse();
-    loopedge_msg.timestamp0 = seq_a_end_T;
-    loopedge_msg.timestamp1 = seq_b_end_T;
-    PoseManipUtils::eigenmat_to_geometry_msgs_Pose( eb_T_ea, pose );
-    loopedge_msg.pose_1T0 = pose;
-    loopedge_msg.weight = minimization_metric; //1.0;
-    loopedge_msg.description = to_string(seq_a_start)+","+to_string(seq_a_end)+"<=>"+to_string(seq_b_start)+","+to_string(seq_b_end);
-    loopedge_msg.description += "    this pose is: "+to_string(seq_b_end)+"_T_"+to_string(seq_a_end);
-    // __Cerebro__compute_geometry_for_loop_hypothesis_i( cout << loopedge_msg << endl; )
-    pub_loopedge.publish( loopedge_msg );
-
-
-
-    // publish start-end
-    Matrix4d eb_T_sa = ( a_T_b * sb_T_eb ).inverse();
-    loopedge_msg.timestamp0 = seq_a_start_T;
-    loopedge_msg.timestamp1 = seq_b_end_T;
-    PoseManipUtils::eigenmat_to_geometry_msgs_Pose( eb_T_sa, pose );
-    loopedge_msg.pose_1T0 = pose;
-    loopedge_msg.weight = minimization_metric; //1.0;
-    loopedge_msg.description = to_string(seq_a_start)+","+to_string(seq_a_end)+"<=>"+to_string(seq_b_start)+","+to_string(seq_b_end);
-    loopedge_msg.description += "    this pose is: "+to_string(seq_b_end)+"_T_"+to_string(seq_a_start);
-    // __Cerebro__compute_geometry_for_loop_hypothesis_i( cout << loopedge_msg << endl; )
-    pub_loopedge.publish( loopedge_msg );
-
-
-
-    // publish end-start
-    Matrix4d sb_T_ea = ( sa_T_ea.inverse() * a_T_b ).inverse();
-    loopedge_msg.timestamp0 = seq_a_end_T;
-    loopedge_msg.timestamp1 = seq_b_start_T;
-    PoseManipUtils::eigenmat_to_geometry_msgs_Pose( sb_T_ea, pose );
-    loopedge_msg.pose_1T0 = pose;
-    loopedge_msg.weight = minimization_metric; //1.0;
-    loopedge_msg.description = to_string(seq_a_start)+","+to_string(seq_a_end)+"<=>"+to_string(seq_b_start)+","+to_string(seq_b_end);
-    loopedge_msg.description += "    this pose is: "+to_string(seq_b_start)+"_T_"+to_string(seq_a_end);
-    // __Cerebro__compute_geometry_for_loop_hypothesis_i( cout << loopedge_msg << endl; )
-    pub_loopedge.publish( loopedge_msg );
-
-
-
-
-    return true;
-
-}
-#endif
 
 bool Cerebro::retrive_full_sequence_info(
     const ros::Time seq_start_T, const ros::Time seq_end_T,
@@ -2224,6 +1853,60 @@ bool Cerebro::retrive_full_sequence_info(
         seq_odom_pose.push_back( xpose );
         seq_odom_x0_T_x.push_back( w_T_x0.inverse() * xpose );
         seq_T.push_back( stamp );
+        // cout << data_map_idx << "\t";
+    }
+    // cout << endl;
+    return true;
+
+}
+
+
+
+bool Cerebro::retrive_full_sequence_image_info(
+    const ros::Time seq_start_T, const ros::Time seq_end_T,
+    vector<cv::Mat>& seq_image_list
+)
+{
+    // seq_idx.clear();
+    // seq_odom_pose.clear();
+    // seq_T.clear();
+    // seq_odom_x0_T_x.clear();
+    seq_image_list.clear();
+    auto data_map = dataManager->getDataMapRef();
+
+    // bool is___w_T_x0 = false;
+    // Matrix4d w_T_x0;
+
+    auto it_seq_start = data_map->find( seq_start_T );
+    auto it_seq_end   = data_map->find( seq_end_T );
+    // cout << "\t\tIn SeqA: " ;
+    for( auto it =  it_seq_start ; it != it_seq_end ; it++ )
+    {
+        if( it->second->isKeyFrame() == false )
+            continue;
+
+        assert( it->second->isPoseAvailable() );
+
+        int data_map_idx = std::distance( data_map->begin(), it );
+        // Matrix4d xpose = it->second->getPose();
+        ros::Time stamp = it->first;
+
+        cv::Mat tmp_image;
+        bool status = retrive_image_data( stamp, tmp_image );
+        if( status == false ) {
+            cout << "\n~~~~~[Cerebro::retrive_full_sequence_image_info] cannot retrive image....I was expecting this function only to be used for debugging not in production. This retrives all the images in a sequences. use only for short seq\n";
+            exit(1);
+        }
+        seq_image_list.push_back( tmp_image );
+        // if( is___w_T_x0 == false ) {
+            // is___w_T_x0 = true;
+            // w_T_x0 = xpose;
+        // }
+
+        // seq_idx.push_back( data_map_idx );
+        // seq_odom_pose.push_back( xpose );
+        // seq_odom_x0_T_x.push_back( w_T_x0.inverse() * xpose );
+        // seq_T.push_back( stamp );
         // cout << data_map_idx << "\t";
     }
     // cout << endl;
@@ -2432,6 +2115,62 @@ bool Cerebro::retrive_image_data( ros::Time& stamp, cv::Mat& left_image, cv::Mat
     return true;
 }
 
+
+bool Cerebro::retrive_image_data( ros::Time& stamp, cv::Mat& left_image )
+{
+    __Cerebro__retrive_image_data__(
+    cout << "[Cerebro::retrive_image_data 2] stamp=" << stamp << endl; )
+
+    auto img_data_mgr = dataManager->getImageManagerRef();
+    auto data_map = dataManager->getDataMapRef();
+
+    if( data_map->count( stamp ) == 0  )
+    {
+        cout << "[Cerebro::retrive_image_data 2] FATAL-ERROR. timestamps="<< stamp << " not found in data_map. This is not possible. If this happens, this is definately a bug, report to the authors\n";
+        exit(1);
+    }
+
+    const DataNode * node = data_map->at( stamp );
+    bool is_pose = node->isPoseAvailable();
+    if( is_pose == false )
+    {
+        cout << "[Cerebro::retrive_image_data 2] WARN cannot retrive pose\n";
+        return false;
+    }
+
+    __Cerebro__retrive_image_data__( cout << "[Cerebro::retrive_image_data 2]pose is available\n" );
+
+
+
+
+    vector<string> nsX;        nsX.push_back( "left_image"); //nsX.push_back( "depth_image");
+    vector<cv::Mat> ou;
+    __Cerebro__retrive_image_data__(
+    cout << "[Cerebro::retrive_image_data] img_data_mgr->getImage(), input vector<string> nsX.size=" << nsX.size() << " \n" )
+    bool getim_status = img_data_mgr->getImage( nsX, node->getT(), ou );
+    __Cerebro__retrive_image_data__(
+    cout << "[Cerebro::retrive_image_data] ou.size = " << ou.size() << "\tgetim_status=" << getim_status << endl; )
+
+    if( getim_status == false )
+    {
+        cout << "[Cerebro::retrive_image_data] WARN cannot retrive image from the image manager\n";
+        return false;
+    }
+
+    assert( nsX.size() == ou.size()  );
+    left_image = ou[0];//.clone();
+    // ou.clear();
+
+    __Cerebro__retrive_image_data__(
+    cout << "[Cerebro::retrive_image_data 2]";
+
+
+    cout << "left_image " << MiscUtils::cvmat_info( left_image ) << "\n";
+    )
+
+
+    return true;
+}
 
 void Cerebro::publish_pose_from_seq(
     const vector<ros::Time>& seq_a_T, const vector<int>& seq_a_idx, const vector<Matrix4d>& seq_a_odom_pose,

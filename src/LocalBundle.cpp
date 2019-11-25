@@ -1224,6 +1224,7 @@ void LocalBundle::reprojection_test_for_this_image_pair( const camodocal::Camera
 
 
 
+
 void LocalBundle::reprojection_error( const camodocal::CameraPtr camera )
 {
     cout << TermColor::bWHITE() << "[LocalBundle::reprojection_error]\n" << TermColor::RESET();
@@ -1347,4 +1348,194 @@ void LocalBundle::reprojection_error_for_this_image_pair( const camodocal::Camer
 
     // cout << TermColor::iCYAN() << "=====END LocalBundle::reprojection_error_for_this_image_pair=====" << TermColor::RESET() << endl;
 
+}
+
+
+
+
+
+void LocalBundle::reprojection_debug_images_for_this_image_pair( const camodocal::CameraPtr camera, int im_pair_idx,
+    cv::Mat& _dst_observed_correspondence_,  cv::Mat& _dst_image_a, cv::Mat& _dst_image_b )
+{
+    // cout << TermColor::iCYAN() << "=====LocalBundle::reprojection_test_for_this_image_pair=====" << im_pair_idx << TermColor::RESET() << endl;
+    int seq_a = 0;
+    int seq_b = 1;
+    // int im_pair_idx = 3;
+    auto pyp = std::make_pair( seq_a, seq_b );
+    int n_im_pairs = (int) all_pair_idx.at( pyp ).size();
+    if( im_pair_idx < 0 || im_pair_idx >= n_im_pairs ) {
+        cout << __FILE__ << ":" << __LINE__ << "[LocalBundle::reprojection_debug_images_for_this_image_pair]invalid im_pair_idx=" << im_pair_idx << " has to be between 0 and " <<   n_im_pairs << endl;
+        exit(2);
+    }
+
+
+    // randomly picking the 3rd image pair
+    int ai = all_pair_idx.at( pyp ).at( im_pair_idx ).first;
+    int bj = all_pair_idx.at( pyp ).at( im_pair_idx ).second;
+    // cout << "ai="<< ai << "\tbj=" << bj << "\t";
+
+    int local_ai = std::distance( seq_x_idx.at( seq_a ).begin(),     std::find( seq_x_idx.at( seq_a).begin(), seq_x_idx.at( seq_a).end(), ai ) );
+    int local_bj = std::distance( seq_x_idx.at( seq_b ).begin(),     std::find( seq_x_idx.at( seq_b).begin(), seq_x_idx.at( seq_b).end(), bj ) );
+    // cout << "local_ai=" << local_ai << "\tlocal_bj=" << local_bj << endl;
+
+    cv::Mat im_ai, im_bj;
+    MatrixXd uv_a_observed, uv_b_observed;
+
+    // plot( im_ai, uv_ai | im_bj, uv_bj ) : The point feature matches
+    {
+        im_ai = seq_x_images.at( seq_a ).at( local_ai );
+        im_bj = seq_x_images.at( seq_b ).at( local_bj );
+        if( im_ai.empty() || im_bj.empty() ) {
+            cout << "[reprojection_debug_images_for_this_image_pair]PPP@ Cannot load im_ai or im_bj\n";
+            exit(3);
+        }
+
+        uv_a_observed = StaticPointFeatureMatching::normalized_image_cordinates_to_image_coordinates( camera, normed_uv_a.at(pyp).at(im_pair_idx) );
+        uv_b_observed = StaticPointFeatureMatching::normalized_image_cordinates_to_image_coordinates( camera, normed_uv_b.at(pyp).at(im_pair_idx) );
+
+        cv::Mat dst_p;
+        MiscUtils::plot_point_pair( im_ai, uv_a_observed, local_ai,
+                                    im_bj, uv_b_observed, local_bj,
+                                    dst_p,
+                                    #if 0
+                                    // 3
+                                    #else
+                                    cv::Scalar( 0,0,255 ), cv::Scalar( 0,255,0 ), false
+                                    #endif
+                                );
+        MiscUtils::append_status_image( dst_p, "im_pair#"+to_string( im_pair_idx )+" of total-pairs="+to_string(n_im_pairs), 1.0 );
+        // MiscUtils::imshow( "observed point feat matching", dst_p, 0.5 );
+        _dst_observed_correspondence_ = dst_p;
+
+    }
+
+    //---POSE---//
+    #if 1
+    //  optimized pose
+    // cout << TermColor::iYELLOW() << " Using optz__ai_T_bj <--- this->retrive_optimized_pose()\n" << TermColor::RESET();
+    Matrix4d optz__ai_T_bj = this->retrive_optimized_pose( seq_a, local_ai, seq_b, local_bj );
+    #endif
+
+    #if 0
+    // retrive_odometry_pose
+    // cout << TermColor::iYELLOW() << " Using optz__ai_T_bj <--- this->retrive_odometry_pose()\n" << TermColor::RESET();
+    Matrix4d optz__ai_T_bj = x0_T_c.at(0).at( local_ai ).inverse() * odom__a0_T_b0.at( make_pair(0,1) ) * x0_T_c.at(1).at( local_bj );
+    #endif
+
+    #if 0
+    //  retrive_initial_guess_pose
+    // cout << TermColor::iYELLOW() << " Using optz__ai_T_bj <--- this->retrive_initial_guess_pose()\n" << TermColor::RESET();
+    Matrix4d optz__ai_T_bj = x0_T_c.at(0).at( local_ai ).inverse() * a0_T_b0.at( make_pair(0,1) ) * x0_T_c.at(1).at( local_bj );
+    #endif
+
+
+    // plot( im_bj, uv_b ), plotting the observed points
+    cv::Mat dst_im_bj;
+    MiscUtils::plot_point_sets( im_bj, uv_b_observed, dst_im_bj, cv::Scalar(0,255,255) , false, "plot( im_bj, uv_b )" );
+
+    // plot( im_ai, uv_a ), plotting the observed points
+    cv::Mat dst_im_ai;
+    MiscUtils::plot_point_sets( im_ai, uv_a_observed, dst_im_ai, cv::Scalar(0,255,255) , false, "plot( im_ai, uv_a )" );
+
+
+
+    // plot( im_bj, PI( bj_T_ai * ai_3d ) )
+    //      and
+    // plot( im_ai, PI( ai_T_bj * bj_3d) )
+    int n_good_depths = 0;
+    double sum_del_a = 0.0, sum_del_b = 0.0;
+
+    MatrixXd reproj_of__a_3d__in_frame_of_ref_of_bj = MatrixXd::Zero( 2, uv_a_observed.cols() );
+    MatrixXd reproj_of__b_3d__in_frame_of_ref_of_ai = MatrixXd::Zero( 2, uv_b_observed.cols() );
+
+    int n_correspondences = normed_uv_a.at(pyp).at(im_pair_idx).cols();
+    for( int k=0 ; k<n_correspondences ; k++ )
+    {
+        Vector4d a_3d, b_3d;
+        double ___d_a = d_a.at(pyp).at(im_pair_idx)(k);
+        double ___d_b = d_b.at(pyp).at(im_pair_idx)(k);
+        if( ___d_a < 0.5 || ___d_a > 7.0 || ___d_b < 0.5 || ___d_b > 7.0 )
+            continue;
+        // these 2 3d points are in the co-ordinates system of their own cameras.
+        a_3d << ___d_a * normed_uv_a.at(pyp).at(im_pair_idx).col(k).topRows(3), 1.0;
+        b_3d << ___d_b * normed_uv_b.at(pyp).at(im_pair_idx).col(k).topRows(3), 1.0;
+
+
+        // 3d points from a, 2d observed points from b; plot on im_bj
+        Vector4d k__a_3d__in_frame_of_ref_of_bj = optz__ai_T_bj.inverse() * a_3d;
+        Vector2d k__repro_of_a_3d_in_bj;
+        camera->spaceToPlane( k__a_3d__in_frame_of_ref_of_bj.topRows(3), k__repro_of_a_3d_in_bj );
+        reproj_of__a_3d__in_frame_of_ref_of_bj.col( n_good_depths ) = k__repro_of_a_3d_in_bj;
+
+
+        // 3d point from b, 2d observed point from a, plot on im_ai
+        Vector4d k__b_3d__in_frame_of_ref_of_ai = optz__ai_T_bj * b_3d;
+        Vector2d k__repro_of_b_3d_in_ai;
+        camera->spaceToPlane( k__b_3d__in_frame_of_ref_of_ai.topRows(3), k__repro_of_b_3d_in_ai );
+        reproj_of__b_3d__in_frame_of_ref_of_ai.col( n_good_depths ) = k__repro_of_b_3d_in_ai;
+
+        double del_a = (uv_a_observed.col(k).topRows(2) - k__repro_of_b_3d_in_ai).norm();
+        double del_b = (uv_b_observed.col(k).topRows(2) - k__repro_of_a_3d_in_bj).norm();
+        sum_del_a += del_a;
+        sum_del_b += del_b;
+
+        n_good_depths++;
+
+    }
+    MiscUtils::plot_point_sets( dst_im_bj, reproj_of__a_3d__in_frame_of_ref_of_bj.leftCols(n_good_depths),
+            cv::Scalar(0,0,255) , false, ";plot( im_bj, PI( bj_T_ai * ai_3d ) )" );
+
+    MiscUtils::plot_point_sets( dst_im_ai, reproj_of__b_3d__in_frame_of_ref_of_ai.leftCols(n_good_depths),
+            cv::Scalar(0,0,255) , false, ";plot( im_ai, PI( ai_T_bj * bj_3d) )" );
+    // cout << "n_good_depths=" << n_good_depths << endl;
+
+    MiscUtils::append_status_image( dst_im_ai,  "ai="+to_string(ai)+", local_ai="+to_string(local_ai)+";n_good_depths="+to_string(n_good_depths)   , 1.0 );
+    MiscUtils::append_status_image( dst_im_bj,  "bj="+to_string(bj)+", local_bj="+to_string(local_bj)+";n_good_depths="+to_string(n_good_depths)  ,1.0  );
+
+    // also append_status_image the avg_reprojection error float value
+    if( n_good_depths != 0 )  {
+        MiscUtils::append_status_image( dst_im_ai,  "avg_reprojection_error_a=" + to_string( sum_del_a / n_good_depths )  , 1.0 );
+        MiscUtils::append_status_image( dst_im_bj,  "avg_reprojection_error_b=" + to_string( sum_del_b / n_good_depths )  ,1.0  );
+    }
+
+
+    // MiscUtils::imshow( "plot( im_bj, uv_b )", dst_im_bj, 0.5 );
+    // MiscUtils::imshow( "plot( im_ai, uv_a )", dst_im_ai, 0.5 );
+    _dst_image_a = dst_im_ai;
+    _dst_image_b = dst_im_bj;
+
+    // cout << "Showing:\n";
+    // cout << "\t1. Observed Point feature matching\n";
+    // cout << "\t2. observed feats of im_ai and reprojections of b_3d on camera-ai\n";
+    // cout << "\t3. observed feats of im_bj and reprojections of a_3d on camera-bj\n";
+    //
+    //
+    // cout << TermColor::iCYAN() << "=====END LocalBundle::reprojection_test_for_this_image_pair=====" << TermColor::RESET() << endl;
+
+}
+
+
+
+void LocalBundle::reprojection_debug_images_to_disk( const camodocal::CameraPtr camera, const string PREFIX )
+{
+    cout << TermColor::bWHITE() << "[LocalBundle::reprojection_debug_images_to_disk]PREFIX=" << PREFIX << "\n" << TermColor::RESET();
+    int seq_a = 0;
+    int seq_b = 1;
+    // int im_pair_idx = 3;
+    auto pyp = std::make_pair( seq_a, seq_b );
+
+    int n_im_pairs = (int) all_pair_idx.at( pyp ).size();
+    // cout << "# of image pairs = " << n_im_pairs << endl;
+
+    for( int h=0 ; h<n_im_pairs ; h++ ) {
+        cv::Mat _dst_observed_correspondence_, _dst_image_a, _dst_image_b;
+        reprojection_debug_images_for_this_image_pair( camera, h,
+            _dst_observed_correspondence_, _dst_image_a, _dst_image_b);
+
+        cout << TermColor::bGREEN() << "Write 3 images in PREFIX=" << PREFIX+"image_pair_" + to_string(h) << TermColor::RESET() << endl;
+        cv::imwrite( PREFIX+"image_pair_" + to_string(h) + "_dst_correspondence_observed.jpg", _dst_observed_correspondence_ );
+        cv::imwrite( PREFIX+"image_pair_" + to_string(h) + "_dst_image_a.jpg", _dst_image_a );
+        cv::imwrite( PREFIX+"image_pair_" + to_string(h) + "_dst_image_b.jpg", _dst_image_b );
+    }
+    cout << TermColor::bWHITE() << "[LocalBundle::reprojection_debug_images_to_disk] END\n" << TermColor::RESET();
 }

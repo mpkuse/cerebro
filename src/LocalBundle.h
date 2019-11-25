@@ -148,6 +148,14 @@ public:
     void reprojection_error_for_this_image_pair( const camodocal::CameraPtr camera, int im_pair_idx );
     void reprojection_error( const camodocal::CameraPtr camera );
 
+
+    // save images to file
+
+    void reprojection_debug_images_for_this_image_pair( const camodocal::CameraPtr camera, int im_pair_idx,
+        cv::Mat& _dst_observed_correspondence_,  cv::Mat& _dst_image_a, cv::Mat& _dst_image_b );
+    void reprojection_debug_images_to_disk( const camodocal::CameraPtr camera, const string PREFIX );
+
+
 private:
     map< int , vector<Matrix4d> > x0_T_c; //pose of camera wrt its 1st frame (ie. 0th frame)
 
