@@ -96,7 +96,7 @@ public:
     {
         this->Xi = Xi;
         this->Xid = Xid;
-        this->weight = sqrt(wt);
+        this->weight = std::sqrt(wt);
     }
 
     template <typename T>
