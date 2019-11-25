@@ -44,7 +44,7 @@ bool PoseComputation::closedFormSVD( const MatrixXd& aX, const MatrixXd& bX, Mat
     cout << "R.det=" << R.determinant() << endl;)
 
     // assert( abs(R.determinant()-1.0)<1e-6 );
-    if( abs(R.determinant()+1.0)<1e-6 ) // then determinant is -1
+    if( std::abs(R.determinant()+1.0)<1e-6 ) // then determinant is -1
     {
         Matrix3d _V = svd.matrixV();
         for( int fd=0;fd<3;fd++)
@@ -118,7 +118,7 @@ bool PoseComputation::closedFormSVD( const MatrixXd& aX, const MatrixXd& bX, con
         cout << "R.det=" << R.determinant() << endl;)
 
         // assert( abs(R.determinant()-1.0)<1e-6 );
-        if( abs(R.determinant()+1.0)<1e-6 ) // then determinant is -1
+        if( std::abs(R.determinant()+1.0)<1e-6 ) // then determinant is -1
         {
             Matrix3d _V = svd.matrixV();
             for( int fd=0;fd<3;fd++)
@@ -430,9 +430,9 @@ void PoseComputation::testTransform( const MatrixXd& aX, const MatrixXd& bX, con
     cout << "[PoseComputation::testTransform]\n";
     cout << "\tn_pts = " << aX.cols() << endl ;
     int n = aX.cols();
-    cout << "\tdel_X = " << sqrt(diff.row(0) * diff.row(0).transpose())/n << "\t";
-    cout << "\tdel_Y = " << sqrt(diff.row(1) * diff.row(1).transpose())/n << "\t";
-    cout << "\tdel_Z = " << sqrt(diff.row(2) * diff.row(2).transpose())/n << "\n";
+    cout << "\tdel_X = " << std::sqrt(diff.row(0) * diff.row(0).transpose())/n << "\t";
+    cout << "\tdel_Y = " << std::sqrt(diff.row(1) * diff.row(1).transpose())/n << "\t";
+    cout << "\tdel_Z = " << std::sqrt(diff.row(2) * diff.row(2).transpose())/n << "\n";
 
     // for( int i=0 ; i<n ; i++ ) {
     // cout << "#" << i  << " ";
