@@ -775,7 +775,7 @@ void LocalBundle::add_correspondence_residues( ceres::Problem& problem )
     cout << TermColor::iGREEN() << "correspondence residues" << TermColor::RESET() << endl;
     cout << "p = (" << p.first << "," << p.second << ")\n";
     cout << "normed_uv_a[p].size()=" << normed_uv_a[p].size() << endl; )
-    auto robust_loss = new CauchyLoss(.1) ;
+    auto robust_loss = new CauchyLoss(.01) ;
 
     for( int i=0 ; i<(int)normed_uv_a[p].size() ; i++ )
     {
@@ -830,11 +830,11 @@ void LocalBundle::add_correspondence_residues( ceres::Problem& problem )
             b_2d << normed_uv_b[p][i].col(j).topRows(3);
 
             // 3d points from a, 2d points from b
-            // ceres::CostFunction * cost_function_1 = ProjectionError::Create( a_3d, b_2d  );
-            // problem.AddResidualBlock( cost_function_1, robust_loss, tmp_ff_q, tmp_ff_t, tmp_hh_q, tmp_hh_t );
+            ceres::CostFunction * cost_function_1 = ProjectionError::Create( a_3d, b_2d  );
+            problem.AddResidualBlock( cost_function_1, robust_loss, tmp_ff_q, tmp_ff_t, tmp_hh_q, tmp_hh_t );
 
 
-            // TODO 3d point from b, 2d point from a
+            // 3d point from b, 2d point from a
             ceres::CostFunction * cost_function_2 = ProjectionError::Create( b_3d, a_2d  );
             problem.AddResidualBlock( cost_function_2, robust_loss, tmp_hh_q, tmp_hh_t, tmp_ff_q, tmp_ff_t );
             n_good_depths++;

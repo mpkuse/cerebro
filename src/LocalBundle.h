@@ -287,6 +287,15 @@ public:
         residue_ptr[0] = T(m_2d(0)) - m_3d(0)/m_3d(2);
         residue_ptr[1] = T(m_2d(1)) - m_3d(1)/m_3d(2);
 
+        #if 1 //if you enable switch constraint remember to set 3 instead of 2 to output number of residues in Create()
+        T lambda = T(.5);
+        T delta = residue_ptr[0]*residue_ptr[0] + residue_ptr[1]*residue_ptr[1];
+        T s = lambda / ( T(1.0) + delta );
+        residue_ptr[0] *=s;
+        residue_ptr[1] *=s;
+        residue_ptr[2] = lambda * (   T(1.0) - s  );
+        #endif
+
         #if 0
         // scale the loss to make it more important relative to odometry loss.
         if( m_3d(2) > T(0.2)  && m_3d(2) < T(3) ) {
@@ -308,7 +317,7 @@ public:
 
         static ceres::CostFunction* Create( const Vector4d l_X, const Vector3d m_u, const double weight=1.0 )
         {
-          return ( new ceres::AutoDiffCostFunction<ProjectionError,2,4,3,4,3>
+          return ( new ceres::AutoDiffCostFunction<ProjectionError,3,4,3,4,3>
             (
               new ProjectionError(l_X, m_u )
             )

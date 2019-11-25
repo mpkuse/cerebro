@@ -184,7 +184,7 @@ void StaticPointFeatureMatching::gms_point_feature_matches( const cv::Mat& imlef
     int 	firstLevel = 0;                _orb_param( cout << "firstLevel=" << firstLevel << "\t"; )
     int 	WTA_K = 4;                     _orb_param( cout << "WTA_K=" << WTA_K << "\t"; )
     int 	scoreType =   ORB::FAST_SCORE ; //ORB::HARRIS_SCORE;
-    int 	patchSize = im_width/8;       _orb_param( cout << "patchSize=" << patchSize << "\t"; )
+    int 	patchSize = 31; /*im_width/8;*/       _orb_param( cout << "patchSize=" << patchSize << "\t"; )
     float 	fastThreshold = 0;             _orb_param( cout << "fastThreshold=" << fastThreshold << "\t\n"; )
 
     #if 0
