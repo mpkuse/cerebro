@@ -326,16 +326,16 @@ int main( int argc, char ** argv )
 
         // Open fullpath of extrinsic.yaml
         cout << "opencv yaml reading: open file: " << ___extrinsic_1_T_0_path << endl;
-        cv::FileStorage fs(___extrinsic_1_T_0_path, cv::FileStorage::READ);
+        cv::FileStorage fs_ext(___extrinsic_1_T_0_path, cv::FileStorage::READ);
 
-        if (!fs.isOpened())
+        if (!fs_ext.isOpened())
         {
             ROS_ERROR_STREAM(  "config_file asked to open extrinsicbasline file but it cannot be opened.\nTHIS IS FATAL, QUITING" );
             exit(1);
         }
 
         cout << TermColor::GREEN() << "successfully opened file "<< ___extrinsic_1_T_0_path << TermColor::RESET() << endl;
-        cv::FileNode n = fs["transform"];
+        cv::FileNode n = fs_ext["transform"];
         if( n.empty() ) {
             cout << TermColor::RED() << "I was looking for the key `transform` in the file but it doesnt seem to exist. FATAL ERROR" << TermColor::RESET() << endl;
             exit(1);
@@ -442,6 +442,7 @@ int main( int argc, char ** argv )
     Cerebro cer( nh );
     cer.setDataManager( &dataManager );
     cer.setPublishers( "/cerebro" );
+    cer.readParamsFromFile( fs );
 
 
 

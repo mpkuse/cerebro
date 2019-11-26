@@ -72,6 +72,9 @@ public:
     void setDataManager( DataManager* dataManager );
     void setPublishers( const string base_topic_name );
 
+    void readParamsFromFile( const cv::FileStorage& fs );
+
+
 private:
     // global private variables
     bool m_dataManager_available=false;
@@ -80,6 +83,19 @@ private:
 
     bool m_pub_available = false;
     ros::Publisher pub_loopedge;
+
+
+private:
+    // data from params file
+    bool SAVE_REPRESENTATIVE_IMAGE_PAIR_TO_DISK;
+    string SAVE_REPRESENTATIVE_IMAGE_PAIR_TO_DISK_SAVE_DIR;
+
+    bool SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES;
+    string SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES_PREFIX;
+
+
+
+
 
     //-------------- END Constructor --------------------//
 

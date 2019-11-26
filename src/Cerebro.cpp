@@ -13,6 +13,62 @@ Cerebro::Cerebro( ros::NodeHandle& nh )
     descriptor_size_available = false;
 }
 
+void Cerebro::readParamsFromFile( const cv::FileStorage& fs )
+{
+    cout << TermColor::GREEN() << "\n[Cerebro::readParamsFromFile]\n";
+
+    if( !fs.isOpened() ) {
+        cout << "[Cerebro::readParamsFromFile] The input FileStorage handle is not opened. I am expecting to receive an open handle to read from\n";
+        exit(1);
+    }
+
+
+    //-------------------------------------//
+    //---- Hypothesis Generation Params ---//
+    //-------------------------------------//
+    // bool SAVE_REPRESENTATIVE_IMAGE_PAIR_TO_DISK;
+    // string SAVE_REPRESENTATIVE_IMAGE_PAIR_TO_DISK_SAVE_DIR;
+    fs["SAVE_REPRESENTATIVE_IMAGE_PAIR_TO_DISK"] >> this->SAVE_REPRESENTATIVE_IMAGE_PAIR_TO_DISK;
+    fs["SAVE_REPRESENTATIVE_IMAGE_PAIR_TO_DISK_SAVE_DIR"] >> this->SAVE_REPRESENTATIVE_IMAGE_PAIR_TO_DISK_SAVE_DIR;
+
+    if( this->SAVE_REPRESENTATIVE_IMAGE_PAIR_TO_DISK == true && RawFileIO::is_path_a_directory( this->SAVE_REPRESENTATIVE_IMAGE_PAIR_TO_DISK_SAVE_DIR )==false )
+    {
+        // make sure the save directory exists
+        cout << TermColor::RED() << "[Cerebro::readParamsFromFile] ERROR. You asked me to save the loop hypothesis \
+            representative images to \
+            SAVE_REPRESENTATIVE_IMAGE_PAIR_TO_DISK_SAVE_DIR=" << SAVE_REPRESENTATIVE_IMAGE_PAIR_TO_DISK_SAVE_DIR << \
+            ", len=" << SAVE_REPRESENTATIVE_IMAGE_PAIR_TO_DISK_SAVE_DIR.length() << " this however is not a valid directory.\
+            If you want to save the loop hypothesis data make sure the directory exists\n" << TermColor::RESET();
+        exit(1);
+
+    }
+
+    cout << "\tSAVE_REPRESENTATIVE_IMAGE_PAIR_TO_DISK=" << this->SAVE_REPRESENTATIVE_IMAGE_PAIR_TO_DISK << endl;
+    cout << "\tSAVE_REPRESENTATIVE_IMAGE_PAIR_TO_DISK_SAVE_DIR" << this->SAVE_REPRESENTATIVE_IMAGE_PAIR_TO_DISK_SAVE_DIR << endl;
+
+
+
+
+    //-------------------------------------//
+    //----   Pose Computation Params    ---//
+    //-------------------------------------//
+    fs["SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES"] >> this->SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES;
+    fs["SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES_PREFIX"] >> this->SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES_PREFIX;
+    if( this->SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES == true && RawFileIO::is_path_a_directory(this->SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES_PREFIX) == false )
+    {
+        cout << TermColor::RED() << "[Cerebro::readParamsFromFile] ERROR. you asked me to save reprojection images to disk in \
+            SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES_PREFIX=" << SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES_PREFIX << ", this directory however doesnot exist\
+            To use this feature the directory need to exist and be writable\n";
+            exit(1);
+    }
+
+    cout << "\tSAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES=" << this->SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES << endl;
+    cout << "\tSAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES_PREFIX=" << this->SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES_PREFIX << endl;
+
+    cout << TermColor::GREEN() << "\n[Cerebro::readParamsFromFile] ENDS\n";
+    // exit(4);
+}
+
 void Cerebro::setDataManager( DataManager* dataManager )
 {
     this->dataManager = dataManager;
@@ -741,8 +797,14 @@ void Cerebro::faiss_multihypothesis_tracking()
     //-----------------//
     const int start_adding_descriptors_to_index_after = 150;
     const int K_NEAREST_NEIGHBOURS=5;
+
+    #if 1
+    const bool SAVE_REPRESENTATIVE_IMAGE_PAIR_TO_DISK = this->SAVE_REPRESENTATIVE_IMAGE_PAIR_TO_DISK; //set this to false to not write to disk
+    const string SAVE_REPRESENTATIVE_IMAGE_PAIR_TO_DISK_SAVE_DIR = this->SAVE_REPRESENTATIVE_IMAGE_PAIR_TO_DISK_SAVE_DIR;
+    #else
     const bool SAVE_REPRESENTATIVE_IMAGE_PAIR_TO_DISK = true; //set this to false to not write to disk
-    const string SAVE_DIR = "/app/tmp/cerebro/";
+    const string SAVE_REPRESENTATIVE_IMAGE_PAIR_TO_DISK_SAVE_DIR = "/app/tmp/cerebro/";
+    #endif
 
 
     //-----------------//
@@ -891,7 +953,7 @@ void Cerebro::faiss_multihypothesis_tracking()
                     cout << "number of new hypothesis = " << is_new_hypothesis_added << endl; )
                     // save for debugging,
                     for( int s=0 ; s<is_new_hypothesis_added ; s++ ) {
-                        save_loop_hypothesis_representative_image_pair_to_disk( SAVE_DIR, hyp_manager->n_hypothesis()-1-s );
+                        save_loop_hypothesis_representative_image_pair_to_disk( SAVE_REPRESENTATIVE_IMAGE_PAIR_TO_DISK_SAVE_DIR, hyp_manager->n_hypothesis()-1-s );
                     }
                 }
                 #endif
@@ -985,7 +1047,7 @@ void Cerebro::faiss_multihypothesis_tracking()
     cout << "~~~~ ~~~~~" << endl;
 
     if( SAVE_REPRESENTATIVE_IMAGE_PAIR_TO_DISK ) {
-        string fname_loop_hyp_json = SAVE_DIR + "/loop_hypothesis.json";
+        string fname_loop_hyp_json = SAVE_REPRESENTATIVE_IMAGE_PAIR_TO_DISK_SAVE_DIR + "/loop_hypothesis.json";
         cout << TermColor::YELLOW() << "Write JSON: " << fname_loop_hyp_json << endl;
         std::ofstream out_loop_hyp_file(fname_loop_hyp_json);
         out_loop_hyp_file << std::setw(4) << all_loop_hyp << std::endl;
@@ -1440,15 +1502,20 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
 
     //--- params
     const int N_RANDOM_PAIRS = 6;
-    const bool PLOT_IMAGE_PAIR = true; // Plots the raindomly picked image pairs
+    const bool PLOT_IMAGE_PAIR = false; // Plots the raindomly picked image pairs
     const string PLOT_IMAGE_PAIR__SAVE_DIR = "/app/tmp/cerebro/live_system/";
 
     int N_TOO_FEW_POINT_MATCHES = 30; // use 50 for GMS matches, 7 for ORB
 
 
     //
+    #if 1
+    bool SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES = this->SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES;
+    const string SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES_PREFIX = this->SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES_PREFIX;
+    #else
     bool SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES = true; // plots the observed keypoint matches and reprojections
-    const string SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES_PREFIX = "/app/tmp/cerebro/reprojections/hyp_";
+    const string SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES_PREFIX = "/app/tmp/cerebro/reprojections/";
+    #endif
 
 
     auto img_data_mgr = dataManager->getImageManagerRef();
@@ -1790,7 +1857,15 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
         bundle.inputSequenceImages( 1, seq_b_image_list );
 
         //bundle.reprojection_debug_images_to_disk( dataManager->getAbstractCameraRef(), "/app/tmp/cerebro/reprojections/hyp_"+to_string(i)+"_" );
-        bundle.reprojection_debug_images_to_disk( dataManager->getAbstractCameraRef(), SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES_PREFIX+to_string(i)+"_" );
+        bundle.reprojection_debug_images_to_disk( dataManager->getAbstractCameraRef(), SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES_PREFIX+"/hyp_"+to_string(i)+"_" );
+
+
+        // if you wish you can also save `LocalBundle bundle` to disk,
+        // something like:
+        // const string BUNDLE_WRITE_PATH = "/app/catkin_ws/src/gmm_pointcloud_align/resources/local_bundle/";
+        // dataManager->getAbstractCameraRef()->writeParametersToYamlFile( BUNDLE_WRITE_PATH+"/camera.yaml" )
+        // bundle.toJSON(BUNDLE_WRITE_PATH);
+
     }
     #endif
 

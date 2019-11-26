@@ -51,7 +51,7 @@ private:
     float THRESH = 0.85; //< threshold on the dot product
     float LOW_THRESH = 0.75;
     float BOOST_FACTOR_IF_GREATER_THAN_THRESH = 1.5; //< how much to boost the vote if the dot product is higher than threshold
-    int FLUSH_AFTER_N_ACCUMULATES = 50; // you usually want to keep this at n_nn x W.
+    int FLUSH_AFTER_N_ACCUMULATES = 50; // you usually want to keep this at n_nn x W. The number of nearest neighbours are set in Cerebro::faiss_multihypothesis_tracking(). You usually want to keep it at 5
 
     float MANDATE_SCORE_THRESH = .2*FLUSH_AFTER_N_ACCUMULATES; //40.; //If total voting score is greater than this amount in `FLUSH_AFTER_N_ACCUMULATES` then conclude that this is a loopmatch
 
