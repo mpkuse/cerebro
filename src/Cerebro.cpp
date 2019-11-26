@@ -741,8 +741,8 @@ void Cerebro::faiss_multihypothesis_tracking()
     //-----------------//
     const int start_adding_descriptors_to_index_after = 150;
     const int K_NEAREST_NEIGHBOURS=5;
-    const string SAVE_DIR = "/app/tmp/cerebro/";
     const bool SAVE_REPRESENTATIVE_IMAGE_PAIR_TO_DISK = true; //set this to false to not write to disk
+    const string SAVE_DIR = "/app/tmp/cerebro/";
 
 
     //-----------------//
@@ -1440,14 +1440,14 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
 
     //--- params
     const int N_RANDOM_PAIRS = 6;
-    const bool PLOT_IMAGE_PAIR = true;
+    const bool PLOT_IMAGE_PAIR = true; // Plots the raindomly picked image pairs
     const string PLOT_IMAGE_PAIR__SAVE_DIR = "/app/tmp/cerebro/live_system/";
 
     int N_TOO_FEW_POINT_MATCHES = 30; // use 50 for GMS matches, 7 for ORB
 
 
     //
-    bool SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES = true;
+    bool SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES = true; // plots the observed keypoint matches and reprojections
     const string SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES_PREFIX = "/app/tmp/cerebro/reprojections/hyp_";
 
 
@@ -1776,8 +1776,8 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
     a_T_b = bundle.retrive_optimized_pose( 0, 0, 1, 0 );
     bundle.reprojection_error( dataManager->getAbstractCameraRef() );
 
-    if( SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES ) {
     #if 1 //debug....reprojection images
+    if( SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES ) {
         vector<cv::Mat> seq_a_image_list, seq_b_image_list;
         retrive_full_sequence_image_info( seq_a_start_T, seq_a_end_T, seq_a_image_list );
         retrive_full_sequence_image_info( seq_b_start_T, seq_b_end_T, seq_b_image_list );
@@ -1791,8 +1791,8 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
 
         //bundle.reprojection_debug_images_to_disk( dataManager->getAbstractCameraRef(), "/app/tmp/cerebro/reprojections/hyp_"+to_string(i)+"_" );
         bundle.reprojection_debug_images_to_disk( dataManager->getAbstractCameraRef(), SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES_PREFIX+to_string(i)+"_" );
-    #endif
     }
+    #endif
 
     // publish
     #if 0 //make this to 1 to get pose info from the bundle object, 0 to set the pose
