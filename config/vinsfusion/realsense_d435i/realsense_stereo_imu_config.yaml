@@ -91,10 +91,11 @@ save_image: 0                   # save image in pose graph for visualization pru
 # 1. Loop Hypothesis Generation Generation aka Cerebro::faiss_multihypothesis_tracking
 SAVE_REPRESENTATIVE_IMAGE_PAIR_TO_DISK: true
 SAVE_REPRESENTATIVE_IMAGE_PAIR_TO_DISK_SAVE_DIR: "/app/tmp/cerebro/"
-
+        # ^^^ This write 1 image per loop hypothesis. usually doesnt slow down everything so much
 # for other params related to loop hypothesis generation, go to HypothesisManager.h and set directly. Remember to recompile after the changes
 
 
 # 2. Pose Computation Given a hypothesis aka Cerebro::compute_geometry_for_loop_hypothesis_i
 SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES: true
 SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES_PREFIX:  "/app/tmp/cerebro/reprojections/"
+       # ^^^ this write N_RANDOM_PAIRS number of images (usually 5-6) per loop hypothesis. Best to avoid. it can slow down the processing significatly. 
