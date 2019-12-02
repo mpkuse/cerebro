@@ -47,6 +47,7 @@ using namespace ceres;
 #include "camodocal/camera_models/CameraFactory.h"
 
 
+#include "EdgeAlignment.h"
 
 class LocalBundle
 {
@@ -84,6 +85,7 @@ public:
     void inputFeatureMatchesImIdx( int seq_a, int seq_b, vector< std::pair<int,int> > all_pair_idx );
     void inputOdometryImIdx( int seqJ, vector<int> odom_seqJ_idx );
     void inputSequenceImages( int seqJ, vector<cv::Mat> images_seq_j );
+    void inputSequenceDepthMaps( int seqJ, vector<cv::Mat> depthmap_seq_j );
 
     void print_inputs_info() const;
 
@@ -104,7 +106,8 @@ public:
     //------------------//
 
 public:
-    void solve();
+    void solve(); ///< \sum_{seq} Odometry Residues_seq + \sum_{pair} \sum_{pts} Reprojecion residues
+    void solve_ea(const camodocal::CameraPtr camera, const bool generate_ea_debug_images); ///< Odometry Residues + Edge Alignment poses residues
 
 private:
     std::map< int, double * > opt_var_qxqyqzqw, opt_var_xyz;
@@ -124,6 +127,19 @@ private:
     #endif
 
 
+    // Use the image pairs compute their relative pose with edge alignment, add the residues
+    void add_edge_alignment_residues( ceres::Problem& problem, const camodocal::CameraPtr camera,const bool generate_ea_debug_images  );
+
+public:
+    void edgealignment_debug_images_to_disk( const string PREFIX );
+    json debug_print_initial_and_final_poses();
+    void debug_print_initial_and_final_poses( const string PREFIX );
+
+private:
+    vector<cv::Mat> ea_debug_images;
+    std::map<std::pair<int,int> , Matrix4d> debug_note_ea_constraints; //stores the ea constraints added to the optimization problem
+
+
     //--------------------//
     //----- Retrive ------//
     //-------------------//
@@ -135,6 +151,10 @@ public:
     //  return
     //      frame0_T_frame1
     Matrix4d retrive_optimized_pose( int seqID_0, int frame_0, int seqID_1, int frame_1 ) const;
+
+    Matrix4d retrive_initial_guess_pose( int seqID_0, int frame_0, int seqID_1, int frame_1 ) const;
+    Matrix4d retrive_odometry_pose( int seqID_0, int frame_0, int seqID_1, int frame_1 ) const;
+
 
 
 public:
@@ -174,7 +194,19 @@ private:
     map< int, vector<int> > seq_x_idx;
     map< std::pair<int,int> , vector< std::pair<int,int> >  >all_pair_idx;
     map< int, vector<cv::Mat> > seq_x_images;
+    map< int, vector<cv::Mat> > seq_x_depthmap;
 
+public:
+    // back door to access images and depthmap
+    bool is_image_exist( int seqJ) const ;
+    bool is_image_exist( int seqJ,  int local_i) const ;
+    bool is_depthmap_exist( int seqJ) const ;
+    bool is_depthmap_exist( int seqJ,  int local_i) const;
+    int get_seq_len( int  seqJ ) const; //< returns the number of images in the sequence
+    int get_image_pairs_len( int seqI, int seqJ ) const; //< returns number of image pairs
+
+    const cv::Mat get_image( int  seqJ, int  local_i ) const; //returns the image
+    const cv::Mat get_depthmap(  int seqJ, int  local_i) const;
 };
 
 
@@ -223,7 +255,7 @@ public:
 
         Eigen::Map< Eigen::Matrix<T,6,1> > residuals( residue_ptr );
         residuals.block(0,0,  3,1) =  delta_t;
-        residuals.block(3,0,  3,1) =  T(5.0) * delta_q.vec();
+        residuals.block(3,0,  3,1) =  T(3.0) * delta_q.vec();
 
 
         // Dynamic Covariance Scaling

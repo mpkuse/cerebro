@@ -1825,6 +1825,14 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
         return false;
     }
 
+    #define _BUNDLE_REPROJECTION_ERROR_ 0
+    #if _BUNDLE_REPROJECTION_ERROR_
+    cout << TermColor::bWHITE();
+    cout << "-----------------------------------------\n";
+    cout << "----- _BUNDLE_REPROJECTION_ERROR_ -------\n";
+    cout << "-----------------------------------------\n";
+    cout << TermColor::RESET();
+
     // bundle refinement
     LocalBundle bundle;
     bundle.inputOdometry( 0, seq_odom_a0_T_a );
@@ -1843,7 +1851,7 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
     a_T_b = bundle.retrive_optimized_pose( 0, 0, 1, 0 );
     bundle.reprojection_error( dataManager->getAbstractCameraRef() );
 
-    #if 1 //debug....reprojection images
+    //debug....reprojection images
     if( SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES ) {
         vector<cv::Mat> seq_a_image_list, seq_b_image_list;
         retrive_full_sequence_image_info( seq_a_start_T, seq_a_end_T, seq_a_image_list );
@@ -1867,7 +1875,75 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
         // bundle.toJSON(BUNDLE_WRITE_PATH);
 
     }
+    #endif //#if _BUNDLE_REPROJECTION_ERROR_
+
+
+
+    #define _BUNDLE_EDGE_ALIGN_ERROR_ 1
+    #if _BUNDLE_EDGE_ALIGN_ERROR_
+    cout << TermColor::bWHITE();
+    cout << "---------------------------------------\n";
+    cout << "----- _BUNDLE_EDGE_ALIGN_ERROR_ -------\n";
+    cout << "---------------------------------------\n";
+    cout << TermColor::RESET();
+
+
+    LocalBundle bundle;
+    bundle.inputOdometry( 0, seq_odom_a0_T_a );
+    bundle.inputOdometry( 1, seq_odom_b0_T_b );
+    bundle.inputInitialGuess( 0, 1, a_T_b );
+    bundle.inputFeatureMatches( 0, 1, all_normed_uv_a, all_normed_uv_b );
+    vector<VectorXd> all_sf; //not used, just place holder
+    bundle.inputFeatureMatchesDepths( 0, 1, all_d_a, all_d_b, all_sf );
+    bundle.inputFeatureMatchesPoses( 0, 1, all_poses_a0_T_a, all_poses_b0_T_b );
+    bundle.inputFeatureMatchesImIdx( 0, 1, all_pair_idx );
+    bundle.inputOdometryImIdx( 0, seq_a_idx );
+    bundle.inputOdometryImIdx( 1, seq_b_idx );
+
+    vector<cv::Mat> seq_a_image_list, seq_a_depthimage_list;
+    vector<cv::Mat> seq_b_image_list, seq_b_depthimage_list;
+    retrive_full_sequence_image_info( seq_a_start_T, seq_a_end_T, seq_a_image_list );
+    // current implementation requires depth only at cuttent frame so, so no need to put depth images at ref frames
+    // retrive_full_sequence_depthimage_info( seq_a_start_T, seq_a_end_T, seq_a_depthimage_list );
+    retrive_full_sequence_image_info( seq_b_start_T, seq_b_end_T, seq_b_image_list );
+    retrive_full_sequence_depthimage_info( seq_b_start_T, seq_b_end_T, seq_b_depthimage_list );
+
+    #if 0
+    cout << "seq_a_image_list.size()=" << seq_a_image_list.size() << "\t";
+    cout << "seq_a_depthimage_list.size()=" << seq_a_depthimage_list.size() << "\t";
+    cout << "seq_b_image_list.size()=" << seq_b_image_list.size() << "\t";
+    cout << "seq_b_depthimage_list.size()=" << seq_b_depthimage_list.size() << "\t";
+    cout << endl;
     #endif
+
+    bundle.inputSequenceImages( 0, seq_a_image_list );
+    // bundle.inputSequenceDepthMaps( 0, seq_a_depthimage_list );
+    bundle.inputSequenceImages( 1, seq_b_image_list );
+    bundle.inputSequenceDepthMaps( 1, seq_b_depthimage_list );
+
+    if( seq_odom_a0_T_a.size() != seq_a_image_list.size() || seq_odom_b0_T_b.size() != seq_b_image_list.size() ) {
+        cout << "[Cerebro::compute_geometry_for_loop_hypothesis_i] In debugging reprojection errors, error_code=hydlnk\n";
+        exit(4);
+    }
+
+    bool ea_make_debug_images = true; //SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES;
+    ElapsedTime t_solve_ea( "bundle.solve_ea");
+    bundle.solve_ea(dataManager->getAbstractCameraRef(), ea_make_debug_images);
+    cout << "[Cerebro::compute_geometry_for_loop_hypothesis_i]" << t_solve_ea.toc() << endl;
+
+    a_T_b = bundle.retrive_optimized_pose( 0, 0, 1, 0 );
+
+    // if( SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES )
+    {
+        bundle.reprojection_error( dataManager->getAbstractCameraRef() );
+        bundle.edgealignment_debug_images_to_disk( SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES_PREFIX+"/hyp_"+to_string(i)+"_" );
+        bundle.debug_print_initial_and_final_poses( SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES_PREFIX+"/hyp_"+to_string(i)+"_" );
+        bundle.reprojection_debug_images_to_disk( dataManager->getAbstractCameraRef(), SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES_PREFIX+"/hyp_"+to_string(i)+"_" );
+
+    }
+
+
+    #endif //#if _BUNDLE_EDGE_ALIGN_ERROR_
 
     // publish
     #if 0 //make this to 1 to get pose info from the bundle object, 0 to set the pose
@@ -1973,6 +2049,60 @@ bool Cerebro::retrive_full_sequence_image_info(
             exit(1);
         }
         seq_image_list.push_back( tmp_image );
+        // if( is___w_T_x0 == false ) {
+            // is___w_T_x0 = true;
+            // w_T_x0 = xpose;
+        // }
+
+        // seq_idx.push_back( data_map_idx );
+        // seq_odom_pose.push_back( xpose );
+        // seq_odom_x0_T_x.push_back( w_T_x0.inverse() * xpose );
+        // seq_T.push_back( stamp );
+        // cout << data_map_idx << "\t";
+    }
+    // cout << endl;
+    return true;
+
+}
+
+
+
+bool Cerebro::retrive_full_sequence_depthimage_info(
+    const ros::Time seq_start_T, const ros::Time seq_end_T,
+    vector<cv::Mat>& seq_depthimage_list
+)
+{
+    // seq_idx.clear();
+    // seq_odom_pose.clear();
+    // seq_T.clear();
+    // seq_odom_x0_T_x.clear();
+    seq_depthimage_list.clear();
+    auto data_map = dataManager->getDataMapRef();
+
+    // bool is___w_T_x0 = false;
+    // Matrix4d w_T_x0;
+
+    auto it_seq_start = data_map->find( seq_start_T );
+    auto it_seq_end   = data_map->find( seq_end_T );
+    // cout << "\t\tIn SeqA: " ;
+    for( auto it =  it_seq_start ; it != it_seq_end ; it++ )
+    {
+        if( it->second->isKeyFrame() == false )
+            continue;
+
+        assert( it->second->isPoseAvailable() );
+
+        int data_map_idx = std::distance( data_map->begin(), it );
+        // Matrix4d xpose = it->second->getPose();
+        ros::Time stamp = it->first;
+
+        cv::Mat tmp_depth_image;
+        bool status = retrive_depthimage_data( stamp, tmp_depth_image );
+        if( status == false ) {
+            cout << "\n~~~~~[Cerebro::retrive_full_sequence_image_info] cannot retrive image....I was expecting this function only to be used for debugging not in production. This retrives all the images in a sequences. use only for short seq\n";
+            exit(1);
+        }
+        seq_depthimage_list.push_back( tmp_depth_image );
         // if( is___w_T_x0 == false ) {
             // is___w_T_x0 = true;
             // w_T_x0 = xpose;
@@ -2241,6 +2371,63 @@ bool Cerebro::retrive_image_data( ros::Time& stamp, cv::Mat& left_image )
 
 
     cout << "left_image " << MiscUtils::cvmat_info( left_image ) << "\n";
+    )
+
+
+    return true;
+}
+
+
+bool Cerebro::retrive_depthimage_data( ros::Time& stamp, cv::Mat& depth_image )
+{
+    __Cerebro__retrive_image_data__(
+    cout << "[Cerebro::retrive_depthimage_data] stamp=" << stamp << endl; )
+
+    auto img_data_mgr = dataManager->getImageManagerRef();
+    auto data_map = dataManager->getDataMapRef();
+
+    if( data_map->count( stamp ) == 0  )
+    {
+        cout << "[Cerebro::retrive_depthimage_data] FATAL-ERROR. timestamps="<< stamp << " not found in data_map. This is not possible. If this happens, this is definately a bug, report to the authors\n";
+        exit(1);
+    }
+
+    const DataNode * node = data_map->at( stamp );
+    bool is_pose = node->isPoseAvailable();
+    if( is_pose == false )
+    {
+        cout << "[Cerebro::retrive_depthimage_data] WARN cannot retrive pose\n";
+        return false;
+    }
+
+    __Cerebro__retrive_image_data__( cout << "[Cerebro::retrive_depthimage_data]pose is available\n" );
+
+
+
+
+    vector<string> nsX;     nsX.push_back( "depth_image");
+    vector<cv::Mat> ou;
+    __Cerebro__retrive_image_data__(
+    cout << "[Cerebro::retrive_depthimage_data] img_data_mgr->getImage(), input vector<string> nsX.size=" << nsX.size() << " \n" )
+    bool getim_status = img_data_mgr->getImage( nsX, node->getT(), ou );
+    __Cerebro__retrive_image_data__(
+    cout << "[Cerebro::retrive_depthimage_data] ou.size = " << ou.size() << "\tgetim_status=" << getim_status << endl; )
+
+    if( getim_status == false )
+    {
+        cout << "[Cerebro::retrive_depthimage_data] WARN cannot retrive image from the image manager\n";
+        return false;
+    }
+
+    assert( nsX.size() == ou.size()  );
+    depth_image = ou[0];//.clone();
+    // ou.clear();
+
+    __Cerebro__retrive_image_data__(
+    cout << "[Cerebro::retrive_depthimage_data 2]";
+
+
+    cout << "depth_image " << MiscUtils::cvmat_info( depth_image ) << "\n";
     )
 
 

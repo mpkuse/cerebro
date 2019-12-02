@@ -162,6 +162,13 @@ void LocalBundle::inputSequenceImages( int seqJ, vector<cv::Mat> images_seq_j )
 }
 
 
+void LocalBundle::inputSequenceDepthMaps( int seqJ, vector<cv::Mat> depthmap_seq_j )
+{
+    __LocalBundle__input(
+    cout << "[LocalBundle::inputSequenceDepthMaps] set " << depthmap_seq_j.size() << " images for seqJ=" << seqJ << endl; )
+    seq_x_depthmap[ seqJ ] = depthmap_seq_j;
+}
+
 //----------------------------------------------------------------------------//
 //             END INPUT
 //----------------------------------------------------------------------------//
@@ -301,6 +308,30 @@ void LocalBundle::toJSON(const string BASE) const
             int im_i = std::distance( it->second.begin(), it_im );
             string fname = BASE+"/odomSeq"+std::to_string( seqJ ) +"_im_" + to_string( im_i ) + ".jpg";
             cv::imwrite( fname, *it_im );
+
+            cout << "\t#" << im_i << ": ";
+            cout << MiscUtils::cvmat_info( *it_im ) << "\n\t";
+            cout << "imwrite(" << fname << ")" ;
+            cout << endl;
+        }
+    }
+
+
+    // save depthmaps if available
+    for( auto it = seq_x_depthmap.begin() ; it!=seq_x_depthmap.end() ; it++ )
+    {
+        cout << "seq_x_depthmap[" << it->first << "] has " << (it->second).size() << " depthmaps\n";
+        int seqJ = it->first ;
+
+        for( auto it_im= it->second.begin() ; it_im != it->second.end() ; it_im++ )
+        {
+            int im_i = std::distance( it->second.begin(), it_im );
+            string fname = BASE+"/odomSeq"+std::to_string( seqJ ) +"_depthmap_" + to_string( im_i ) + ".yaml";
+            // cv::imwrite( fname, *it_im );
+
+            cv::FileStorage storage(fname, cv::FileStorage::WRITE);
+            storage << "depthmap" << *it_im;
+            storage.release();
 
             cout << "\t#" << im_i << ": ";
             cout << MiscUtils::cvmat_info( *it_im ) << "\n\t";
@@ -476,6 +507,7 @@ void LocalBundle::fromJSON( const string BASE )
         bool status = true;
         for( int im_i=0 ; im_i<n_images_in_seqJ ; im_i++ )
         {
+            // Load the image file
             string fname = BASE+"/odomSeq"+std::to_string( seqJ ) +"_im_" + to_string( im_i ) + ".jpg";
             bool is_file_exist = RawFileIO::if_file_exist_2( fname );
             if( is_file_exist ) {
@@ -483,6 +515,18 @@ void LocalBundle::fromJSON( const string BASE )
             }
             else {
                 cout << "\t\tDoesn't Exist: " << TermColor::RED() << fname << TermColor::RESET() << endl;
+                status = false;
+            }
+
+
+            // Load the depthmap file
+            string fname_depthmap = BASE+"/odomSeq"+std::to_string( seqJ ) +"_depthmap_" + to_string( im_i ) + ".yaml";
+            bool is_deptmap_exist = RawFileIO::if_file_exist_2( fname_depthmap );
+            if( is_deptmap_exist ) {
+                // cout << "\t\tExist: " << TermColor::GREEN() << fname << TermColor::RESET() << endl;
+            }
+            else {
+                cout << "\t\tDoesn't Exist: " << TermColor::RED() << fname_depthmap << TermColor::RESET() << endl;
                 status = false;
             }
 
@@ -496,8 +540,10 @@ void LocalBundle::fromJSON( const string BASE )
 
         // Now that it is confirmed, all images exisit, load those
         seq_x_images[ seqJ ] = vector<cv::Mat>();
+        seq_x_depthmap[seqJ] = vector<cv::Mat>();
         for( int im_i=0 ; im_i<n_images_in_seqJ ; im_i++ )
         {
+            // Load the image file
             string fname = BASE+"/odomSeq"+std::to_string( seqJ ) +"_im_" + to_string( im_i ) + ".jpg";
             cout << "\t\timread : " << fname << endl;
             cv::Mat im = cv::imread( fname , 0 );
@@ -506,8 +552,26 @@ void LocalBundle::fromJSON( const string BASE )
                 std::cout << "[LocalBundle::fromJSON] !!! Failed imread(): image not found" << std::endl;
                 exit(3);
             }
-
+            cout << "\t\t...OK!..." << MiscUtils::cvmat_info( im ) << endl;
             seq_x_images[ seqJ ].push_back( im );
+
+
+            // Load the depthmap file
+            string fname_depthmap = BASE+"/odomSeq"+std::to_string( seqJ ) +"_depthmap_" + to_string( im_i ) + ".yaml";
+            cout << "\t\tyaml read : " << fname_depthmap << endl;
+
+            cv::FileStorage storage(fname_depthmap, cv::FileStorage::READ);
+            cv::Mat __depthmap__;
+            storage["depthmap"] >> __depthmap__;
+            storage.release();
+            if (__depthmap__.empty())
+            {
+                std::cout << "[LocalBundle::fromJSON] !!! Failed yaml read(): depthmap not found" << std::endl;
+                exit(3);
+            }
+            cout << "\t\t...OK!..." << MiscUtils::cvmat_info( __depthmap__ ) << endl;
+
+            seq_x_depthmap[ seqJ ].push_back( __depthmap__ );
 
         }
 
@@ -531,6 +595,12 @@ void LocalBundle::print_inputs_info() const
             cout << "(n_images=0)";
         else
             cout << "(n_images=" << seq_x_images.at( it->first ).size() << ")";
+
+        if( seq_x_depthmap.count(it->first) == 0 )
+            cout << "(n_depth_images=0)";
+        else
+            cout << "(n_depth_images=" << seq_x_depthmap.at( it->first ).size() << ")";
+
 
         cout << "\n";
         cout << char_list[i] << 0 << "  , " << char_list[i] << 1 << " ... " << char_list[i] << it->second.size()-1 << endl;
@@ -566,6 +636,8 @@ void LocalBundle::print_inputs_info() const
         cout << endl;
         #endif
 
+
+
         auto y = it->second;
         auto pyp = it->first;
         for( int k=0 ; k<(int)y.size() ; k++ ) {
@@ -576,6 +648,16 @@ void LocalBundle::print_inputs_info() const
             cout << d_a.at(pyp).at(k).size() << "\t" <<  d_b.at(pyp).at(k).size() << "\t";
             a0_T_a.at(pyp).at(k);
             b0_T_b.at(pyp).at(k);
+
+            // to print local_ai and local_bj of the pair
+            int seq_a = pyp.first;
+            int seq_b = pyp.second;
+            int ai = all_pair_idx.at( pyp ).at( k ).first;
+            int bj = all_pair_idx.at( pyp ).at( k ).second;
+            int local_ai = std::distance( seq_x_idx.at( seq_a ).begin(),     std::find( seq_x_idx.at( seq_a ).begin(), seq_x_idx.at            ( seq_a).end(), ai ) );
+            int local_bj = std::distance( seq_x_idx.at( seq_b ).begin(),     std::find( seq_x_idx.at( seq_b).begin(), seq_x_idx.at( seq_b).end(), bj ) );
+            // cout << ai << "<--->" <<  bj << "\t";
+            cout << local_ai << "<--->" << local_bj << "\t";
 
             cout << endl;
         }
@@ -594,19 +676,24 @@ void LocalBundle::print_inputs_info() const
 
 void LocalBundle::deallocate_optimization_vars()
 {
-    assert( m_opt_vars_allocated == true );
-    for( auto it = opt_var_xyz.begin() ; it!=opt_var_xyz.end() ; it++ ) {
-        delete [] opt_var_xyz[ it->first ];
-        delete [] opt_var_qxqyqzqw[ it->first ];
+    // assert( m_opt_vars_allocated == true );
+    if(  m_opt_vars_allocated == true  ) {
+        for( auto it = opt_var_xyz.begin() ; it!=opt_var_xyz.end() ; it++ ) {
+            delete [] opt_var_xyz[ it->first ];
+            delete [] opt_var_qxqyqzqw[ it->first ];
+        }
+        m_opt_vars_allocated = false;
     }
-    m_opt_vars_allocated = false;
+    else {
+        cout << "[LocalBundle::deallocate_optimization_vars] WARN not free() opt variables, because they appear to be not allocated\n";
+    }
 }
 
 
 double * LocalBundle::get_raw_ptr_to_opt_variable_q(int seqID, int u ) const
 {
     assert( opt_var_qxqyqzqw.count(seqID) > 0 );
-    assert( u>=0 && u<x0_T_c.at(seqID).size() );
+    assert( u>=0 && u<(int)x0_T_c.at(seqID).size() );
 
     return &( opt_var_qxqyqzqw.at( seqID )[ 4*u ] );
 }
@@ -615,7 +702,7 @@ double * LocalBundle::get_raw_ptr_to_opt_variable_q(int seqID, int u ) const
 double * LocalBundle::get_raw_ptr_to_opt_variable_t(int seqID, int u ) const
 {
     assert( opt_var_xyz.count(seqID) > 0 );
-    assert( u>=0 && u<x0_T_c.at(seqID).size() );
+    assert( u>=0 && u<(int)x0_T_c.at(seqID).size() );
 
     return &( opt_var_xyz.at( seqID )[ 3*u ] );
 }
@@ -707,9 +794,14 @@ void LocalBundle::set_params_constant_for_seq( int seqID, ceres::Problem& proble
 #define __LocalBundle__set_params_constant_for_seq__debug( msg ) ;
 void LocalBundle::add_odometry_residues( ceres::Problem& problem )
 {
+    // PARAMS
+    int TAKE_PREV_K_CONSTRAINT = 4;
+
     assert( m_opt_vars_allocated );
     __LocalBundle__set_params_constant_for_seq(
-    cout << TermColor::iGREEN() << "odometry residues" << TermColor::RESET() << endl; )
+    cout << TermColor::iGREEN() << "odometry residues" << TermColor::RESET() << endl;
+    cout << "TAKE_PREV_K_CONSTRAINT=" << TAKE_PREV_K_CONSTRAINT << endl;
+    )
     for( auto it = x0_T_c.begin() ; it != x0_T_c.end() ; it++ ) // loop over every series
     {
         int seqID = it->first;
@@ -721,7 +813,7 @@ void LocalBundle::add_odometry_residues( ceres::Problem& problem )
         // add u<-->u-1, add u<-->u-2, add u<-->u-3, add u<-->u-4
         for( int u=0 ; u<(int)pose_list.size() ; u++ )
         {
-            for( int f=1 ; f<=4 ; f++ )
+            for( int f=1 ; f<=TAKE_PREV_K_CONSTRAINT ; f++ )
             {
                 if( u-f < 0 )
                     continue;
@@ -958,6 +1050,233 @@ void LocalBundle::add_batched_correspondence_residues( ceres::Problem& problem )
 
 #endif
 
+
+// #define __LocalBundle__add_edge_alignment_residues_debug( msg ) msg;
+#define __LocalBundle__add_edge_alignment_residues_debug( msg ) ;
+
+#define __LocalBundle__add_edge_alignment_residues( msg ) msg;
+// #define __LocalBundle__add_edge_alignment_residues( msg ) ;
+void LocalBundle::add_edge_alignment_residues( ceres::Problem& problem,
+    const camodocal::CameraPtr camera,
+    const bool generate_ea_debug_images
+  )
+{
+    __LocalBundle__add_edge_alignment_residues(
+    cout << TermColor::iGREEN() << "[LocalBundle::add_edge_alignment_residues]\n" << TermColor::RESET();
+    )
+    // const bool generate_ea_debug_images = true;
+
+    // Loop over image pairs
+    //      imshow pair
+    //      make an initial guess
+    //      compute EdgeAlignment
+    //      add residues to problem
+
+
+    auto p = std::make_pair( 0, 1 );
+    int n_pairs = (int)normed_uv_a[p].size();
+    int n_edge_residues_added = 0;
+    for( int i=0 ; i < n_pairs ; i++ )
+    {
+        //-- Local Index of the Pair_i
+        auto f_it = std::find( seq_x_idx.at(0).begin(), seq_x_idx.at(0).end(), all_pair_idx[p][i].first );
+        auto h_it = std::find( seq_x_idx.at(1).begin(), seq_x_idx.at(1).end(), all_pair_idx[p][i].second );
+        if( f_it == seq_x_idx.at(0).end() || h_it == seq_x_idx.at(1).end() ) {
+            cout << "\t" << __FILE__ << ":" << __LINE__ << "[LocalBundle::add_edge_alignment_residues]NA\n";
+            assert( false );
+            exit(4);
+        }
+        else {
+
+        }
+        int ff = std::distance( seq_x_idx.at(0).begin(), f_it );
+        int hh = std::distance( seq_x_idx.at(1).begin(), h_it );
+        __LocalBundle__add_edge_alignment_residues(
+        cout << TermColor::bWHITE() << "\t---frame-pair#" << i << "\t" << TermColor::RESET();
+        cout << "SeqID=0, idx=" << ff << "\t";
+        cout << "SeqID=1, idx=" << hh << "\n";
+        )
+
+
+        //-- Retrive image
+        int a_idx = ff;
+        int b_idx = hh;
+        const cv::Mat im_ref = this->get_image(0, a_idx );
+        const cv::Mat im_curr = this->get_image(1, b_idx);
+        const cv::Mat depth_curr = this->get_depthmap( 1, b_idx);
+
+        __LocalBundle__add_edge_alignment_residues_debug(
+        cout << "im_ref : " << MiscUtils::cvmat_info( im_ref ) << endl;
+        cout << "im_curr: " << MiscUtils::cvmat_info( im_curr ) << endl;
+        cout << "depth_curr: " << MiscUtils::cvmat_info( depth_curr ) << endl;
+        )
+
+        #if 0
+        cv::Mat dst;
+        MiscUtils::side_by_side( im_ref, im_curr, dst );
+        MiscUtils::append_status_image( dst, "---frame-pair#"+to_string(i) + "   a_idx=" + to_string(a_idx)+"    b_idx="+to_string(b_idx) );
+        cv::imshow( "dst", dst );
+        #endif
+
+
+
+        //-- Initial guess of this
+        ElapsedTime t_eaalign("Edge Alignment");
+        // Matrix4d initial_guess____ref_T_curr =     bundle.retrive_optimized_pose( 0, a_idx, 1, b_idx ); // Matrix4d::Identity();
+        Matrix4d initial_guess____ref_T_curr =     this->retrive_initial_guess_pose( 0, a_idx, 1, b_idx ); // Matrix4d::Identity();
+        // Matrix4d initial_guess____ref_T_curr =     bundle.retrive_odometry_pose( 0, a_idx, 1, b_idx ); // Matrix4d::Identity();
+
+
+
+
+        //-- EdgeAlignment
+        Matrix4d ref_T_curr_optvar = Matrix4d::Identity();
+
+
+        EdgeAlignment ealign( camera, im_ref, im_curr, depth_curr );
+        if(generate_ea_debug_images){
+            ealign.set_make_representation_image();
+        }
+
+        bool ea_status = ealign.solve( initial_guess____ref_T_curr, ref_T_curr_optvar );
+
+        __LocalBundle__add_edge_alignment_residues(
+        cout << "\t" << t_eaalign.toc() << "\t";
+        cout << "ea_status = " << ea_status << "\n";
+        cout << "\tinitial_guess____ref_T_curr = " << PoseManipUtils::prettyprintMatrix4d( initial_guess____ref_T_curr ) << endl;
+        cout << "\tref_T_curr_optvar = " << PoseManipUtils::prettyprintMatrix4d( ref_T_curr_optvar ) << endl;
+        )
+
+
+
+        //-- Residue
+        if( ea_status ) {
+            __LocalBundle__add_edge_alignment_residues(
+            cout << TermColor::GREEN() ;
+            cout << "\tAdd edge residue";
+            cout << "(seqID=0, idx=" << a_idx << ")";
+            cout << " <----> " ;
+            cout << "(seqID=1, idx="<< b_idx << ")" << endl;
+            cout << TermColor::RESET();
+            )
+            double _edge_weight = 10.;
+            ceres::CostFunction * cost_function = SixDOFError::Create( ref_T_curr_optvar, _edge_weight  );
+            problem.AddResidualBlock( cost_function, NULL,
+                    get_raw_ptr_to_opt_variable_q(0, a_idx), get_raw_ptr_to_opt_variable_t(0, a_idx),
+                    get_raw_ptr_to_opt_variable_q(1, b_idx), get_raw_ptr_to_opt_variable_t(1, b_idx) );
+            n_edge_residues_added++;
+
+
+
+            this->debug_note_ea_constraints[ make_pair(a_idx,b_idx) ] = ref_T_curr_optvar;
+        }
+        else {
+            __LocalBundle__add_edge_alignment_residues(
+            cout << TermColor::YELLOW() << "\tNOT adding ea residue because `ea_status` is false\n" << TermColor::RESET(); )
+        }
+
+
+        if( generate_ea_debug_images ) {
+            cv::Mat _tmp = ealign.get_representation_image();
+            MiscUtils::append_status_image( _tmp, "im_ref=(seqID=0,idx="+to_string(a_idx)+");im_curr=(seqID=1,idx="+to_string(b_idx)+")" );
+            ea_debug_images.push_back(  _tmp );
+            // cv::imshow( "debug_image_ealign", _tmp );
+            // cout << "press any key for next pair\n";
+            // cv::waitKey(0);
+        }
+
+
+
+    }
+
+    __LocalBundle__add_edge_alignment_residues(
+    cout << "n_edge_residues_added = " << n_edge_residues_added << endl;
+    cout << TermColor::iGREEN() << "[LocalBundle::add_edge_alignment_residues]  %%%%%%%%%% DONE $$$$$$$$\n" << TermColor::RESET();
+    )
+    // exit(3);
+}
+
+void LocalBundle::solve_ea( const camodocal::CameraPtr camera, const bool generate_ea_debug_images )
+{
+
+    ceres::Problem problem;
+
+    // setup optization variable's initial guess
+    //      7 optimization variables for every frame
+    allocate_and_init_optimization_vars();
+
+
+    // add parameter blocks to the ceres::Problem
+        // If you are using Eigen’s Quaternion object, whose layout is x,y,z,w, then you should use EigenQuaternionParameterization.
+    ceres::LocalParameterization * eigenquaternion_parameterization = new ceres::EigenQuaternionParameterization;
+    for( auto it = x0_T_c.begin() ; it != x0_T_c.end() ; it++ )
+    {
+        int seqID = it->first;
+        auto pose_list = it->second;
+        for( int u=0 ; u<(int)pose_list.size() ; u++ )
+        {
+            problem.AddParameterBlock( get_raw_ptr_to_opt_variable_q(seqID, u), 4 );
+            problem.SetParameterization( get_raw_ptr_to_opt_variable_q(seqID, u),  eigenquaternion_parameterization );
+            problem.AddParameterBlock( get_raw_ptr_to_opt_variable_t(seqID, u), 3 );
+
+        }
+    }
+    set_params_constant_for_seq( 0, problem );
+
+
+    // Setup residues - odometry
+    add_odometry_residues( problem );
+
+
+    #if 1
+    // Use the image pairs compute their relative pose with edge alignment, add the residues
+    add_edge_alignment_residues( problem, camera, generate_ea_debug_images );
+    #endif
+
+    #if 0
+    // set residues - correspondence
+    add_correspondence_residues( problem );
+    #endif
+
+
+    #if 0
+    // the for loop in the ceres kills this. zThis is too slow, best avoided
+    add_batched_correspondence_residues(problem)
+    #endif
+
+
+    // solve
+    ElapsedTime t_solve( "LocalBundle::Solve");
+    cout << TermColor::iGREEN() << "||||||SOLVE||||||" << TermColor::RESET() << endl;
+    ceres::Solver::Options reint_options;
+    ceres::Solver::Summary reint_summary;
+    // reint_options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
+    reint_options.linear_solver_type = ceres::DENSE_QR;
+    reint_options.minimizer_progress_to_stdout = true;
+    reint_options.max_num_iterations = 50;
+    // reint_options.enable_fast_removal = true;
+    ceres::Solve( reint_options, &problem, &reint_summary );
+    cout << reint_summary.BriefReport() << endl;
+    cout << TermColor::iGREEN() << "||||||END SOLVE||||||" << TermColor::RESET() << endl;
+
+
+    // look at the solution a0_T_b0
+       {
+       Matrix4d optz__w_T_a0, optz__w_T_b0;
+       PoseManipUtils::raw_xyzw_to_eigenmat( get_raw_ptr_to_opt_variable_q(0,0), get_raw_ptr_to_opt_variable_t(0,0), optz__w_T_a0 );
+       PoseManipUtils::raw_xyzw_to_eigenmat( get_raw_ptr_to_opt_variable_q(1,0), get_raw_ptr_to_opt_variable_t(1,0), optz__w_T_b0 );
+       Matrix4d optz__a0_T_b0 = optz__w_T_a0.inverse() * optz__w_T_b0;
+       assert( a0_T_b0.count( std::make_pair(0,1) ) > 0 );
+       cout << t_solve.toc() << endl;
+       cout << "initial       : " << PoseManipUtils::prettyprintMatrix4d( a0_T_b0.at( std::make_pair(0,1) ) ) << endl;
+       cout << "optz__a0_T_b0 : " << PoseManipUtils::prettyprintMatrix4d( optz__a0_T_b0 ) << endl;
+       cout << "optz__a0_T_b0 :\n" << optz__a0_T_b0 << endl;
+       }
+
+
+}
+
+
 void LocalBundle::solve()
 {
     ceres::Problem problem;
@@ -1037,8 +1356,8 @@ void LocalBundle::solve()
 Matrix4d LocalBundle::retrive_optimized_pose( int seqID_0, int frame_0, int seqID_1, int frame_1 ) const
 {
     assert( m_opt_vars_allocated );
-    assert( frame_0 >=0 && frame_0 < x0_T_c.at(seqID_0).size() );
-    assert( frame_1 >=0 && frame_1 < x0_T_c.at(seqID_1).size() );
+    assert( frame_0 >=0 && frame_0 < (int)x0_T_c.at(seqID_0).size() );
+    assert( frame_1 >=0 && frame_1 < (int)x0_T_c.at(seqID_1).size() );
     assert( a0_T_b0.count( std::make_pair(0,1) ) > 0 );
 
     // retrive solution
@@ -1053,6 +1372,27 @@ Matrix4d LocalBundle::retrive_optimized_pose( int seqID_0, int frame_0, int seqI
 
 
 }
+
+Matrix4d LocalBundle::retrive_initial_guess_pose( int seqID_0, int frame_0, int seqID_1, int frame_1 ) const
+{
+    assert( frame_0 >=0 && frame_0 < (int)x0_T_c.at(seqID_0).size() );
+    assert( frame_1 >=0 && frame_1 < (int)x0_T_c.at(seqID_1).size() );
+    assert( a0_T_b0.count( std::make_pair(seqID_0,seqID_1) ) > 0 );
+
+    Matrix4d init_from_gobal_method__ai_T_bj = x0_T_c.at(seqID_0).at( frame_0 ).inverse() * a0_T_b0.at( make_pair(seqID_0,seqID_1) ) * x0_T_c.at(seqID_1).at( frame_1 );
+    return init_from_gobal_method__ai_T_bj;
+}
+
+Matrix4d LocalBundle::retrive_odometry_pose( int seqID_0, int frame_0, int seqID_1, int frame_1 ) const
+{
+    assert( frame_0 >=0 && frame_0 < (int)x0_T_c.at(seqID_0).size() );
+    assert( frame_1 >=0 && frame_1 < (int)x0_T_c.at(seqID_1).size() );
+    assert( odom__a0_T_b0.count( std::make_pair(seqID_0,seqID_1) ) > 0 );
+
+    Matrix4d odom__ai_T_bj = x0_T_c.at(seqID_0).at( frame_0 ).inverse() * odom__a0_T_b0.at( make_pair(seqID_0,seqID_1) ) * x0_T_c.at(seqID_1).at( frame_1 );
+    return odom__ai_T_bj;
+}
+
 
 void LocalBundle::reprojection_test( const camodocal::CameraPtr camera )
 {
@@ -1403,7 +1743,7 @@ void LocalBundle::reprojection_debug_images_for_this_image_pair( const camodocal
                                     cv::Scalar( 0,0,255 ), cv::Scalar( 0,255,0 ), false
                                     #endif
                                 );
-        MiscUtils::append_status_image( dst_p, "im_pair#"+to_string( im_pair_idx )+" of total-pairs="+to_string(n_im_pairs), 1.0 );
+        MiscUtils::append_status_image( dst_p, ";im_pair_idx="+to_string( im_pair_idx )+" to total="+to_string(n_im_pairs), 1.0 );
         // MiscUtils::imshow( "observed point feat matching", dst_p, 0.5 );
         _dst_observed_correspondence_ = dst_p;
 
@@ -1539,3 +1879,205 @@ void LocalBundle::reprojection_debug_images_to_disk( const camodocal::CameraPtr 
     }
     cout << TermColor::bWHITE() << "[LocalBundle::reprojection_debug_images_to_disk] END\n" << TermColor::RESET();
 }
+
+
+void LocalBundle::edgealignment_debug_images_to_disk( const string PREFIX )
+{
+    cout << TermColor::bWHITE() << "[LocalBundle::edgealignment_debug_images_to_disk]PREFIX=" << PREFIX << "\n" << TermColor::RESET();
+    int seq_a = 0;
+    int seq_b = 1;
+    // int im_pair_idx = 3;
+    auto pyp = std::make_pair( seq_a, seq_b );
+
+    int c=0;
+    cout << TermColor::bGREEN() << "Write " << ea_debug_images.size() << " images with PREFIX=" << PREFIX << endl << TermColor::RESET();
+    for( auto it = ea_debug_images.begin(); it!=ea_debug_images.end() ; it++ )
+    {
+        string fname = PREFIX+"ea_"+to_string(c)+".jpg";
+        cv::imwrite( fname, *it );
+        c++;
+    }
+
+    cout << TermColor::bWHITE() << "[LocalBundle::edgealignment_debug_images_to_disk] END\n" << TermColor::RESET();
+}
+
+
+//------------------------------
+// Retrive images starts
+//-------------------------------
+bool LocalBundle::is_image_exist(int seqJ) const
+{
+    if( seq_x_images.count(seqJ) > 0 )
+        return true;
+    else return false;
+}
+
+bool LocalBundle::is_image_exist(int seqJ, int local_i) const
+{
+    if( seq_x_images.count(seqJ) > 0 )
+    {
+        int len = (int)seq_x_images.at(seqJ).size();
+        if( local_i >= 0 && local_i < len  )
+            return true;
+    }
+    return false;
+}
+
+bool LocalBundle::is_depthmap_exist(int seqJ) const
+{
+    if( seq_x_depthmap.count(seqJ) > 0 )
+        return true;
+    else return false;
+}
+
+bool LocalBundle::is_depthmap_exist(int seqJ, int local_i) const
+{
+    if( seq_x_depthmap.count(seqJ) > 0 )
+    {
+        int len = (int)seq_x_depthmap.at(seqJ).size();
+        if( local_i >= 0 && local_i < len  )
+            return true;
+    }
+    return false;
+}
+
+/// returns the number of images in the sequence
+int LocalBundle::get_seq_len( int seqJ ) const
+{
+    assert( x0_T_c.at( seqJ).size() == seq_x_images.at( seqJ ).size() );
+    return seq_x_images.at( seqJ ).size();
+}
+
+int LocalBundle::get_image_pairs_len( int seqI, int seqJ ) const //< returns number of image pairs
+{
+    auto pyp = std::make_pair( seqI, seqJ );
+    int n_im_pairs = (int) all_pair_idx.at( pyp ).size();
+    return n_im_pairs;
+
+}
+
+//returns the image
+const cv::Mat LocalBundle::get_image( int seqJ, int local_i ) const
+{
+    if( is_image_exist(seqJ, local_i) == false ) {
+        cout << __FILE__ << ":" << __LINE__ << "[LocalBundle::get_image] exception you requested a non existant image\n";
+        cout << "(seqJ=" << seqJ << "local_i=" << local_i << "),\n";
+        throw "[LocalBundle::get_image]you requested a non exisitant image\n";
+    }
+
+    return seq_x_images.at( seqJ ).at( local_i );
+}
+
+
+const cv::Mat LocalBundle::get_depthmap(int  seqJ, int local_i) const
+{
+    if( is_depthmap_exist(seqJ, local_i) == false ) {
+        cout << __FILE__ << ":" << __LINE__ << " [LocalBundle::get_depthmap] exception you requested a non existant depthmap\n";
+        cout << "(seqJ=" << seqJ << "local_i=" << local_i << "),\n";
+        throw "[LocalBundle::get_image]you requested a non existant depthmap\n";
+    }
+
+    return seq_x_depthmap.at( seqJ ).at( local_i );
+}
+
+
+void LocalBundle::debug_print_initial_and_final_poses( const string PREFIX )
+{
+    json obk = debug_print_initial_and_final_poses();
+    string fname = PREFIX+"_ea_localbundle_info.json";
+    cout << TermColor::bGREEN() << "[LocalBundle::debug_print_initial_and_final_poses] Write:" << fname << endl << TermColor::RESET();
+    std::ofstream o(fname);
+    o << std::setw(4) << obk << std::endl;
+
+}
+
+// #define __LocalBundle__debug_print_initial_and_final_poses(msg) msg;
+#define __LocalBundle__debug_print_initial_and_final_poses(msg) ;
+json LocalBundle::debug_print_initial_and_final_poses()
+{
+    json obj_seq_0;
+    __LocalBundle__debug_print_initial_and_final_poses( cout << "\nSeq0: (initial, final)\n"; )
+    for( int i=0 ; i<get_seq_len(0); i++ )
+    {
+        __LocalBundle__debug_print_initial_and_final_poses(
+        cout << "i=" << i << "\t";
+        cout << PoseManipUtils::prettyprintMatrix4d( x0_T_c.at(0).at(i) ) << "\t"; )
+
+        Matrix4d optz__w_T_a0;
+        PoseManipUtils::raw_xyzw_to_eigenmat( get_raw_ptr_to_opt_variable_q(0,i), get_raw_ptr_to_opt_variable_t(0,i), optz__w_T_a0 );
+        __LocalBundle__debug_print_initial_and_final_poses( cout << TermColor::GREEN() << PoseManipUtils::prettyprintMatrix4d( optz__w_T_a0 ) << TermColor::RESET() << endl; )
+
+        json obj;
+        obj["seqID"] = 0;
+        obj["idx"] = i;
+        obj["pose_initial_guess_pretty"] = PoseManipUtils::prettyprintMatrix4d( x0_T_c.at(0).at(i) );
+        obj["pose_after_opt_pretty"] = PoseManipUtils::prettyprintMatrix4d( optz__w_T_a0 ) ;
+        obj_seq_0.push_back( obj );
+
+    }
+
+
+    json obj_seq_1;
+    __LocalBundle__debug_print_initial_and_final_poses( cout << "\nSeq1: (initial, final)\n"; )
+    for( int i=0 ; i<get_seq_len(1); i++ )
+    {
+        __LocalBundle__debug_print_initial_and_final_poses(
+        cout << "i=" << i << "\t";
+        cout << PoseManipUtils::prettyprintMatrix4d( a0_T_b0.at( make_pair(0,1) ) * x0_T_c.at(1).at(i) ) << "\t"; )
+
+        Matrix4d optz__w_T_b0;
+        PoseManipUtils::raw_xyzw_to_eigenmat( get_raw_ptr_to_opt_variable_q(1,i), get_raw_ptr_to_opt_variable_t(1,i), optz__w_T_b0 );
+        __LocalBundle__debug_print_initial_and_final_poses(
+        cout << TermColor::GREEN() << PoseManipUtils::prettyprintMatrix4d( optz__w_T_b0 ) << TermColor::RESET() << endl;
+        )
+
+        json obj;
+        obj["seqID"] = 1;
+        obj["idx"] = i;
+        obj["pose_initial_guess_pretty"] = PoseManipUtils::prettyprintMatrix4d( a0_T_b0.at( make_pair(0,1) ) * x0_T_c.at(1).at(i) );
+        obj["pose_after_opt_pretty"] = PoseManipUtils::prettyprintMatrix4d( optz__w_T_b0 ) ;
+        obj_seq_1.push_back( obj );
+    }
+
+
+    // Added edges constraint vs result at those spots after optimization
+    json obj_edge_constraints;
+    __LocalBundle__debug_print_initial_and_final_poses(
+    cout << "Added edges constraint vs result at those spots after optimization(initial, final)\n";
+    cout << "# ea_constraints = " << this->debug_note_ea_constraints.size()  << endl;)
+    for( auto it=this->debug_note_ea_constraints.begin() ; it!=this->debug_note_ea_constraints.end() ; it++ )
+    {
+        int a_idx = it->first.first;
+        int b_idx = it->first.second;
+        __LocalBundle__debug_print_initial_and_final_poses(
+        cout << a_idx << "," << b_idx << ":\n\t";
+        cout << PoseManipUtils::prettyprintMatrix4d( it->second ) << "\n\t";
+
+        cout << TermColor::GREEN() << PoseManipUtils::prettyprintMatrix4d( retrive_optimized_pose( 0, a_idx, 1, b_idx ) ) << "\n\t" << TermColor::RESET();
+        cout << TermColor::YELLOW() << PoseManipUtils::prettyprintMatrix4d( retrive_initial_guess_pose( 0, a_idx, 1, b_idx ) ) << "\t" << TermColor::RESET();
+        cout << endl;
+        )
+
+        json obj;
+        obj["a_idx"] = a_idx;
+        obj["b_idx"] = b_idx;
+        obj["constraint_pose_a_T_b_pretty"] =  PoseManipUtils::prettyprintMatrix4d( it->second ) ;
+        obj["pose_initial_guess_a_T_b_pretty"] = PoseManipUtils::prettyprintMatrix4d( retrive_initial_guess_pose( 0, a_idx, 1, b_idx ) );
+        obj["pose_after_opt_a_T_b_pretty"] = PoseManipUtils::prettyprintMatrix4d( retrive_optimized_pose( 0, a_idx, 1, b_idx ) );
+        obj_edge_constraints.push_back( obj );
+    }
+
+
+    json final_obj;
+    final_obj["Seq0"] = obj_seq_0;
+    final_obj["Seq1"] = obj_seq_1;
+    final_obj["ea_constraints"] = obj_edge_constraints;
+    return final_obj;
+
+
+
+}
+
+//------------------------------
+// Retrive images ENDS
+//-------------------------------

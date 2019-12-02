@@ -30,7 +30,7 @@ void PoseManipUtils::geometry_msgs_Pose_to_eigenmat( const geometry_msgs::Pose& 
 
 void PoseManipUtils::eigenmat_to_geometry_msgs_Pose( const Matrix4d& T, geometry_msgs::Pose& pose )
 {
-    assert( T(3,3) == 1 );
+    assert( abs(T(3,3) - 1.0) < 1.0e-7 );
     Quaterniond q( T.topLeftCorner<3,3>() );
 
     pose.position.x = T(0,3);
@@ -46,7 +46,7 @@ void PoseManipUtils::eigenmat_to_geometry_msgs_Pose( const Matrix4d& T, geometry
 
 void PoseManipUtils::eigenmat_to_raw( const Matrix4d& T, double * quat, double * t)
 {
-  assert( T(3,3) == 1 );
+    assert( abs(T(3,3) - 1.0) < 1.0e-7 );
   Quaterniond q( T.topLeftCorner<3,3>() );
   quat[0] = q.w();
   quat[1] = q.x();
@@ -86,7 +86,7 @@ void PoseManipUtils::raw_xyzw_to_eigenmat( const Vector4d& quat, const Vector3d&
 
 void PoseManipUtils::eigenmat_to_raw_xyzw( const Matrix4d& T, double * quat, double * t)
 {
-  assert( T(3,3) == 1 );
+    assert( abs(T(3,3) - 1.0) < 1.0e-7 );
   Quaterniond q( T.topLeftCorner<3,3>() );
   quat[3] = q.w();
   quat[0] = q.x();
@@ -121,7 +121,7 @@ void PoseManipUtils::rawyprt_to_eigenmat( const Vector3d& eigen_ypr_degrees, con
 
 void PoseManipUtils::eigenmat_to_rawyprt( const Matrix4d& T, double * ypr, double * t)
 {
-  assert( T(3,3) == 1 );
+    assert( abs(T(3,3) - 1.0) < 1.0e-7 );
   Vector3d T_cap_ypr = R2ypr( T.topLeftCorner<3,3>() );
   ypr[0] = T_cap_ypr(0);
   ypr[1] = T_cap_ypr(1);
@@ -134,7 +134,7 @@ void PoseManipUtils::eigenmat_to_rawyprt( const Matrix4d& T, double * ypr, doubl
 
 void PoseManipUtils::eigenmat_to_rawyprt( const Matrix4d& T, Vector3d& ypr, Vector3d& t)
 {
-    assert( T(3,3) == 1 );
+    assert( abs(T(3,3) - 1.0) < 1.0e-7 );
     Vector3d T_cap_ypr = R2ypr( T.topLeftCorner<3,3>() );
     ypr(0) = T_cap_ypr(0);
     ypr(1) = T_cap_ypr(1);

@@ -176,6 +176,7 @@ add_executable(
         src/HypothesisManager.cpp
         src/ImageDataManager.cpp
         src/LocalBundle.cpp
+        src/EdgeAlignment.cpp
         ${KuseUtilsSources}
         ${CamodocalCameraModelSources}
 )

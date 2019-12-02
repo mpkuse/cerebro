@@ -238,6 +238,7 @@ private:
     // helpers for compute_geometry_for_loop_hypothesis_i
     bool retrive_image_data( ros::Time& stamp, cv::Mat& left_image, cv::Mat& depth_image, Matrix4d& w_T_c );
     bool retrive_image_data( ros::Time& stamp, cv::Mat& left_image );
+    bool retrive_depthimage_data( ros::Time& stamp, cv::Mat& depth_image );
 
 
     bool retrive_full_sequence_info(
@@ -250,6 +251,11 @@ private:
     bool retrive_full_sequence_image_info(
         const ros::Time seq_start_T, const ros::Time seq_end_T,
         vector<cv::Mat>& seq_image_list
+    );
+
+    bool retrive_full_sequence_depthimage_info(
+        const ros::Time seq_start_T, const ros::Time seq_end_T,
+        vector<cv::Mat>& seq_depthimage_list
     );
 
     bool save_loop_hypothesis_representative_image_pair_to_disk( const string SAVE_DIR ,int i );

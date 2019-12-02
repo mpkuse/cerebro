@@ -191,6 +191,52 @@ void MiscUtils::eigen_2_point2f( const MatrixXd& inp, std::vector<cv::Point2f>& 
 
 }
 
+void MiscUtils::point3f_2_eigen( const std::vector<cv::Point3f>& p, MatrixXd& dst, bool make_homogeneous )
+{
+    assert( p.size() > 0 && "[MiscUtils::point3f_2_eigen] input point vector looks empty\n");
+    // cout << "p.size=" << p.size() << endl;
+    dst = MatrixXd::Constant( (make_homogeneous?4:3), p.size(), 1.0 );
+
+    for( int i=0 ;i<p.size() ; i++ )
+    {
+        dst( 0, i ) = p[i].x;
+        dst( 1, i ) = p[i].y;
+        dst( 2, i ) = p[i].z;
+    }
+
+}
+
+void MiscUtils::eigen_2_point3f( const MatrixXd& inp, std::vector<cv::Point3f>& p )
+{
+    assert( inp.rows() == 3 || inp.rows() == 4 );
+    assert( inp.cols() > 0 );
+    p.clear();
+
+    bool homogeneous = false;
+    if( inp.rows() == 3 )
+    {
+        homogeneous = true;
+    }
+
+    for( int i=0 ; i<inp.cols() ; i++ )
+    {
+        cv::Point3f pt;
+        pt.x = (float) inp(0,i);
+        pt.y = (float) inp(1,i);
+        pt.z = (float) inp(2,i);
+        #if 0
+        if( homogeneous == true ) {
+            assert( abs(inp(3,i))>1e-7 ); //z cannot be zero
+            pt.x /= (float) inp(3,i);
+            pt.y /= (float) inp(3,i);
+            pt.z /= (float) inp(3,i);
+        }
+        #endif
+        p.push_back(pt);
+    }
+
+}
+
 int MiscUtils::total_true( const vector<bool>& V )
 {
     int s=0;
@@ -633,6 +679,181 @@ void MiscUtils::plot_point_pair( const cv::Mat& imA, const MatrixXd& ptsA, int i
   cv::vconcat( outImg, status, dst );
 
 }
+
+
+
+// plot point set on image.
+//  im : Input image
+//  pts_set : 2xN or 3xN matrix with x,y in a col, in terms of image row and colidx this will be c,r.
+//  status : same size as im, once with status[k] == 0 will not be plotted
+//  dst [output]: output image
+void MiscUtils::plot_point_sets_masked( const cv::Mat& im, const MatrixXd& pts_set, const vector<uchar>& status,
+        cv::Mat& dst,
+        const cv::Scalar& color, bool enable_keypoint_annotation, const string msg )
+{
+
+
+    assert( im.rows > 0 && im.cols > 0 && "\n[MiscUtils::plot_point_sets]Image appears to be emoty. cannot plot.\n");
+    // assert( pts_set.cols() > 0 && pts_set.cols() == annotations.rows() && "[MiscUtils::plot_point_sets] VectorXi annotation size must be equal to number of points. If you wish to use the default annotation ie. 0,1,...n use `true` instead. If you do not want annotation use `false`." );
+    assert( status.size() > 0 && status.size() == pts_set.cols() );
+    if( im.data == dst.data ) {
+      //   cout << "src and dst are same\n";
+        // src and dst images are same, so dont copy. just ensure it is a 3 channel image.
+        assert( im.channels() == 3 && dst.channels() == 3 && "[MiscUtils::plot_point_sets]src and dst image are same physical image in memory. They need to be 3 channel." );
+    }
+    else {
+      //   dst = cv::Mat( im.rows, im.cols, CV_8UC3 );
+        if( im.channels() == 1 )
+          cv::cvtColor( im, dst, cv::COLOR_GRAY2BGR );
+        else
+          im.copyTo(dst);
+    }
+
+    // cv::putText( dst, to_string(msg.length()), cv::Point(5,5), cv::FONT_HERSHEY_COMPLEX_SMALL, .95, cv::Scalar(0,255,255) );
+    if( msg.length() > 0 ) {
+      vector<std::string> msg_split;
+      msg_split = MiscUtils::split( msg, ';' );
+      for( int q=0 ; q<msg_split.size() ; q++ )
+        cv::putText( dst, msg_split[q], cv::Point(5,20+20*q), cv::FONT_HERSHEY_COMPLEX_SMALL, .95, cv::Scalar(0,255,255) );
+    }
+
+
+    //pts_set is 2xN
+    cv::Point2d pt;
+    for( int i=0 ; i<pts_set.cols() ; i++ )
+    {
+      // pt = cv::Point2d(pts_set.at<float>(0,i),pts_set.at<float>(1,i) );
+      if( status[i] == 0 )
+        continue;
+
+      pt = cv::Point2d( (float)pts_set(0,i), (float)pts_set(1,i) );
+      cv::circle( dst, pt, 2, color, -1 );
+
+      if( enable_keypoint_annotation ) {
+          char to_s[20];
+          sprintf( to_s, "%d", i );
+          cv::putText( dst, to_s, pt, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.5, color  );
+      }
+
+
+    }
+}
+
+
+// plot point set on image.
+//  im : Input image
+//  pts_set : 2xN or 3xN matrix with x,y in a col, in terms of image row and colidx this will be c,r.
+//  status : same size as im, once with status[k] == false will not be plotted
+//  dst [output]: output image
+void MiscUtils::plot_point_sets_masked( const cv::Mat& im, const MatrixXd& pts_set, const vector<bool>& status,
+            cv::Mat& dst,
+            const cv::Scalar& color, bool enable_keypoint_annotation , const string msg  )
+{
+
+
+    assert( im.rows > 0 && im.cols > 0 && "\n[MiscUtils::plot_point_sets]Image appears to be emoty. cannot plot.\n");
+    // assert( pts_set.cols() > 0 && pts_set.cols() == annotations.rows() && "[MiscUtils::plot_point_sets] VectorXi annotation size must be equal to number of points. If you wish to use the default annotation ie. 0,1,...n use `true` instead. If you do not want annotation use `false`." );
+    assert( status.size() > 0 && status.size() == pts_set.cols() );
+    if( im.data == dst.data ) {
+      //   cout << "src and dst are same\n";
+        // src and dst images are same, so dont copy. just ensure it is a 3 channel image.
+        assert( im.channels() == 3 && dst.channels() == 3 && "[MiscUtils::plot_point_sets]src and dst image are same physical image in memory. They need to be 3 channel." );
+    }
+    else {
+      //   dst = cv::Mat( im.rows, im.cols, CV_8UC3 );
+        if( im.channels() == 1 )
+          cv::cvtColor( im, dst, cv::COLOR_GRAY2BGR );
+        else
+          im.copyTo(dst);
+    }
+
+    // cv::putText( dst, to_string(msg.length()), cv::Point(5,5), cv::FONT_HERSHEY_COMPLEX_SMALL, .95, cv::Scalar(0,255,255) );
+    if( msg.length() > 0 ) {
+      vector<std::string> msg_split;
+      msg_split = MiscUtils::split( msg, ';' );
+      for( int q=0 ; q<msg_split.size() ; q++ )
+        cv::putText( dst, msg_split[q], cv::Point(5,20+20*q), cv::FONT_HERSHEY_COMPLEX_SMALL, .95, cv::Scalar(0,255,255) );
+    }
+
+
+    //pts_set is 2xN
+    cv::Point2d pt;
+    for( int i=0 ; i<pts_set.cols() ; i++ )
+    {
+      // pt = cv::Point2d(pts_set.at<float>(0,i),pts_set.at<float>(1,i) );
+      if( status[i] == false )
+        continue;
+
+      pt = cv::Point2d( (float)pts_set(0,i), (float)pts_set(1,i) );
+      cv::circle( dst, pt, 2, color, -1 );
+
+      if( enable_keypoint_annotation ) {
+          char to_s[20];
+          sprintf( to_s, "%d", i );
+          cv::putText( dst, to_s, pt, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.5, color  );
+      }
+
+
+    }
+}
+
+
+
+
+void MiscUtils::plot_point_sets_masked( const cv::Mat& im, const MatrixXd& pts_set,
+            const VectorXd& status, double show_only_greater_than_this_value,
+            cv::Mat& dst,
+            const cv::Scalar& color, bool enable_keypoint_annotation , const string msg  )
+{
+
+
+    assert( im.rows > 0 && im.cols > 0 && "\n[MiscUtils::plot_point_sets]Image appears to be emoty. cannot plot.\n");
+    // assert( pts_set.cols() > 0 && pts_set.cols() == annotations.rows() && "[MiscUtils::plot_point_sets] VectorXi annotation size must be equal to number of points. If you wish to use the default annotation ie. 0,1,...n use `true` instead. If you do not want annotation use `false`." );
+    assert( status.size() > 0 && status.size() == pts_set.cols() );
+    if( im.data == dst.data ) {
+      //   cout << "src and dst are same\n";
+        // src and dst images are same, so dont copy. just ensure it is a 3 channel image.
+        assert( im.channels() == 3 && dst.channels() == 3 && "[MiscUtils::plot_point_sets]src and dst image are same physical image in memory. They need to be 3 channel." );
+    }
+    else {
+      //   dst = cv::Mat( im.rows, im.cols, CV_8UC3 );
+        if( im.channels() == 1 )
+          cv::cvtColor( im, dst, cv::COLOR_GRAY2BGR );
+        else
+          im.copyTo(dst);
+    }
+
+    // cv::putText( dst, to_string(msg.length()), cv::Point(5,5), cv::FONT_HERSHEY_COMPLEX_SMALL, .95, cv::Scalar(0,255,255) );
+    if( msg.length() > 0 ) {
+      vector<std::string> msg_split;
+      msg_split = MiscUtils::split( msg, ';' );
+      for( int q=0 ; q<msg_split.size() ; q++ )
+        cv::putText( dst, msg_split[q], cv::Point(5,20+20*q), cv::FONT_HERSHEY_COMPLEX_SMALL, .95, cv::Scalar(0,255,255) );
+    }
+
+
+    //pts_set is 2xN
+    cv::Point2d pt;
+    for( int i=0 ; i<pts_set.cols() ; i++ )
+    {
+      // pt = cv::Point2d(pts_set.at<float>(0,i),pts_set.at<float>(1,i) );
+      if( status(i) < show_only_greater_than_this_value )
+        continue;
+
+      pt = cv::Point2d( (float)pts_set(0,i), (float)pts_set(1,i) );
+      cv::circle( dst, pt, 2, color, -1 );
+
+      if( enable_keypoint_annotation ) {
+          char to_s[20];
+          sprintf( to_s, "%d", i );
+          cv::putText( dst, to_s, pt, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.5, color  );
+      }
+
+
+    }
+}
+
+
 
 cv::Scalar MiscUtils::getFalseColor( float f )
 {
