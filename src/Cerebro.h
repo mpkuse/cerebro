@@ -198,6 +198,7 @@ public:
     void loop_hypothesis_i_datamap_idx( int i, int& datamap_seq_a_start, int& datamap_seq_a_end, int& datamap_seq_b_start, int& datamap_seq_b_end ) const;
 
     void loop_hypothesis_i__set_computed_pose( int i, Matrix4d a_T_b, string info_str );
+    void loop_hypothesis_i__append_debug_string( int i,  string info_str );
 
 private:
     std::shared_ptr<HypothesisManager> hyp_manager; // this is allocated in `faiss_multihypothesis_tracking()`
@@ -234,6 +235,18 @@ private:
     //      f. report
     bool compute_geometry_for_loop_hypothesis_i( int i );
     bool compute_geometry_for_loop_hypothesis_i_old( int i );
+
+
+
+    // This will take the index of hypothesis and compute the relative pose.
+    // This method used only the firsts of both sequences ie. seq_a_start --- seq_b_start
+    // Following is done:
+    //      a. GMS Matches (either at 0.5 resolution or 1.0 resolution )
+    //      b. if insufficient number of matches (declare it as false positive and end)
+    //      c.  if sufficient feature matches compute 3d points at these matches
+    //      d. pose compute by alternating minimization (global methods needs no initial guess)
+    //      e. refinement with edge-alignment.
+    bool compute_geometry_for_loop_hypothesis_i_lite( int i );
 
     // helpers for compute_geometry_for_loop_hypothesis_i
     bool retrive_image_data( ros::Time& stamp, cv::Mat& left_image, cv::Mat& depth_image, Matrix4d& w_T_c );

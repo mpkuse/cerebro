@@ -31,6 +31,7 @@ cout << "\033[1;31mbold red text\033[0m\n";
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <vector>
 
 class TermColor
 {
@@ -68,6 +69,13 @@ public:
     static std::string uCYAN() { return compose_u( TermColor::BG_CYAN, true );  }
     static std::string uWHITE() { return compose_u( TermColor::BG_WHITE, true );  }
 
+    static std::string TAB1() { return "\t"; }
+    static std::string TAB2() { return "\t\t"; }
+    static std::string TAB3() { return "\t\t\t"; }
+    static std::string TAB4() { return "\t\t\t\t"; }
+    static std::string TAB5() { return "\t\t\t\t\t"; }
+    static std::string TAB6() { return "\t\t\t\t\t\t"; }
+    #define TermColor__LF __FILE__ + std::string(":") << __LINE__
 
     static std::string RESET()
     {

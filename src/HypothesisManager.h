@@ -68,9 +68,15 @@ public:
     Matrix4d get_computed_pose( int i ) const ;
     string get_computed_pose_info_string( int i ) const;
 
+    // debug string at ith hypothesis
+    void append_debug_string( int i, const string info_str );
+    const string get_debug_string( int i, const string separator="\n" ) const;
+
 private:
     map<int,bool> m_computed_pose;
     map<int,Matrix4d> computed_pose_a_T_b;
     map<int,string> computed_pose_info;
+
+    map<int, vector<string>> debug_str;
 
 };

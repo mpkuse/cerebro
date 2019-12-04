@@ -148,6 +148,32 @@ void HypothesisManager::set_computed_pose( int i, const Matrix4d a_T_b, const st
     computed_pose_info[i] = info_str;
 }
 
+void HypothesisManager::append_debug_string( int i, const string info_str )
+{
+    std::lock_guard<std::mutex> lk(mutex_hyp_q);
+    if( i<0 || i>= (int)hyp_q.size() )
+        throw "[HypothesisManager::set_computed_pose] invalid i";
+
+    if( debug_str.count(i) == 0 )
+        debug_str[i] = vector<string>();
+
+    debug_str[i].push_back( info_str );
+}
+
+const string HypothesisManager::get_debug_string( int i, const string separator ) const
+{
+    // get the debug string for ith hypoithesis
+    if( debug_str.count(i) == 0 )
+        return separator+"NA";
+
+    std::stringstream buffer;
+    for( int k=0 ; k<debug_str.at(i).size() ; k++ )
+    {
+        buffer << separator << debug_str.at(i).at(k) ;
+    }
+    return buffer.str();
+}
+
 bool HypothesisManager::is_computed_pose_available( int i ) const
 {
     std::lock_guard<std::mutex> lk(mutex_hyp_q);

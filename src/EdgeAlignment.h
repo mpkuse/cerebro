@@ -55,6 +55,15 @@ public:
 
     }
 
+    // save the things needed to recreate this to disk.
+    //  will save im_ref, im_curr, depth_curr and the initial_guess____ref_T_curr
+    bool save_to_disk( const string PREFIX, const Matrix4d& initial_guess____ref_T_curr ) const;
+
+    const ceres::Solver::Summary getCeresSummary() const { return out_summary; }
+private:
+    ceres::Solver::Summary out_summary;
+
+
 private:
     const camodocal::CameraPtr cam ;
     const cv::Mat im_ref;               // distance transform will be made with edgemap of this image
@@ -78,7 +87,10 @@ private:
 
     // Given input image and depth map (either from RGBD or stereo), returns the 3D points at edges. Uses camera from the class
     // The output 3d points are in co-ordinate frame of the camera.
-    MatrixXd get_cX_at_edge_pts( const cv::Mat im, const cv::Mat depth_map   );
+    //          out_edgemap: same dimension as im but CV_8UC1 mask 255 at edges 0 at other points
+    //          im_curr_uv : selected points as 3xN. Essentially uv points where cX (the returned params) was made
+    MatrixXd get_cX_at_edge_pts( const cv::Mat im, const cv::Mat depth_map,
+        cv::Mat& out_edgemap, cv::Mat& out_selected_pts_edgemap  );
 
 
     // Reprojects the 3D points a_X (in frame-of-ref of imA) using the transformation b_T_a (pose of a in frame-of-ref of b).
@@ -159,9 +171,9 @@ public:
 
         interp_a.Evaluate( _u, _v, &residue[0] );  //original
 
-        #if 0
-        // switch constraint
-        T lambda = T(1.0);
+        #if 1
+        // switch constraint - if u enable this besure to also use `<EAResidue,2,4,3>` instead of <EAResidue,1,4,3> om create()
+        T lambda = T(.5);
         T delta = residue[0] * residue[0];
         T s = lambda / ( T(1.0) + delta );
         residue[0] *= s;
@@ -179,7 +191,7 @@ public:
         const double a_Xx, const double a_Xy, const double a_Xz,
         const ceres::BiCubicInterpolator<ceres::Grid2D<double,1>>& __interpolated_a  )
     {
-        return( new ceres::AutoDiffCostFunction<EAResidue,1,4,3>
+        return( new ceres::AutoDiffCostFunction<EAResidue,2,4,3>
             (
                 new EAResidue( fx, fy, cx, cy, a_Xx,a_Xy,a_Xz,__interpolated_a)
             )

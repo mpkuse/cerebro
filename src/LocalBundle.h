@@ -58,6 +58,8 @@ public:
         deallocate_optimization_vars();
     }
 
+    string SECRET_PREFIX;  // (comment this after debugging is done, so that this throws compile error and you get rid of it)
+
 
     //-----------------//
     //----- Input -----//

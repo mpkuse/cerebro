@@ -1000,6 +1000,93 @@ void MiscUtils::append_status_image( cv::Mat& im, const string& msg, float txt_s
 }
 #endif
 
+
+
+void MiscUtils::mask_overlay( const cv::Mat& src, const cv::Mat& mask, cv::Mat& dst, cv::Scalar color )
+{
+    if( src.empty() || mask.empty() ) {
+        cout << __FILE__ << ":" << __LINE__ << "Either of src or mask is not allocated\n";
+        throw 32;
+    }
+
+    if( src.rows == mask.rows && src.cols == mask.cols ) {
+        ; // ok
+    }
+    else
+    {
+        cout << __FILE__ << ":" << __LINE__ << "[ MiscUtils::mask_overlay] invalid input\n";
+        cout << "src :" << MiscUtils::cvmat_info( src ) << endl;
+        cout << "mask :" << MiscUtils::cvmat_info( mask ) << endl;
+        throw 32;
+    }
+
+    if( &src == &dst )
+    {
+        cout << __FILE__ << ":" << __LINE__ << "&src == &dst failed. expecting different src and dst in memory\n";
+        throw 32;
+    }
+
+
+    if( src.channels() == 3 )
+        src.copyTo(dst);
+    else
+        cv::cvtColor( src, dst, CV_GRAY2BGR );
+
+
+    for( int r=0 ; r<src.rows ; r++ )
+    {
+        for( int c=0 ; c<src.cols ; c++ )
+        {
+            if( mask.at<uchar>(r,c) > 0 )
+            {
+                // auto pt = cv::Point2f( (float)c, (float)r );
+                // cv::circle( dst, pt, 2, color, -1 );
+                dst.at< cv::Vec3b >( r,c ) = cv::Vec3b( color[0], color[1], color[2] );
+            }
+        }
+    }
+}
+
+
+void MiscUtils::mask_overlay( cv::Mat& src, const cv::Mat& mask, cv::Scalar color )
+{
+    if( src.empty() || mask.empty() ) {
+        cout << __FILE__ << ":" << __LINE__ << "Either of src or mask is not allocated\n";
+        throw 32;
+    }
+
+    if( src.rows == mask.rows && src.cols == mask.cols ) {
+        ; // ok
+    }
+    else
+    {
+        cout << __FILE__ << ":" << __LINE__ << "[ MiscUtils::mask_overlay] invalid input\n";
+        cout << "src :" << MiscUtils::cvmat_info( src ) << endl;
+        cout << "mask :" << MiscUtils::cvmat_info( mask ) << endl;
+        throw 32;
+    }
+
+
+    if( src.channels() != 3 ) {
+        cout << __FILE__ << ":" << __LINE__ << " src.channels need to be 3 for this version of mask_overlay, you may use other overload instance of this otherwise\n";
+        throw 32;
+    }
+
+
+    for( int r=0 ; r<src.rows ; r++ )
+    {
+        for( int c=0 ; c<src.cols ; c++ )
+        {
+            if( mask.at<uchar>(r,c) > 0 )
+            {
+                // auto pt = cv::Point2f( (float)c, (float)r );
+                // cv::circle( dst, pt, 2, color, -1 );
+                src.at< cv::Vec3b >( r,c ) = cv::Vec3b( color[0], color[1], color[2] );
+            }
+        }
+    }
+}
+
 // append a status image . ';' separated
 void MiscUtils::append_status_image( cv::Mat& im, const string& msg, float txt_size, cv::Scalar bg_color, cv::Scalar txt_color, float line_thinkness )
 {

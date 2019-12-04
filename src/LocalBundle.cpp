@@ -1185,7 +1185,7 @@ void LocalBundle::add_edge_alignment_residues( ceres::Problem& problem,
             // cv::waitKey(0);
         }
 
-
+        ealign.save_to_disk( this->SECRET_PREFIX+"ea_"+to_string(i), initial_guess____ref_T_curr );
 
     }
 

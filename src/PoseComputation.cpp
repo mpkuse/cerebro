@@ -462,9 +462,13 @@ float PoseComputation::alternatingMinimization( const MatrixXd& aX, const Matrix
 
 
     const double lambda = 1.5;
-    int max_iterations = 5;
+    int max_iterations = 7;
     VectorXi quantile;
     bool converged = false;
+
+    // If I see the fraction of switches on as more than this, this means it has converged.
+    float FRACTION_FOR_CONVERGENCE = 0.4;
+    assert( FRACTION_FOR_CONVERGENCE < 1.0 && FRACTION_FOR_CONVERGENCE > 0.1 );
 
     int n_quantiles = 4; //dont change this as it is liked to the threshold. This means the histogram has to be make with this many bins.
 
@@ -492,7 +496,7 @@ float PoseComputation::alternatingMinimization( const MatrixXd& aX, const Matrix
         // print_info_on_switch_weights( switch_weights );
 
         cout << "quantile: " << quantile.cast<float>().transpose() / float(N)  << endl;
-        if( quantile(n_quantiles-1) / float(N) > 0.75 ) {
+        if( quantile(n_quantiles-1) / float(N) > FRACTION_FOR_CONVERGENCE ) {
             converged = true;
             break;
         }

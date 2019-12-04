@@ -1013,6 +1013,9 @@ void Cerebro::faiss_multihypothesis_tracking()
         // cout << "(" << seq_a_start_T << "," << seq_a_end_T << ")";
         // cout << "<----->";
         // cout << "(" << seq_b_start_T << "," << seq_b_end_T << ")";
+        cout << "\n\t<comments>";
+        cout << hyp_manager->get_debug_string( i, "\n\t" ) << endl;
+        cout << "\t</comments>\n";
 
         cout << TermColor::RESET();
         cout << endl;
@@ -1038,6 +1041,8 @@ void Cerebro::faiss_multihypothesis_tracking()
             obj["opt_a0_T_b0"] = RawFileIO::write_eigen_matrix_tojson( opt_a0_T_b0 );
             obj["opt_a0_T_b0_prettyprint"] = PoseManipUtils::prettyprintMatrix4d( opt_a0_T_b0 );
         }
+
+        obj["debug_str"] = hyp_manager->get_debug_string( i, "\n\t" );
         all_loop_hyp.push_back( obj );
         #endif
 
@@ -1414,6 +1419,10 @@ void Cerebro::loop_hypothesis_i__set_computed_pose( int i,  Matrix4d a_T_b, stri
     hyp_manager->set_computed_pose( i, a_T_b, info_str );
 }
 
+void Cerebro::loop_hypothesis_i__append_debug_string( int i,  string info_str )
+{
+    hyp_manager->append_debug_string( i, info_str );
+}
 
 //------------------------------------------------------------------//
 //----------------- Geometry for Loop Hypothesis -------------------//
@@ -1466,7 +1475,8 @@ void Cerebro::loop_hypothesis_consumer_thread()
                 }
 
                 ElapsedTime geom_t("Bundled Pose computation hypothesis#"+to_string(d));
-                compute_geometry_for_loop_hypothesis_i( d );
+                // compute_geometry_for_loop_hypothesis_i( d ); //< LocalBundle
+                compute_geometry_for_loop_hypothesis_i_lite( d ); //< Just uses 1 image pair (start_a, start_b)
                 __Cerebro__loop_hypothesis_consumer_thread(
                 cout << TermColor::uGREEN() << geom_t.toc() << TermColor::RESET() << endl; )
 
@@ -1488,6 +1498,305 @@ void Cerebro::loop_hypothesis_consumer_thread()
 
 }
 
+
+
+
+
+// This will take the index of hypothesis and compute the relative pose.
+// This method used only the firsts of both sequences ie. seq_a_start --- seq_b_start
+// Following is done:
+//      a. GMS Matches (either at 0.5 resolution or 1.0 resolution )
+//      b. if insufficient number of matches (declare it as false positive and end)
+//      c.  if sufficient feature matches compute 3d points at these matches
+//      d. pose compute by alternating minimization (global methods needs no initial guess)
+//      e. refinement with edge-alignment.
+bool Cerebro::compute_geometry_for_loop_hypothesis_i_lite( int i )
+{
+    cout << TermColor::bCYAN() << TermColor::TAB2() << "[Cerebro::compute_geometry_for_loop_hypothesis_i_lite] Process Loop Hypothesis#" << i << TermColor::RESET() << endl;
+    ElapsedTime t_full_function_compuation_time( "Full Fuction");
+
+    //----params
+    const int N_TOO_FEW_POINT_MATCHES = 30;
+    const int N_TOO_FEW_VALID_DEPTH_CORRESPONDENCES = 20;
+
+    bool SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES = this->SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES;
+    const string SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES_PREFIX = this->SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES_PREFIX;
+    std::stringstream buffer;
+    // buffer.clear();
+    buffer.str(std::string());
+
+
+    //----book keeping
+    auto img_data_mgr = dataManager->getImageManagerRef();
+    auto data_map = dataManager->getDataMapRef();
+
+
+    ros::Time seq_a_start_T, seq_a_end_T, seq_b_start_T, seq_b_end_T;
+    loop_hypothesis_i_T( i, seq_a_start_T, seq_a_end_T, seq_b_start_T, seq_b_end_T );
+
+    int idx_a_start, idx_a_end, idx_b_start, idx_b_end;
+    loop_hypothesis_i_idx( i, idx_a_start, idx_a_end, idx_b_start, idx_b_end );
+
+
+    cout << TermColor::TAB2() << "timestamps: " ;
+    cout << seq_a_start_T << "," << seq_a_end_T << "(duration=" << seq_a_end_T-seq_a_start_T << ")";
+    cout << "<---->";
+    cout << seq_b_start_T << "," << seq_b_end_T << "(duration=" << seq_b_end_T-seq_b_start_T << ")";
+    cout << endl;
+    cout << TermColor::TAB2() << "dataManager idx: " ;
+    cout << idx_a_start << "," << idx_a_end ;
+    cout << "<---->";
+    cout << idx_b_start << "," << idx_b_end ;
+    cout << endl;
+    // if this is negative means `b` is previous `a` is next.
+    cout << TermColor::TAB2() << "seq_b_start_T - seq_a_start_T = " << (seq_b_start_T - seq_a_start_T).toSec() << endl;
+
+    //---- retrive necessary image, pose data
+    int idx_a = idx_a_start;
+    int idx_b = idx_b_start;
+    ros::Time t_a = seq_a_start_T;
+    ros::Time t_b = seq_b_start_T;
+    cv::Mat left_image_a, depth_a;
+    cv::Mat left_image_b, depth_b;
+    Matrix4d w_T_a, w_T_b;
+    bool status_a = retrive_image_data( t_a, left_image_a, depth_a, w_T_a );
+    bool status_b = retrive_image_data( t_b, left_image_b, depth_b, w_T_b );
+    if( status_a == false || status_b == false ) {
+        cout << TermColor__LF << "[Cerebro::compute_geometry_for_loop_hypothesis_i_lite] retrive_image_data failed, so skip this pair\n" ;
+        loop_hypothesis_i__append_debug_string(i, "retrive_image_data failed, so skip this pair" );
+        return false;
+    }
+
+    //---- GMS Matches
+    ElapsedTime t_im_correspondence;
+    t_im_correspondence.tic("Image correspondences");
+    MatrixXd uv_a, uv_b;
+    StaticPointFeatureMatching::gms_point_feature_matches( left_image_a, left_image_b, uv_a, uv_b );
+    // StaticPointFeatureMatching::gms_point_feature_matches_scaled( left_image_a, left_image_b, uv_a, uv_b, 0.5 );
+    // StaticPointFeatureMatching::gms_point_feature_matches_scaled( left_image_a, left_image_b, uv_a, uv_b, 0.25 );
+
+    auto im_correspondence_elapsed_time_ms = t_im_correspondence.toc_milli();
+    cout << TermColor::TAB3() << TermColor::YELLOW() << "#matches=" << uv_a.cols() << TermColor::RESET() << "\t";
+    cout << t_im_correspondence.toc() << "\t";
+    cout << endl;
+
+    // buffer.clear();
+    buffer.str(std::string());
+    buffer << "#matches=" << uv_a.cols() << "\t" << t_im_correspondence.toc();
+    loop_hypothesis_i__append_debug_string(i, buffer.str()  );
+
+    if( uv_a.cols() < N_TOO_FEW_POINT_MATCHES ) {
+        cout << TermColor::TAB3() << TermColor::bYELLOW();
+        cout << "number of matches (" << uv_a.cols() <<  ") is less than the threshold ("<< N_TOO_FEW_POINT_MATCHES << ")\n";
+        cout << TermColor::RESET();
+
+        // buffer.clear();
+        buffer.str(std::string());
+        buffer << "number of matches (" << uv_a.cols() <<  ") is less than the threshold ("<< N_TOO_FEW_POINT_MATCHES << ")";
+        loop_hypothesis_i__append_debug_string(i, buffer.str()  );
+        return false;
+    }
+
+
+    //---- Camera related geometry (normalized image cords, depth, 3dpts )
+    ElapsedTime t_im_geometry("Geometry and Depth");
+    VectorXd d_a = StaticPointFeatureMatching::depth_at_image_coordinates( uv_a, depth_a );
+    VectorXd d_b = StaticPointFeatureMatching::depth_at_image_coordinates( uv_b, depth_b );
+
+    //--- normalized image cords
+    MatrixXd normed_uv_a = StaticPointFeatureMatching::image_coordinates_to_normalized_image_coordinates( dataManager->getAbstractCameraRef(), uv_a );
+    MatrixXd normed_uv_b = StaticPointFeatureMatching::image_coordinates_to_normalized_image_coordinates( dataManager->getAbstractCameraRef(), uv_b );
+
+    // 3d points
+    MatrixXd aX = StaticPointFeatureMatching::normalized_image_coordinates_and_depth_to_3dpoints( normed_uv_a, d_a, true );
+    MatrixXd bX = StaticPointFeatureMatching::normalized_image_coordinates_and_depth_to_3dpoints( normed_uv_b, d_b, true );
+
+
+    // filter 3d points based on depth values
+    double near = 0.5, far = 5.0;
+    vector<bool> valids_a = MiscUtils::filter_near_far( d_a, near, far );
+    vector<bool> valids_b = MiscUtils::filter_near_far( d_b, near, far );
+    int nvalids_a = MiscUtils::total_true( valids_a );
+    int nvalids_b = MiscUtils::total_true( valids_b );
+    vector<bool> valids = MiscUtils::vector_of_bool_AND( valids_a, valids_b );
+    int nvalids = MiscUtils::total_true( valids );
+
+    cout <<  TermColor::TAB3();
+    cout << TermColor::YELLOW() << "nvalids_a,nvalids_b,nvalids=(" << nvalids_a << "," << nvalids_b << "," << nvalids << ")\t" << TermColor::RESET();
+    cout << t_im_geometry.toc() << "\t";
+    cout << "far="<<far << ", near=" << near << "\t";
+    cout << endl;
+    #if 0
+    cout << "uv_a,uv_b: " << uv_a.rows() << "x" << uv_a.cols() << "," << uv_b.rows() << "x" << uv_b.cols() << "\t";
+    cout << "normed_uv_a,normed_uv_a: " << normed_uv_a.rows() << "x" << normed_uv_a.cols() << "," << normed_uv_b.rows() << "x" << normed_uv_b.cols() << "\t";
+    cout << "aX,bX: " << aX.rows() << "x" << aX.cols() << "," << bX.rows() << "x" << bX.cols() << "\t";
+    cout << endl;
+    #endif
+
+
+    // buffer.clear();
+    buffer.str(std::string());
+    buffer << "nvalids_a,nvalids_b,nvalids=(" << nvalids_a << "," << nvalids_b << "," << nvalids << ")\t";
+    buffer << t_im_geometry.toc() << "\t";
+    buffer << "far="<<far << ", near=" << near ;
+    loop_hypothesis_i__append_debug_string(i, buffer.str()  );
+
+
+
+    if( SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES )
+    {
+        cv::Mat dst_matcher;
+        string msg_str = "plot (resize 0.5), took ms="+to_string(im_correspondence_elapsed_time_ms);
+        msg_str += ";#valid depths="+to_string( nvalids);
+        msg_str += ";#nvalids_a,nvalids_b,nvalids=("+ std::to_string( nvalids_a) + "," + std::to_string(nvalids_b) + "," + std::to_string(nvalids) + ")";
+        MiscUtils::plot_point_pair( left_image_a, uv_a, idx_a,
+                                    left_image_b, uv_b, idx_b,
+                                    dst_matcher,
+                                    #if 1 // make this to 1 to mark matches by spatial color codes (gms style). set this to 0 to mark the matches with lines
+                                    3, msg_str
+                                    #else
+                                    cv::Scalar( 0,0,255 ), cv::Scalar( 0,255,0 ), false, msg_str
+                                    #endif
+                                );
+        cv::resize(dst_matcher, dst_matcher, cv::Size(), 0.5, 0.5);
+
+        string fname = SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES_PREFIX+"/hyp_" + to_string(i) + "_imagepair" + ".jpg";
+        cout << TermColor::iWHITE() << "\t\t\timwriteFTGH(" << fname << ");\n" << TermColor::RESET();
+        cv::imwrite( fname, dst_matcher );
+    }
+
+    if( nvalids < N_TOO_FEW_VALID_DEPTH_CORRESPONDENCES ) {
+        cout << TermColor::TAB3() << TermColor::bYELLOW();
+        cout << "#correspondences which have good depth (" << nvalids <<  ") is less than the threshold ("<< N_TOO_FEW_VALID_DEPTH_CORRESPONDENCES << "),so I cannot compute any pose info\n";
+        cout << TermColor::RESET();
+
+        // buffer.clear();
+        buffer.str(std::string());
+        buffer << "#correspondences which have good depth (" << nvalids <<  ") is less than the threshold ("<< N_TOO_FEW_VALID_DEPTH_CORRESPONDENCES << "),so I cannot compute any pose info";
+        loop_hypothesis_i__append_debug_string(i, buffer.str()  );
+
+        return false;
+    }
+
+
+    //---- Pose with 3d-3d alignment with alternating minimization (to generate a rough initial guess)
+    cout << TermColor::bWHITE();
+    cout << TermColor::TAB3() << "-----------------------------------------\n";
+    cout << TermColor::TAB3() << "-----   ALTERNATING MINIMIZATIONS -------\n";
+    cout << TermColor::TAB3() << "-----------------------------------------\n";
+    cout << TermColor::RESET();
+    Matrix4d a_T_b = Matrix4d::Identity();
+    VectorXd switch_weights = VectorXd::Constant( aX.cols() , 1.0 );
+    float minimization_metric = PoseComputation::alternatingMinimization( aX, bX, a_T_b, switch_weights );
+    if( minimization_metric <  0 )
+    {
+        cout << TermColor::TAB3() << TermColor::bYELLOW();
+        cout << "Alternating minimization return nagative: " << minimization_metric << " return false"<< endl;
+        cout << TermColor::RESET() ;
+
+        // buffer.clear();
+        buffer.str(std::string());
+        buffer << "Alternating minimization return nagative, indicating non convergence";
+        loop_hypothesis_i__append_debug_string(i, buffer.str()  );
+        return false;
+    }
+
+    cout << TermColor::TAB3();
+    cout << "RESULT of AM: a_T_b: " << PoseManipUtils::prettyprintMatrix4d( a_T_b ) << endl;
+    cout << TermColor::bWHITE() << TermColor::TAB3() << "----- DONE ALTERNATING MINIMIZATIONS -------\n" << TermColor::RESET();
+
+    loop_hypothesis_i__append_debug_string(i, "RESULT of AM: a_T_b: " + PoseManipUtils::prettyprintMatrix4d( a_T_b )  );
+
+
+
+
+    //---- Refinement
+    //         option-A: minimization of reprojection error
+    //         option-B: edge-alignment
+    #if 0
+    cout << TermColor::bWHITE();
+    cout << TermColor::TAB3() << "------------------------------------------------------------------\n";
+    cout << TermColor::TAB3() << "----- POSE REFINEMENT : Minimization of Reprojection Error -------\n";
+    cout << TermColor::TAB3() << "------------------------------------------------------------------\n";
+    cout << TermColor::RESET();
+
+    //TODO may be do EPNP https://github.com/cvlab-epfl/EPnP/blob/master/cpp/main.cpp
+
+    cout <<  TermColor::bWHITE() << TermColor::TAB3() << "----- DONE POSE REFINEMENT : Minimization of Reprojection Error -------\n" << TermColor::RESET();
+
+    #endif //reprojection error
+
+    #if 1
+    cout << TermColor::bWHITE();
+    cout << TermColor::TAB3() << "----------------------------------------------\n";
+    cout << TermColor::TAB3() << "----- POSE REFINEMENT : Edge Alignment -------\n";
+    cout << TermColor::TAB3() << "----------------------------------------------\n";
+    cout << TermColor::RESET();
+
+    {
+        cv::Mat im_ref = left_image_a;
+        cv::Mat im_curr = left_image_b;
+        cv::Mat depth_curr = depth_b;
+        auto cam = dataManager->getAbstractCameraRef();
+
+        Matrix4d initial_guess____ref_T_curr = a_T_b; //if using b as ref, than change needed accordingly
+
+        EdgeAlignment ealign( cam, im_ref, im_curr, depth_curr );
+        if( SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES )
+            ealign.set_make_representation_image();
+        Matrix4d ref_T_curr_optvar; //ie. a_T_b
+
+        ElapsedTime t_main_ea( "ealign.solve()");
+        bool ea_status = ealign.solve( initial_guess____ref_T_curr, ref_T_curr_optvar );
+        a_T_b = ref_T_curr_optvar;
+
+        cout << TermColor::TAB3() << "ea_status=" << ea_status << "\t" ;
+            cout << TermColor::uGREEN() << t_main_ea.toc() << TermColor::RESET() << endl;
+        cout << TermColor::TAB3() << "initial_guess____ref_T_curr = " << PoseManipUtils::prettyprintMatrix4d( initial_guess____ref_T_curr ) << endl;
+        cout << TermColor::TAB3() << "ref_T_curr_optvar           = " << PoseManipUtils::prettyprintMatrix4d( ref_T_curr_optvar ) << endl;
+        cout << TermColor::TAB3() << ealign.getCeresSummary().BriefReport() << endl;
+
+
+        loop_hypothesis_i__append_debug_string(i, "ea_status="+to_string(ea_status)+"\t"+t_main_ea.toc() );
+        loop_hypothesis_i__append_debug_string(i, "initial_guess____ref_T_curr = " + PoseManipUtils::prettyprintMatrix4d( initial_guess____ref_T_curr )  );
+        loop_hypothesis_i__append_debug_string(i, "ref_T_curr_optvar           = " + PoseManipUtils::prettyprintMatrix4d( ref_T_curr_optvar )   );
+        loop_hypothesis_i__append_debug_string(i, ealign.getCeresSummary().BriefReport() );
+
+
+        //   view debug image
+        // cv::imshow( "debug_image_ealign", ealign.get_representation_image() );
+
+        if( SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES )
+        {
+            string fname = SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES_PREFIX+"/hyp_" + to_string(i) + "_ea" + ".jpg";
+            cv::imwrite( fname, ealign.get_representation_image() );
+
+            // this will cause the inputs of edge align to be written to disk for further analysis.
+            ealign.save_to_disk( SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES_PREFIX+"/hyp_" + to_string(i) + "_ea" , initial_guess____ref_T_curr);
+        }
+    }
+
+    cout << TermColor::bWHITE() << TermColor::TAB3() << "----- DONE POSE REFINEMENT : Edge Alignment -------\n" << TermColor::RESET();
+
+    #endif // edge alignment
+
+
+
+    //---- Publish the pose
+    // TODO make message and publish
+    // publish_pose_from_seq( t_a, idx_a, seq_a_odom_pose,
+    //                        t_b, idx_b, seq_b_odom_pose,
+    //                         a_T_b );
+
+    cout << TermColor::uWHITE() <<  "loop_hypothesis_i__set_computed_pose" <<TermColor::RESET() <<  endl;
+    loop_hypothesis_i__set_computed_pose( i, a_T_b, "successful" );
+    loop_hypothesis_i__append_debug_string(i, "successfully computed pose. "+ t_full_function_compuation_time.toc() );
+
+
+
+    return false;
+
+}
 
 #define __Cerebro__compute_geometry_for_loop_hypothesis_i( msg ) msg;
 // #define __Cerebro__compute_geometry_for_loop_hypothesis_i( msg );
@@ -1928,6 +2237,7 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i( int i )
 
     bool ea_make_debug_images = true; //SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES;
     ElapsedTime t_solve_ea( "bundle.solve_ea");
+    bundle.SECRET_PREFIX = SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES_PREFIX+"/hyp_"+to_string(i)+"_";
     bundle.solve_ea(dataManager->getAbstractCameraRef(), ea_make_debug_images);
     cout << "[Cerebro::compute_geometry_for_loop_hypothesis_i]" << t_solve_ea.toc() << endl;
 
