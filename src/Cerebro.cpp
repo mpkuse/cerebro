@@ -1717,7 +1717,7 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i_lite( int i )
 
         // buffer.clear();
         buffer.str(std::string());
-        buffer << "Alternating minimization return ("<< minimization <<") nagative, indicating non convergence";
+        buffer << "Alternating minimization return ("<< minimization_metric <<") nagative, indicating non convergence";
         loop_hypothesis_i__append_debug_string(i, buffer.str()  );
         return false;
     }
@@ -1736,9 +1736,9 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i_lite( int i )
     //         option-B: edge-alignment
     #if 0
     cout << TermColor::bWHITE();
-    cout << TermColor::TAB3() << "------------------------------------------------------------------\n";
-    cout << TermColor::TAB3() << "----- POSE REFINEMENT : Minimization of Reprojection Error -------\n";
-    cout << TermColor::TAB3() << "------------------------------------------------------------------\n";
+    cout << TermColor::TAB3() << "------------------------------------------------------------------------\n";
+    cout << TermColor::TAB3() << "----- POSE REFINEMENT : Minimization of Reprojection Error (PNP) -------\n";
+    cout << TermColor::TAB3() << "------------------------------------------------------------------------\n";
     cout << TermColor::RESET();
 
     //TODO may be do EPNP https://github.com/cvlab-epfl/EPnP/blob/master/cpp/main.cpp
