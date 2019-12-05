@@ -274,6 +274,13 @@ private:
     bool save_loop_hypothesis_representative_image_pair_to_disk( const string SAVE_DIR ,int i );
     bool make_loop_hypothesis_representative_image_pair( int i, cv::Mat& out_image );
 
+    void publish_this_pose(
+        const ros::Time t_a, const int idx_a,
+        const ros::Time t_b, const int idx_b,
+        const Matrix4d& a_T_b
+    );
+
+
     void publish_pose_from_seq(
         const vector<ros::Time>& seq_a_T, const vector<int>& seq_a_idx, const vector<Matrix4d>& seq_a_odom_pose,
         const vector<ros::Time>& seq_b_T, const vector<int>& seq_b_idx, const vector<Matrix4d>& seq_b_odom_pose,

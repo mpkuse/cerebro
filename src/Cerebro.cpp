@@ -1567,12 +1567,33 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i_lite( int i )
         return false;
     }
 
+
+    #if 1
+    // save input image (for pose computation) to disk
+    if( SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES )
+    {
+        //save left_image_a, left_image_b
+        string fname_a = SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES_PREFIX+"../live_system/hyp_" + to_string(i) + "_left_image_a" + ".jpg";
+        cv::imwrite( fname_a, left_image_a );
+        string fname_b = SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES_PREFIX+"../live_system/hyp_" + to_string(i) + "_left_image_b" + ".jpg";
+        cv::imwrite( fname_b, left_image_b );
+
+        // save depth_a, depth_b
+        string fname_storage = SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES_PREFIX+"../live_system/hyp_" + to_string(i) + "_depths.yaml";
+        cv::FileStorage storage( fname_storage, cv::FileStorage::WRITE);
+        storage << "depth_a" << depth_a;
+        storage << "depth_b" << depth_b;
+        storage.release();
+
+    }
+    #endif
+
     //---- GMS Matches
     ElapsedTime t_im_correspondence;
     t_im_correspondence.tic("Image correspondences");
     MatrixXd uv_a, uv_b;
-    StaticPointFeatureMatching::gms_point_feature_matches( left_image_a, left_image_b, uv_a, uv_b );
-    // StaticPointFeatureMatching::gms_point_feature_matches_scaled( left_image_a, left_image_b, uv_a, uv_b, 0.5 );
+    // StaticPointFeatureMatching::gms_point_feature_matches( left_image_a, left_image_b, uv_a, uv_b, 10000 );
+    StaticPointFeatureMatching::gms_point_feature_matches_scaled( left_image_a, left_image_b, uv_a, uv_b, 0.5, 10000 );
     // StaticPointFeatureMatching::gms_point_feature_matches_scaled( left_image_a, left_image_b, uv_a, uv_b, 0.25 );
 
     auto im_correspondence_elapsed_time_ms = t_im_correspondence.toc_milli();
@@ -1696,16 +1717,16 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i_lite( int i )
 
         // buffer.clear();
         buffer.str(std::string());
-        buffer << "Alternating minimization return nagative, indicating non convergence";
+        buffer << "Alternating minimization return ("<< minimization <<") nagative, indicating non convergence";
         loop_hypothesis_i__append_debug_string(i, buffer.str()  );
         return false;
     }
 
     cout << TermColor::TAB3();
-    cout << "RESULT of AM: a_T_b: " << PoseManipUtils::prettyprintMatrix4d( a_T_b ) << endl;
+    cout << "RESULT of AM: minimization_metric=" << minimization_metric << "\ta_T_b: " << PoseManipUtils::prettyprintMatrix4d( a_T_b ) << endl;
     cout << TermColor::bWHITE() << TermColor::TAB3() << "----- DONE ALTERNATING MINIMIZATIONS -------\n" << TermColor::RESET();
 
-    loop_hypothesis_i__append_debug_string(i, "RESULT of AM: a_T_b: " + PoseManipUtils::prettyprintMatrix4d( a_T_b )  );
+    loop_hypothesis_i__append_debug_string(i, "RESULT of AM: minimization_metric="+to_string(minimization_metric)+" a_T_b: " + PoseManipUtils::prettyprintMatrix4d( a_T_b )  );
 
 
 
@@ -1771,8 +1792,36 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i_lite( int i )
             string fname = SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES_PREFIX+"/hyp_" + to_string(i) + "_ea" + ".jpg";
             cv::imwrite( fname, ealign.get_representation_image() );
 
+            #if 1 //additional debug info
             // this will cause the inputs of edge align to be written to disk for further analysis.
             ealign.save_to_disk( SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES_PREFIX+"/hyp_" + to_string(i) + "_ea" , initial_guess____ref_T_curr);
+
+            // write more data to yaml : w_T_a, w_T_b, imu_T_cam
+            cv::FileStorage storage(SAVE_LOCALBUNDLE_REPROJECTION_DEBUG_IMAGES_PREFIX+"/hyp_" + to_string(i) + "_ea_additional_info.yaml", cv::FileStorage::WRITE);
+            cv::Mat mat_w_T_a, mat_w_T_b, mat_imu_T_cam;
+            cv::eigen2cv( w_T_a, mat_w_T_a );
+            cv::eigen2cv( w_T_b, mat_w_T_b );
+            cv::eigen2cv( dataManager->getIMUCamExtrinsic(), mat_imu_T_cam );
+            storage << "w_T_a" << mat_w_T_a;
+            storage << "w_T_b" << mat_w_T_b;
+            storage << "imu_T_cam" << mat_imu_T_cam;
+            storage.release();
+            #endif
+
+        }
+
+
+        if( ea_status == false )
+        {
+            cout << TermColor::TAB3() << TermColor::bYELLOW();
+            cout << "refinement with edge-alignment indicate non-convergence" << minimization_metric << " return false"<< endl;
+            cout << TermColor::RESET() ;
+
+            // buffer.clear();
+            buffer.str(std::string());
+            buffer << "refinement with edge-alignment indicate non-convergence, so dont publish this pose";
+            loop_hypothesis_i__append_debug_string(i, buffer.str()  );
+            return false;
         }
     }
 
@@ -1784,9 +1833,8 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i_lite( int i )
 
     //---- Publish the pose
     // TODO make message and publish
-    // publish_pose_from_seq( t_a, idx_a, seq_a_odom_pose,
-    //                        t_b, idx_b, seq_b_odom_pose,
-    //                         a_T_b );
+    publish_this_pose( t_a, idx_a,   t_b, idx_b,
+                            a_T_b );
 
     cout << TermColor::uWHITE() <<  "loop_hypothesis_i__set_computed_pose" <<TermColor::RESET() <<  endl;
     loop_hypothesis_i__set_computed_pose( i, a_T_b, "successful" );
@@ -2742,6 +2790,26 @@ bool Cerebro::retrive_depthimage_data( ros::Time& stamp, cv::Mat& depth_image )
 
 
     return true;
+}
+
+void Cerebro::publish_this_pose(
+    const ros::Time t_a, const int idx_a,
+    const ros::Time t_b, const int idx_b,
+    const Matrix4d& a_T_b
+    )
+{
+    cerebro::LoopEdge loopedge_msg;
+    geometry_msgs::Pose pose;
+
+    loopedge_msg.timestamp0 = t_b;
+    loopedge_msg.timestamp1 = t_a;
+    PoseManipUtils::eigenmat_to_geometry_msgs_Pose( a_T_b, pose );
+    loopedge_msg.pose_1T0 = pose;
+    loopedge_msg.weight = 1.0; //1.0;
+    loopedge_msg.description = "t0="+std::to_string( idx_b )+"t1="+std::to_string( idx_a );
+    loopedge_msg.description += "    this pose is: "+to_string(idx_a)+"_T_"+to_string(idx_b);
+    // __Cerebro__compute_geometry_for_loop_hypothesis_i( cout << loopedge_msg << endl; )
+    pub_loopedge.publish( loopedge_msg );
 }
 
 void Cerebro::publish_pose_from_seq(

@@ -182,9 +182,9 @@ void StaticPointFeatureMatching::gms_point_feature_matches( const cv::Mat& imlef
     int 	nlevels = 3;                   _orb_param( cout << "nlevels=" << nlevels << "\t"; )
     int 	edgeThreshold = im_width/20;   _orb_param( cout << "edgeThreshold=" << edgeThreshold << "\t"; )
     int 	firstLevel = 0;                _orb_param( cout << "firstLevel=" << firstLevel << "\t"; )
-    int 	WTA_K = 4;                     _orb_param( cout << "WTA_K=" << WTA_K << "\t"; )
-    int 	scoreType =   ORB::FAST_SCORE ; //ORB::HARRIS_SCORE;
-    int 	patchSize = 31; /*im_width/8;*/       _orb_param( cout << "patchSize=" << patchSize << "\t"; )
+    int 	WTA_K = 2;                     _orb_param( cout << "WTA_K=" << WTA_K << "\t"; )
+    int 	scoreType =  /* ORB::FAST_SCORE ; */ ORB::HARRIS_SCORE;
+    int 	patchSize = im_width/5;       _orb_param( cout << "patchSize=" << patchSize << "\t"; )
     float 	fastThreshold = 0;             _orb_param( cout << "fastThreshold=" << fastThreshold << "\t\n"; )
 
     #if 0
@@ -227,14 +227,32 @@ void StaticPointFeatureMatching::gms_point_feature_matches( const cv::Mat& imlef
 
     //
     // Point feature matching
-    cv::BFMatcher matcher(cv::NORM_HAMMING2); // TODO try FLANN matcher here.
     vector<cv::DMatch> matches_all, matches_gms;
+    #if 1
+    cv::BFMatcher matcher(cv::NORM_HAMMING2); // TODO try FLANN matcher here.
     ___StaticPointFeatureMatching__gms_point_feature_matches(timer.tic();)
     matcher.match(d1, d2, matches_all);
     ___StaticPointFeatureMatching__gms_point_feature_matches(
     std::cout << timer.toc_milli() << " : (ms) BFMatcher took (ms)\t";
     std::cout << "BFMatcher : npts = " << matches_all.size() << std::endl;
     )
+
+    #else
+    {
+        // FLAN actually takes a lot longer than bruteforce.
+        std::vector<std::vector<cv::DMatch>> matches;
+        cv::FlannBasedMatcher matcher(new cv::flann::LshIndexParams(12, 10, 2));
+
+        // Find 2 best matches for each descriptor to make later the second neighbor test.
+        matcher.knnMatch(d1, d2, matches, 2);
+
+        // Second neighbor ratio test. - no need of ratio test if using GMS
+        for (unsigned int i = 0; i < matches.size(); ++i) {
+            // if (matches[i][0].distance < matches[i][1].distance * RATIO)
+                matches_all.push_back(matches[i][0]);
+        }
+    }
+    #endif
 
 
     // gms_matcher

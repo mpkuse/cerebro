@@ -12,7 +12,7 @@
 
   <arg name="depth_width"         default="640"/>
   <arg name="depth_height"        default="480"/>
-  <arg name="enable_depth"        default="false"/>
+  <arg name="enable_depth"        default="true"/>
 
   <arg name="infra_width"        default="640"/>
   <arg name="infra_height"       default="480"/>
@@ -37,7 +37,7 @@
   <arg name="pointcloud_texture_index"  default="0"/>
 
   <arg name="enable_sync"               default="true"/>
-  <arg name="align_depth"               default="false"/>
+  <arg name="align_depth"               default="true"/>
 
   <arg name="filters"                   default=""/>
   <arg name="clip_distance"             default="-2"/>
@@ -48,7 +48,7 @@
   <arg name="topic_odom_in"             default="odom_in"/>
   <arg name="calib_odom_file"           default=""/>
   <arg name="publish_odom_tf"           default="true"/>
-  <arg name="allow_no_texture_points"   default="false  "/>
+  <arg name="allow_no_texture_points"   default="false"/>
   <rosparam>
     /camera/stereo_module/emitter_enabled: false
   </rosparam>
