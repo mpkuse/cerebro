@@ -1585,6 +1585,7 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i_lite( int i )
         storage << "depth_b" << depth_b;
         storage.release();
 
+        cout << TermColor::iWHITE() << "[Cerebro::compute_geometry_for_loop_hypothesis_i_lite] save input data in 3 files, one of which is " << fname_a << TermColor::RESET() << endl;
     }
     #endif
 
@@ -1595,6 +1596,9 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i_lite( int i )
     // StaticPointFeatureMatching::gms_point_feature_matches( left_image_a, left_image_b, uv_a, uv_b, 10000 );
     StaticPointFeatureMatching::gms_point_feature_matches_scaled( left_image_a, left_image_b, uv_a, uv_b, 0.5, 10000 );
     // StaticPointFeatureMatching::gms_point_feature_matches_scaled( left_image_a, left_image_b, uv_a, uv_b, 0.25 );
+
+    // refine and sparsified point matches.
+    // TODO
 
     auto im_correspondence_elapsed_time_ms = t_im_correspondence.toc_milli();
     cout << TermColor::TAB3() << TermColor::YELLOW() << "#matches=" << uv_a.cols() << TermColor::RESET() << "\t";
@@ -1747,6 +1751,8 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i_lite( int i )
 
     #endif //reprojection error
 
+
+
     #if 1
     cout << TermColor::bWHITE();
     cout << TermColor::TAB3() << "----------------------------------------------\n";
@@ -1768,7 +1774,16 @@ bool Cerebro::compute_geometry_for_loop_hypothesis_i_lite( int i )
         Matrix4d ref_T_curr_optvar; //ie. a_T_b
 
         ElapsedTime t_main_ea( "ealign.solve()");
+        #if 0 //make this to 1 to use 6DOF optimization, make this to 0 to use 4DOF optimization (4 DOF usually will work better)
+        // 6DOF EA optimization
         bool ea_status = ealign.solve( initial_guess____ref_T_curr, ref_T_curr_optvar );
+        #else
+        // 4DOF EA optimization. Uses pitch and roll from vio, yaw, tx, ty, tz from initial_guess____ref_T_curr.
+        bool ea_status = ealign.solve4DOF(
+            initial_guess____ref_T_curr,
+            dataManager->getIMUCamExtrinsic(), w_T_a, w_T_b,
+            ref_T_curr_optvar );
+        #endif
         a_T_b = ref_T_curr_optvar;
 
         cout << TermColor::TAB3() << "ea_status=" << ea_status << "\t" ;

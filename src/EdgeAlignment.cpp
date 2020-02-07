@@ -128,7 +128,11 @@ bool EdgeAlignment::solve( const Matrix4d& initial_guess____ref_T_curr, Matrix4d
     {
         // ceres::CostFunction * cost_function = EAResidue::Create( K, a_X.col(i), interpolated_imb_disTrans);
 
-        ceres::CostFunction * cost_function = EAResidue::Create( fx,fy,cx,cy, cX(0,i),cX(1,i),cX(2,i), interpolated_imb_disTrans);
+        ceres::CostFunction * cost_function = EAResidue::Create(
+            fx,fy,cx,cy,
+            // cX(0,i),cX(1,i),cX(2,i),
+            cX.col(i),
+            interpolated_imb_disTrans);
         problem.AddResidualBlock( cost_function, robust_loss, ref_quat_curr, ref_t_curr );
 
         // note that this point was used for residue computation
@@ -145,13 +149,15 @@ bool EdgeAlignment::solve( const Matrix4d& initial_guess____ref_T_curr, Matrix4d
     // Run
     ceres::Solver::Options options;
     options.minimizer_progress_to_stdout = false;
+    // options.minimizer_progress_to_stdout = true;
+
 
     ElapsedTime t_easolver( "EAResidue Solver");
     __EdgeAlignment__solve_debug(options.minimizer_progress_to_stdout = false; );
     options.linear_solver_type = ceres::DENSE_QR;
     ceres::Solver::Summary summary;
     ceres::Solve( options, &problem, &summary );
-    __EdgeAlignment__solve_debug( std::cout << summary.FullReport() << "\n"; )
+    // std::cout << summary.FullReport() << endl;;
 
     __EdgeAlignment__solve_profiling( std::cout << summary.BriefReport() << endl;
     cout << TermColor::uGREEN() << t_easolver.toc() << TermColor::RESET() << endl; )
@@ -162,7 +168,7 @@ bool EdgeAlignment::solve( const Matrix4d& initial_guess____ref_T_curr, Matrix4d
     cout << "Initial Guess : " << PoseManipUtils::prettyprintMatrix4d( initial_guess____ref_T_curr ) << endl;
     cout << "Final Guess : " << PoseManipUtils::prettyprintMatrix4d( ref_T_curr_optvar ) << endl; )
 
-    out_summary = summary; 
+    out_summary = summary;
 
     __EdgeAlignment__solve_imshow(
     MatrixXd ref_uv_final = reproject( cX, ref_T_curr_optvar );
@@ -306,6 +312,376 @@ bool EdgeAlignment::solve( const Matrix4d& initial_guess____ref_T_curr, Matrix4d
 
 }
 
+// #define __EdgeAlignment__solve4DOF( msg ) msg;
+#define __EdgeAlignment__solve4DOF( msg ) ;
+bool EdgeAlignment::solve4DOF( const Matrix4d& initial_guess____ref_T_curr,
+    const Matrix4d& imu_T_cam, const Matrix4d& vio_w_T_ref, const Matrix4d& vio_w_T_curr,
+    Matrix4d& optimized__ref_T_curr  )
+{
+    //----- distance transform will be made with edgemap of reference image
+    cv::Mat disTrans, edge_map;
+    get_distance_transform( im_ref, disTrans, edge_map );
+    Eigen::MatrixXd e_disTrans;
+    cv::cv2eigen( disTrans, e_disTrans );
+
+    // cv::imshow( "edge_map of ref image", edge_map );
+
+
+
+
+    //---- 3d points of current represented in curr-camera frame-of-ref
+    cv::Mat im_curr_edgemap, im_curr_selected_pts_edgemap;
+    // MatrixXd im_curr_uv;
+    MatrixXd cX = get_cX_at_edge_pts( im_curr, depth_curr, im_curr_edgemap, im_curr_selected_pts_edgemap ); //cX will be 4xN
+    // cout << "cX.shape=" << cX.rows() << "x" << cX.cols() << endl;
+
+
+    //----
+    //---- Setup optimization problem
+    //----
+
+    //--make grid
+    ceres::Grid2D<double,1> grid( e_disTrans.data(), 0, e_disTrans.cols(), 0, e_disTrans.rows() );
+    ceres::BiCubicInterpolator< ceres::Grid2D<double,1> > interpolated_imb_disTrans( grid );
+
+
+    //--optimization variables
+    //  rel_yaw of imu, rel_tx of imu, rel_ty of imu
+    double refimu_ypr_currimu[3], refimu_tr_currimu[3]; //only yaw and tx,ty,tz are optimization variables
+
+    //--set opt variables to values
+    //      i) yaw, tx, ty, tz from initial guess; ii) pitch and roll from vio
+    Matrix4d initial_guess____refimu_T_currimu =  imu_T_cam * initial_guess____ref_T_curr * imu_T_cam.inverse();
+    Matrix4d vio_ref_T_curr =  vio_w_T_ref.inverse() * vio_w_T_curr;
+    Matrix4d vio_refimu_T_currimu = imu_T_cam * vio_w_T_ref.inverse() * vio_w_T_curr * imu_T_cam.inverse();
+
+    {
+        //i)
+        // yaw, tx, ty, tz from initial guess;
+        double _tmp_ypr[3], _tmp_tr[3];
+        PoseManipUtils::eigenmat_to_rawyprt( initial_guess____refimu_T_currimu,  _tmp_ypr, _tmp_tr );
+        refimu_ypr_currimu[0] = _tmp_ypr[0];
+        refimu_tr_currimu[0] = _tmp_tr[0];
+        refimu_tr_currimu[1] = _tmp_tr[1];
+        refimu_tr_currimu[2] = _tmp_tr[2];
+
+    }
+
+
+    {
+        //ii)
+        // pitch and roll from vio
+        double _tmp_ypr[3], _tmp_tr[3];
+        PoseManipUtils::eigenmat_to_rawyprt( vio_refimu_T_currimu,  _tmp_ypr, _tmp_tr );
+        refimu_ypr_currimu[1] = _tmp_ypr[1];
+        refimu_ypr_currimu[2] = _tmp_ypr[2];
+    }
+
+    __EdgeAlignment__solve4DOF(
+    cout << "[solve4DOF]refimu_ypr_currimu: ";
+    cout << "ypr=" << refimu_ypr_currimu[0] <<"," << refimu_ypr_currimu[1] <<", " <<  refimu_ypr_currimu[2] <<"\t";
+    cout << "t=" << refimu_tr_currimu[0] <<"," << refimu_tr_currimu[1] <<"," << refimu_tr_currimu[2] <<"\t";
+    cout << endl;
+    )
+
+
+    //-- camera params (needed for reprojection as grid is indexed by image co-ordinates)
+    std::vector<double> parameterVec;
+    cam->writeParameters( parameterVec );
+    double fx=parameterVec.at(4);
+    double fy=parameterVec.at(5);
+    double cx=parameterVec.at(6);
+    double cy=parameterVec.at(7);
+    __EdgeAlignment__solve4DOF(
+    cout << "[solve4DOF]";
+    cout << "fx=" << fx << "\t";
+    cout << "fy=" << fy << "\t";
+    cout << "cx=" << cx << "\t";
+    cout << "cy=" << cy << "\n";
+    )
+
+
+
+
+    cv::Mat rep_im_3;
+    if( this->make_representation_image )
+    {
+        // plot on im_ref <--- PI( initial_guess * cX )
+        Matrix4d _tmp;
+        // PoseManipUtils::rawyprt_to_eigenmat( refimu_ypr_currimu, refimu_tr_currimu, _tmp  );
+        rawyprt_to_eigenmat( refimu_ypr_currimu[0], refimu_ypr_currimu[1],  refimu_ypr_currimu[2],
+                            refimu_tr_currimu[0], refimu_tr_currimu[1], refimu_tr_currimu[2],
+                            _tmp
+                        );
+        Matrix4d touse__ref_T_curr = imu_T_cam.inverse() * _tmp * imu_T_cam;
+        __EdgeAlignment__solve4DOF(
+            cout << "[solve4DOFtouse__ref_T_curr:  " << PoseManipUtils::prettyprintMatrix4d( touse__ref_T_curr ) << endl;
+        )
+        MatrixXd ref_uv = reproject( cX, touse__ref_T_curr );
+        cv::Mat dst;
+        MiscUtils::plot_point_sets( im_ref, ref_uv, dst, cv::Scalar(0,0,255), false );
+
+        stringstream buffer;
+        buffer << "^^^im_ref;reprojecting 3d pts of im_curr on im_ref;  using initial guess of rel-pose;";
+        buffer << "  y,tx,ty,tz are optvars init from guess; pitch,roll from vio_refimu_T_currimu;";
+
+        string tmp_str_a = PoseManipUtils::prettyprintMatrix4d(touse__ref_T_curr);
+        std::replace( tmp_str_a.begin(), tmp_str_a.end(), ':', ';');
+        buffer << ";touse__ref_T_curr=" << tmp_str_a << ";";
+
+        string tmp_str_b = PoseManipUtils::prettyprintMatrix4d(_tmp);
+        std::replace( tmp_str_b.begin(), tmp_str_b.end(), ':', ';');
+        buffer << ";touse__refimu_T_currimu=" << tmp_str_b << ";";
+
+        MiscUtils::append_status_image( dst, buffer.str(), 1.0 );
+
+        // MiscUtils::append_status_image( dst, "touse__ref_T_curr="+PoseManipUtils::prettyprintMatrix4d(touse__ref_T_curr) );
+        // MiscUtils::append_status_image( dst, "touse__refimu_T_currimu="+PoseManipUtils::prettyprintMatrix4d(_tmp) );
+        // cv::imshow( "(before)reprojecting 3d pts of curr on ref using initial guess of rel-pose", dst );
+        // char key = cv::waitKey(0);
+
+        // exit(1);
+        cv::resize(dst, rep_im_3, cv::Size(), 0.5, 0.5 ); //selected edges
+    }
+
+
+
+
+
+    //-- residue terms
+    ceres::Problem problem;
+    auto robust_loss = new ceres::CauchyLoss(.1);
+    for( int i=0 ; i<cX.cols() ; i++ )
+    {
+        ceres::CostFunction * cost_function = EA4DOFResidue::Create(
+            fx,fy,cx,cy,
+            cX(0,i),cX(1,i),cX(2,i),
+            // cX.col(i),
+            interpolated_imb_disTrans,
+            refimu_ypr_currimu[1], refimu_ypr_currimu[2],
+            imu_T_cam, 1.0
+            );
+        problem.AddResidualBlock( cost_function, /*NULL*/ robust_loss, &refimu_ypr_currimu[0], &refimu_tr_currimu[0] );
+
+    }
+
+    //-- parameterization for angle (yaw)
+    ceres::LocalParameterization* angle_local_parameterization =
+                AngleLocalParameterization::Create();
+    problem.SetParameterization( &refimu_ypr_currimu[0], angle_local_parameterization );
+
+
+
+
+    //-- Solve
+    ceres::Solver::Options options;
+    options.minimizer_progress_to_stdout = false;
+    options.linear_solver_type = ceres::DENSE_QR;
+    ceres::Solver::Summary summary;
+    ceres::Solve( options, &problem, &summary );
+    // std::cout << summary.FullReport();
+    __EdgeAlignment__solve4DOF( std::cout << "[solve4DOF]" << summary.BriefReport() << endl; );
+
+    out_summary = summary;
+
+
+    //-- retrive solution
+    Matrix4d out_refimu_T_currimu;
+    // PoseManipUtils::rawyprt_to_eigenmat( refimu_ypr_currimu, refimu_tr_currimu, _tmp  );
+    rawyprt_to_eigenmat( refimu_ypr_currimu[0], refimu_ypr_currimu[1],  refimu_ypr_currimu[2],
+                        refimu_tr_currimu[0], refimu_tr_currimu[1], refimu_tr_currimu[2],
+                        out_refimu_T_currimu
+                    );
+    optimized__ref_T_curr = imu_T_cam.inverse() * out_refimu_T_currimu * imu_T_cam; //output
+
+
+
+
+    //...DONE
+
+    // plottting
+    if( this->make_representation_image )
+    {
+        cout << TermColor::iWHITE() << "[EdgeAlignment::solve4DOF] You asked to be make debug image. For production runs disable this\n" << TermColor::RESET();
+
+        // [ CURR ]
+        // [ REF with edgepts of curr with initial_guess____ref_T_curr ]
+        // [ REF with edgepts of curr with ref_T_curr_optvar ]
+
+        //
+        // [CURR]
+        //
+        cv::Mat im_curr_resized_1, im_curr_resized;
+        cv::resize(im_curr, im_curr_resized_1, cv::Size(), 0.5, 0.5 );
+
+        cv::Mat im_curr_edgemap_resized, im_curr_selected_pts_edgemap_resized ;
+        cv::resize(im_curr_edgemap, im_curr_edgemap_resized, cv::Size(), 0.5, 0.5 ); // all edges
+        cv::resize(im_curr_selected_pts_edgemap, im_curr_selected_pts_edgemap_resized, cv::Size(), 0.5, 0.5 ); //selected edges
+
+
+        MiscUtils::mask_overlay( im_curr_resized_1, im_curr_edgemap_resized, im_curr_resized, cv::Scalar(0,255,255) );
+        MiscUtils::mask_overlay( im_curr_resized, im_curr_selected_pts_edgemap_resized, cv::Scalar(0,0,255) );
+        MiscUtils::append_status_image( im_curr_resized, "^^im_curr; all edge-pts in yellow; selected edge-pts ("+ to_string(cX.cols()) +") in red", 0.5  );
+
+
+        string string____vio_refimu_T_currimu = PoseManipUtils::prettyprintMatrix4d( vio_refimu_T_currimu );
+        std::replace( string____vio_refimu_T_currimu.begin(), string____vio_refimu_T_currimu.end(), ':', ';');
+        MiscUtils::append_status_image( im_curr_resized, "vio_refimu_T_currimu="+string____vio_refimu_T_currimu, 0.5  );
+
+
+
+
+        //
+        // [ REF with edgepts of curr with initial_guess____ref_T_curr ]
+        //
+        MatrixXd ref_uv = reproject( cX, initial_guess____ref_T_curr );
+        cv::Mat dst_2;
+        MiscUtils::plot_point_sets( im_ref, ref_uv, dst_2, cv::Scalar(0,0,255), false, "" );
+
+
+
+        // reproject in blue using the odometry
+        MatrixXd ref_uv_using_odom = reproject( cX, vio_ref_T_curr );
+        MiscUtils::plot_point_sets( dst_2, ref_uv_using_odom, cv::Scalar(255,0,0), false, "" );
+        MiscUtils::append_status_image( dst_2, "in blue, reproject cX using vio_ref_T_curr", 1.0);
+
+
+
+
+        string initial_pose_str = PoseManipUtils::prettyprintMatrix4d(initial_guess____ref_T_curr);
+        std::replace( initial_pose_str.begin(), initial_pose_str.end(), ':', ';');
+
+        string initial_pose_str_imuframe = PoseManipUtils::prettyprintMatrix4d( initial_guess____refimu_T_currimu );
+        std::replace( initial_pose_str_imuframe.begin(), initial_pose_str_imuframe.end(), ':', ';');
+
+        MiscUtils::append_status_image( dst_2, "^^^im_ref;reprojecting 3d pts of im_curr on im_ref;   using initial guess of rel-pose;;initial_guess____ref_T_curr="+initial_pose_str+";;initial_guess____refimu_T_currimu="+initial_pose_str_imuframe, 1.0 );
+
+
+
+
+        cv::Mat dst_2_resized;
+        cv::resize(dst_2, dst_2_resized, cv::Size(), 0.5, 0.5 );
+
+
+        //
+        // [REF with input used for the 4DOF optimization, ie pitch and roll from vio, yaw, tx,ty,tz from initial guess]
+        //          done before setting up the optimization variable, result in `rep_im_3`
+
+
+
+        //
+        // [REF after 4DOF optimization]
+        Matrix4d _tmp;
+        cv::Mat rep_image_4;
+        // PoseManipUtils::rawyprt_to_eigenmat( refimu_ypr_currimu, refimu_tr_currimu, _tmp  );
+        rawyprt_to_eigenmat( refimu_ypr_currimu[0], refimu_ypr_currimu[1],  refimu_ypr_currimu[2],
+                            refimu_tr_currimu[0], refimu_tr_currimu[1], refimu_tr_currimu[2],
+                            _tmp
+                        );
+        Matrix4d touse__ref_T_curr = imu_T_cam.inverse() * _tmp * imu_T_cam;
+        // cout << "touse__ref_T_curr:  " << PoseManipUtils::prettyprintMatrix4d( touse__ref_T_curr ) << endl;
+        // MatrixXd
+        ref_uv = reproject( cX, touse__ref_T_curr );
+        cv::Mat dst;
+        MiscUtils::plot_point_sets( im_ref, ref_uv, dst, cv::Scalar(0,0,255), false );
+
+        stringstream buffer;
+        buffer << "^^^im_ref;reprojecting 3d pts of im_curr on im_ref; after 4DOF optimization;";
+
+
+        string brief_report = summary.BriefReport();
+        std::replace( brief_report.begin(), brief_report.end(), ',', ';');
+        buffer << ";" << brief_report << ";";
+
+        string string____touse__ref_T_curr = PoseManipUtils::prettyprintMatrix4d(touse__ref_T_curr) ;
+        std::replace( string____touse__ref_T_curr.begin(), string____touse__ref_T_curr.end(), ':', ';');
+        buffer << ";touse__ref_T_curr(final output)="+string____touse__ref_T_curr << ";";
+
+        string string____touse__refimu_T_currimu = PoseManipUtils::prettyprintMatrix4d(_tmp) ;
+        std::replace( string____touse__refimu_T_currimu.begin(), string____touse__refimu_T_currimu.end(), ':', ';');
+        buffer << ";touse__refimu_T_currimu="+string____touse__refimu_T_currimu<< ";";
+        MiscUtils::append_status_image( dst, buffer.str() , 1.0 );
+
+        // MiscUtils::append_status_image( dst, "^^^im_ref;reprojecting 3d pts of im_curr on im_ref using initial guess of rel-pose;");
+        // MiscUtils::append_status_image( dst, "touse__ref_T_curr="+PoseManipUtils::prettyprintMatrix4d(touse__ref_T_curr) );
+        // MiscUtils::append_status_image( dst, "touse__refimu_T_currimu="+PoseManipUtils::prettyprintMatrix4d(_tmp) );
+        // cv::imshow( "(after)reprojecting 3d pts of curr on ref using initial guess of rel-pose", dst );
+        // char key = cv::waitKey(0);
+        cv::resize(dst, rep_image_4, cv::Size(), 0.5, 0.5 ); //selected edges
+
+
+
+        // concatenate  [1 ; 2 ]
+        cv::Mat tmp_1_and_2;
+        MiscUtils::vertical_side_by_side( im_curr_resized, dst_2_resized, tmp_1_and_2 );
+
+
+        // concatenate [ 3 ; 4]
+        cv::Mat tmp_3_and_4;
+        MiscUtils::vertical_side_by_side( rep_im_3, rep_image_4, tmp_3_and_4 );
+
+
+        //  [ 1_and_2 , 3_and_4]
+        cv::Mat _4_x_4_;
+        if( tmp_1_and_2.rows > tmp_3_and_4.rows )
+        {
+            int diff = tmp_1_and_2.rows - tmp_3_and_4.rows;
+            cv::Mat padding = cv::Mat::zeros( diff, tmp_3_and_4.cols, tmp_3_and_4.type() );
+
+            cv::Mat _padded_3_and_4;
+            MiscUtils::vertical_side_by_side( tmp_3_and_4, padding, _padded_3_and_4 );
+
+            MiscUtils::side_by_side( tmp_1_and_2, _padded_3_and_4 , _4_x_4_);
+        }
+
+        if( tmp_1_and_2.rows < tmp_3_and_4.rows )
+        {
+            int diff = - tmp_1_and_2.rows + tmp_3_and_4.rows;
+            cv::Mat padding = cv::Mat::zeros( diff, tmp_1_and_2.cols, tmp_1_and_2.type() );
+
+            cv::Mat _padded_1_and_2;
+            MiscUtils::vertical_side_by_side( tmp_1_and_2, padding, _padded_1_and_2 );
+
+            MiscUtils::side_by_side( _padded_1_and_2, tmp_3_and_4, _4_x_4_ );
+        }
+
+        if( tmp_1_and_2.rows == tmp_3_and_4.rows )
+        {
+            MiscUtils::side_by_side( tmp_1_and_2, tmp_3_and_4, _4_x_4_ );
+
+        }
+
+        //
+        // cv::imshow( "1 and 2", tmp_1_and_2 );
+        // cv::imshow( "3 and 4", tmp_3_and_4 );
+        // cv::imshow( "4x4", _4_x_4_ );
+        // cv::waitKey(0);
+
+
+        // MiscUtils::imshow( "edge_map of ref image", edge_map , 0.5);
+        // MiscUtils::imshow( "edge_map of curr image", im_curr_edgemap, 0.5 );
+
+
+
+        // finally,
+        this->representation_image = _4_x_4_;
+        this->is_representation_image_ready = true;
+
+    }
+
+
+
+    // Will give true for CONVERGED, NO_CONVERGE. Will only give false for FAIL . This is less strict
+    #if 0
+    // return summary.IsSolutionUsable();
+    #else
+    if( summary.termination_type == ceres::TerminationType::CONVERGENCE )
+        return true;
+    else return false;
+    #endif
+
+
+}
 
 
 //utils
@@ -325,7 +701,11 @@ void EdgeAlignment::get_distance_transform( const cv::Mat& input, cv::Mat& out_d
     //
 
     cv::Mat _blur, _gray;
+    #if 0
     cv::GaussianBlur( input, _blur, cv::Size(3,3), 0, 0, cv::BORDER_DEFAULT );
+    #else
+    _blur = input;
+    #endif
     if( _blur.channels() == 1 )
         _gray = _blur;
     else
@@ -373,7 +753,8 @@ void EdgeAlignment::get_distance_transform( const cv::Mat& input, cv::Mat& out_d
     dst = cv::Scalar::all(0);
 
     _blur.copyTo( dst, detected_edges);
-    out_edge_map = dst;
+    // out_edge_map = dst;
+    out_edge_map = detected_edges;
 
 
     get_distance_transform_debug( cv::imshow( "edge map", dst ); )
